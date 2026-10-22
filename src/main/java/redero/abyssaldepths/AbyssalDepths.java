@@ -93,7 +93,7 @@ public class AbyssalDepths {
     public static final DeferredBlock<Block> THALAN_DIAMOND_ORE = ore("thalan_diamond_ore", Blocks.DEEPSLATE_DIAMOND_ORE,
             p -> new DropExperienceBlock(UniformInt.of(3, 7), p));
 
-    /** Blobs in the deepslate layer like tuff (data/abyssaldepths/worldgen). */
+    /** Blobs in the thalan layer, generated like tuff (data/abyssaldepths/worldgen). */
     public static final DeferredBlock<Block> SHALE = BLOCKS.registerSimpleBlock("shale",
             BlockBehaviour.Properties.ofFullCopy(Blocks.TUFF).mapColor(MapColor.COLOR_GRAY));
     public static final DeferredItem<BlockItem> SHALE_ITEM = ITEMS.registerSimpleBlockItem(SHALE);

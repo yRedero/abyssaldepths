@@ -16,9 +16,10 @@ import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConf
 /**
  * Carves the {@link TunnelLayer} into the chunk the feature is placed for. It runs once per
  * chunk (empty placement list) in the raw_generation step, before ores and other decoration.
- * Only the 16x16 columns of the origin chunk are carved. Lava next to the new air (ends of vanilla
- * lava tunnels reaching down into the layer) is turned into magma so it does not pour into the
- * cavern; that may touch blocks of the neighbouring chunks, which the region allows.
+ * Only the 16x16 columns of the origin chunk are carved: the cavern and the connector tunnels, which
+ * reach up into the deepslate layer. Lava next to the new air (vanilla lava tunnels and lava
+ * aquifers the up-shafts cut through) is turned into magma so it does not pour into the cavern;
+ * that may touch blocks of the neighbouring chunks, which the region allows.
  */
 public class TunnelFeature extends Feature<NoneFeatureConfiguration> {
     private static final BlockState AIR = Blocks.AIR.defaultBlockState();
@@ -36,6 +37,7 @@ public class TunnelFeature extends Feature<NoneFeatureConfiguration> {
         final TunnelLayer.Column column = new TunnelLayer.Column();
         final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         final BlockPos.MutableBlockPos side = new BlockPos.MutableBlockPos();
+        final boolean[] connectors = layer.connectorMask(chunk.x, chunk.z);
 
         boolean placed = false;
         for (int dx = 0; dx < 16; dx++) {
@@ -43,8 +45,8 @@ public class TunnelFeature extends Feature<NoneFeatureConfiguration> {
                 final int x = chunk.getMinBlockX() + dx;
                 final int z = chunk.getMinBlockZ() + dz;
                 layer.column(x, z, column);
-                for (int y = TunnelLayer.MIN_AIR_Y; y <= TunnelLayer.MAX_AIR_Y; y++) {
-                    if (!layer.isAir(x, y, z, column)) {
+                for (int y = TunnelLayer.MIN_AIR_Y; y <= TunnelLayer.CONNECTOR_MAX_Y; y++) {
+                    if (!layer.isAir(x, y, z, column) && !connectors[TunnelLayer.maskIndex(dx, y, dz)]) {
                         continue;
                     }
                     pos.set(x, y, z);

@@ -16,7 +16,7 @@ import javax.imageio.ImageIO;
  * java -cp out redero.abyssaldepths.worldgen.TunnelLayerCheck [seed] [originX] [originZ] [size] [pngDir]
  * </pre>
  *
- * Flood-fills the walkable floor of the great cavern (spaghetti tunnels ignored, pillars count as
+ * Flood-fills the walkable floor of the great cavern (connector tunnels ignored, pillars count as
  * obstacles) and reports components, clearances and air shares. Exits with code 1 if a hard
  * requirement is violated.
  */
@@ -34,7 +34,7 @@ public final class TunnelLayerCheck {
 
         final TunnelLayer layer = new TunnelLayer(seed);
         final int[] floor = new int[size * size];  // walkable floor, NONE if rock or pillar
-        final int[] ceil = new int[size * size];   // last air block above the floor (without spaghetti)
+        final int[] ceil = new int[size * size];   // last air block above the floor (without connectors)
         final boolean[] open = new boolean[size * size]; // not rock or massif (pillars ignored)
         final AtomicLong rock = new AtomicLong(), pillar = new AtomicLong(), low = new AtomicLong();
         final AtomicInteger minFloor = new AtomicInteger(Integer.MAX_VALUE), maxFloor = new AtomicInteger(Integer.MIN_VALUE);
@@ -97,22 +97,30 @@ public final class TunnelLayerCheck {
         // highest air block and minimum clearance in full 3D on a sample
         final int sample = Math.min(size, 256);
         final AtomicInteger maxAir = new AtomicInteger(Integer.MIN_VALUE), minAir = new AtomicInteger(Integer.MAX_VALUE);
-        final AtomicLong spaghetti = new AtomicLong(), solid3d = new AtomicLong();
+        final AtomicLong tunnel = new AtomicLong(), solid3d = new AtomicLong();
+        final AtomicInteger tunnelMinY = new AtomicInteger(Integer.MAX_VALUE), tunnelMaxY = new AtomicInteger(Integer.MIN_VALUE);
         IntStream.range(0, sample).parallel().forEach(row -> {
             final TunnelLayer.Column c = new TunnelLayer.Column();
             for (int col = 0; col < sample; col++) {
                 final int x = ox + col, z = oz + row;
                 layer.column(x, z, c);
-                for (int y = TunnelLayer.BOTTOM_Y; y <= TunnelLayer.MAX_AIR_Y + 8; y++) {
-                    if (layer.isAir(x, y, z, c)) {
+                for (int y = TunnelLayer.BOTTOM_Y; y <= TunnelLayer.CONNECTOR_MAX_Y + 8; y++) {
+                    final boolean cavern = layer.isAir(x, y, z, c);
+                    final boolean connector = connectorAir(layer, x, y, z);
+                    if (cavern) {
                         maxAir.accumulateAndGet(y, Math::max);
                         if (y < TunnelLayer.MIN_AIR_Y) {
                             maxAir.set(Integer.MAX_VALUE); // bedrock touched
                         }
-                        if (!layer.cavernAir(x, y, z, c)) {
-                            spaghetti.incrementAndGet();
+                    }
+                    if (connector) {
+                        tunnelMinY.accumulateAndGet(y, Math::min);
+                        tunnelMaxY.accumulateAndGet(y, Math::max);
+                        if (!cavern) {
+                            tunnel.incrementAndGet();
                         }
-                    } else if (y >= TunnelLayer.MIN_AIR_Y && y <= TunnelLayer.MAX_AIR_Y) {
+                    }
+                    if (!cavern && !connector && y >= TunnelLayer.MIN_AIR_Y && y <= TunnelLayer.MAX_AIR_Y) {
                         solid3d.incrementAndGet();
                     }
                 }
@@ -173,14 +181,17 @@ public final class TunnelLayerCheck {
         System.out.printf("highest air block : %d (allowed <= %d)%n", maxAir.get(), TunnelLayer.MAX_AIR_Y);
         System.out.printf("min air height    : %d%n", minAir.get());
         System.out.printf("longest straight  : x %d, z %d blocks, mean %.0f (pillars ignored)%n", straightX, straightZ, meanRun);
-        System.out.printf("layer solid       : %.1f %%, spaghetti air: %.1f %% (3D sample %d^2)%n",
-                100.0 * solid3d.get() / layerBlocks, 100.0 * spaghetti.get() / layerBlocks, sample);
+        System.out.printf("layer solid       : %.1f %%, tunnel air: %.2f %% (3D sample %d^2)%n",
+                100.0 * solid3d.get() / layerBlocks, 100.0 * tunnel.get() / layerBlocks, sample);
+        System.out.printf("tunnel y range    : %d .. %d (allowed %d .. %d)%n", tunnelMinY.get(), tunnelMaxY.get(),
+                TunnelLayer.MIN_AIR_Y, TunnelLayer.CONNECTOR_MAX_Y);
         System.out.printf("components        : %d (largest %.3f %% of walkable), enclosed: %d (%.3f %%)%n", components,
                 100.0 * largest / walkable, enclosed, 100.0 * enclosedCols / walkable);
 
         final boolean ok = minFloor.get() >= TunnelLayer.MIN_FLOOR_Y && maxFloor.get() <= TunnelLayer.MAX_FLOOR_Y
                 // 2 only occurs below the flare of a pillar, walking there is covered by the flood fill
                 && maxAir.get() <= TunnelLayer.MAX_AIR_Y && minAir.get() >= 2
+                && (tunnelMinY.get() == Integer.MAX_VALUE || tunnelMinY.get() >= TunnelLayer.MIN_AIR_Y)
                 && enclosedCols <= MAX_ENCLOSED_SHARE * walkable;
         System.out.println(ok ? "RESULT: OK" : "RESULT: FAIL");
 
@@ -199,13 +210,29 @@ public final class TunnelLayerCheck {
         return Math.min(ceil[a], ceil[b]) >= top + 1;
     }
 
+    /** Connector mask of the last chunk asked for, per thread: the scans run row by row. */
+    private static final ThreadLocal<Object[]> LAST_MASK = ThreadLocal.withInitial(() -> new Object[] {Long.MIN_VALUE, null});
+
+    private static boolean connectorAir(TunnelLayer layer, int x, int y, int z) {
+        if (y < TunnelLayer.MIN_AIR_Y || y > TunnelLayer.CONNECTOR_MAX_Y) {
+            return false;
+        }
+        final Object[] last = LAST_MASK.get();
+        final long key = ((long) (x >> 4) << 32) | ((z >> 4) & 0xffffffffL);
+        if ((long) last[0] != key) {
+            last[0] = key;
+            last[1] = layer.connectorMask(x >> 4, z >> 4);
+        }
+        return ((boolean[]) last[1])[TunnelLayer.maskIndex(x & 15, y, z & 15)];
+    }
+
     private static void writePngs(TunnelLayer layer, File dir, long seed, int ox, int oz) throws Exception {
         dir.mkdirs();
         final int w = 1024;
-        final int lowY = TunnelLayer.MIN_FLOOR_Y, highY = TunnelLayer.MAX_AIR_Y;
+        final int lowY = TunnelLayer.MIN_FLOOR_Y;
 
         // top-down: brightness = air height of the cavern, tint = floor height,
-        // black = rock, dark red = pillar, blue = spaghetti below the floor
+        // black = rock, dark red = pillar, blue = connector tunnel
         final BufferedImage top = new BufferedImage(w, w, BufferedImage.TYPE_INT_RGB);
         IntStream.range(0, w).parallel().forEach(z -> {
             final TunnelLayer.Column c = new TunnelLayer.Column();
@@ -224,13 +251,13 @@ public final class TunnelLayerCheck {
                         final double t = (c.floor - TunnelLayer.MIN_FLOOR_Y)
                                 / (double) (TunnelLayer.MAX_FLOOR_Y - TunnelLayer.MIN_FLOOR_Y);
                         rgb = rgb(b * (150 + 105 * t), b * (200 - 30 * t), b * (150 - 100 * t));
-                        if (layer.spaghettiAir(bx, c.floor - 1, bz)) {
+                        if (connectorAir(layer, bx, c.floor, bz) || connectorAir(layer, bx, c.floor + air, bz)) {
                             rgb = 0x2050c0;
                         }
                     }
                 } else {
-                    for (int y = lowY; y <= highY; y += 3) {
-                        if (layer.spaghettiAir(bx, y, bz)) {
+                    for (int y = lowY; y <= TunnelLayer.CONNECTOR_MAX_Y; y += 2) {
+                        if (connectorAir(layer, bx, y, bz)) {
                             rgb = 0x203a80;
                             break;
                         }
@@ -242,7 +269,7 @@ public final class TunnelLayerCheck {
         ImageIO.write(top, "png", new File(dir, "topdown_" + seed + ".png"));
 
         // vertical cross-sections along z = oz + 512 and oz + 515
-        final int sy = 4, h = (TunnelLayer.MAX_AIR_Y + 4 - TunnelLayer.BOTTOM_Y + 1) * sy;
+        final int sy = 4, h = (TunnelLayer.CONNECTOR_MAX_Y + 4 - TunnelLayer.BOTTOM_Y + 1) * sy;
         for (final int dzs : new int[] {512, 700}) {
             final BufferedImage side = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
             final int bz = oz + dzs;
@@ -250,13 +277,13 @@ public final class TunnelLayerCheck {
                 final TunnelLayer.Column c = new TunnelLayer.Column();
                 layer.column(ox + x, bz, c);
                 for (int py = 0; py < h; py++) {
-                    final int y = TunnelLayer.MAX_AIR_Y + 4 - py / sy;
+                    final int y = TunnelLayer.CONNECTOR_MAX_Y + 4 - py / sy;
                     int rgb = 0x3a3a3a;
                     if (y == TunnelLayer.BOTTOM_Y) {
                         rgb = 0x000000;
                     } else if (layer.cavernAir(ox + x, y, bz, c) && y <= TunnelLayer.MAX_AIR_Y) {
                         rgb = 0xe8f0ff;
-                    } else if (layer.spaghettiAir(ox + x, y, bz)) {
+                    } else if (connectorAir(layer, ox + x, y, bz)) {
                         rgb = 0x8fb4ff;
                     }
                     side.setRGB(x, py, rgb);
@@ -275,7 +302,7 @@ public final class TunnelLayerCheck {
                     int rgb = 0x2a2a2a;
                     if (layer.cavernAir(ox + x, y, oz + z, c)) {
                         rgb = 0xe8f0ff;
-                    } else if (layer.spaghettiAir(ox + x, y, oz + z)) {
+                    } else if (connectorAir(layer, ox + x, y, oz + z)) {
                         rgb = 0x5f8fff;
                     }
                     slice.setRGB(x, z, rgb);

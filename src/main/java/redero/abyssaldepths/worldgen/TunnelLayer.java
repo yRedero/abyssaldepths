@@ -22,14 +22,16 @@ package redero.abyssaldepths.worldgen;
  * <li><b>Pillars:</b> one per cell of a jittered grid (most cells), slightly swaying, flared at
  * floor and ceiling like merged stalactites and stalagmites. Only in halls tall enough.</li>
  * <li><b>Ceiling:</b> stalactite clusters and 3D noise, so it is not a flat lid.</li>
- * <li><b>Spaghetti tunnels:</b> like the vanilla spaghetti caves: the tube where two 3D noises
- * are both close to zero. Sparse and widely spaced. They wind through the rock below the floor, above the
- * ceiling and through the rock masses, go up and down and break into the cavern here and there.</li>
+ * <li><b>Connector tunnels</b> (rare, see {@link #connectorMask}): up-shafts that wind from the
+ * cavern floor through the roof into the deepslate layer and end in a small chamber there, and
+ * passes straight through some of the bigger massifs, opening up the areas behind them.</li>
  * </ul>
  */
 public final class TunnelLayer {
     /** Lowest block of the world (bedrock). */
     public static final int BOTTOM_Y = -128;
+    /** Highest block of the thalan layer, the deepslate layer starts above. */
+    public static final int LAYER_TOP_Y = -65;
     /** Lowest block that can be air, keeps solid rock above the bedrock (which reaches up to y=-124). */
     public static final int MIN_AIR_Y = -120;
     /** Highest block that can be air, keeps a solid roof below the vanilla caves at y>=-64. */
@@ -91,21 +93,32 @@ public final class TunnelLayer {
     private static final double STALACTITE_MAX = 7.0;
     private static final double CEILING_WOBBLE_MAX = 3.0;
 
-    // spaghetti tunnels {xz scale, y scale, min radius, radius variation} in noise units
-    private static final double[][] SPAGHETTI = {
-            {130.0, 95.0, 0.040, 0.028},
-    };
-    private static final double SPAGHETTI_RADIUS_SCALE = 150.0;
-    private static final double SPAGHETTI_FADE = 5.0; // shrink tubes near the bottom and the roof
+    // connector tunnels (sizes in blocks)
+    /** Highest block a connector can carve (top of the chamber at the end of an up-shaft). */
+    public static final int CONNECTOR_MAX_Y = -26;
+    private static final double SHAFT_CELL = 176.0;      // at most one up-shaft per cell
+    private static final double SHAFT_CHANCE = 0.6;
+    private static final double SHAFT_LENGTH_MIN = 70.0; // horizontal, keeps the climb walkable-ish
+    private static final double SHAFT_LENGTH_VAR = 50.0;
+    private static final double SHAFT_TOP_MIN = -44.0;   // end chamber centre
+    private static final double SHAFT_TOP_VAR = 10.0;
+    private static final double SHAFT_CHAMBER = 4.0;
+    private static final double PASS_CHANCE = 0.4;       // share of the bigger massifs with a pass
+    private static final double PASS_MIN_MASSIF = 20.0;
+    private static final double TUNNEL_RADIUS = 2.1;
+    private static final double TUNNEL_RADIUS_VAR = 0.5;
+    private static final double TUNNEL_FLATTEN = 0.85;   // vertical radius relative to horizontal
 
     // salts for the individual noises
     private static final int S_FLOOR = 1, S_FLOOR_DETAIL = 2, S_HEIGHT = 3, S_ROCK = 4, S_ROCK_DETAIL = 5,
             S_ROCK_REGION = 6, S_PILLAR_ON = 7, S_PILLAR_X = 8, S_PILLAR_Z = 9, S_PILLAR_R = 10,
             S_PILLAR_SWAY_X = 11, S_PILLAR_SWAY_Z = 12, S_PILLAR_WOBBLE = 13, S_STALACTITE = 14,
             S_STALACTITE_AMP = 15, S_CEILING = 16, S_MASSIF_ON = 17,
-            S_MASSIF_X = 18, S_MASSIF_Z = 19, S_MASSIF_R = 20, S_MASSIF_WOBBLE = 21, S_SPAGHETTI = 22; // 22.. 22 + 3 * SPAGHETTI.length
+            S_MASSIF_X = 18, S_MASSIF_Z = 19, S_MASSIF_R = 20, S_MASSIF_WOBBLE = 21, S_SHAFT_ON = 22,
+            S_SHAFT_X = 23, S_SHAFT_Z = 24, S_SHAFT_DIR = 25, S_SHAFT_LEN = 26, S_SHAFT_TOP = 27,
+            S_TUNNEL_WAVE = 28, S_TUNNEL_AMP = 29, S_PASS_ON = 30, S_PASS_DIR = 31, SALTS = 32;
 
-    private final long[] salted = new long[S_SPAGHETTI + 3 * SPAGHETTI.length];
+    private final long[] salted = new long[SALTS];
 
     public TunnelLayer(long seed) {
         for (int i = 0; i < salted.length; i++) {
@@ -235,42 +248,114 @@ public final class TunnelLayer {
         return false;
     }
 
-    /** Whether the block is air in one of the spaghetti tunnels. */
-    public boolean spaghettiAir(int blockX, int y, int blockZ) {
-        if (y < MIN_AIR_Y || y > MAX_AIR_Y) {
-            return false;
-        }
-        final double px = blockX + 0.5;
-        final double py = y + 0.5;
-        final double pz = blockZ + 0.5;
-        final double fade = clamp01((py - MIN_AIR_Y) / SPAGHETTI_FADE) * clamp01((MAX_AIR_Y + 1 - py) / SPAGHETTI_FADE);
-        if (fade <= 0.0) {
-            return false;
-        }
-        for (int i = 0; i < SPAGHETTI.length; i++) {
-            final double[] s = SPAGHETTI[i];
-            final int salt = S_SPAGHETTI + 3 * i;
-            final double width = 0.5 + 0.5 * clampSigned(1.8 * perlin(px / SPAGHETTI_RADIUS_SCALE, py / 60.0,
-                    pz / SPAGHETTI_RADIUS_SCALE, salt + 2));
-            final double radius = (s[2] + s[3] * width) * Math.sqrt(fade);
-            final double a = perlin(px / s[0], py / s[1], pz / s[0], salt);
-            if (Math.abs(a) >= radius) {
-                continue;
-            }
-            final double b = perlin(px / s[0], py / s[1], pz / s[0], salt + 1);
-            if (a * a + b * b < radius * radius) {
-                return true;
-            }
-        }
-        return false;
+    /** Whether the block is air in the great cavern, connectors not included. {@code col} must be filled for (x, z). */
+    public boolean isAir(int blockX, int y, int blockZ, Column col) {
+        return y >= MIN_AIR_Y && y <= MAX_AIR_Y && cavernAir(blockX, y, blockZ, col);
     }
 
-    /** Full query. {@code col} must be filled for (x, z) by {@link #column}. */
-    public boolean isAir(int blockX, int y, int blockZ, Column col) {
-        if (y < MIN_AIR_Y || y > MAX_AIR_Y) {
-            return false;
+    // ---- connector tunnels ----------------------------------------------------------------
+
+    /** Index into a {@link #connectorMask}, y from {@link #MIN_AIR_Y} to {@link #CONNECTOR_MAX_Y}. */
+    public static int maskIndex(int dx, int y, int dz) {
+        return ((y - MIN_AIR_Y) * 16 + dz) * 16 + dx;
+    }
+
+    /**
+     * Air of the connector tunnels inside one chunk. Each tunnel is a chain of ellipsoids along a
+     * winding path; only the tunnels starting in the grid cells around the chunk can reach it.
+     */
+    public boolean[] connectorMask(int chunkX, int chunkZ) {
+        final boolean[] mask = new boolean[(CONNECTOR_MAX_Y - MIN_AIR_Y + 1) * 256];
+        final int x0 = chunkX << 4, z0 = chunkZ << 4;
+        final Column col = new Column();
+
+        // up-shafts: from the cavern floor through the roof into the deepslate layer
+        final int scx = (int) Math.floor((x0 + 8) / SHAFT_CELL);
+        final int scz = (int) Math.floor((z0 + 8) / SHAFT_CELL);
+        for (int gz = scz - 1; gz <= scz + 1; gz++) {
+            for (int gx = scx - 1; gx <= scx + 1; gx++) {
+                if (unit(hash(gx, gz, S_SHAFT_ON)) >= SHAFT_CHANCE) {
+                    continue;
+                }
+                final double sx = (gx + 0.15 + 0.7 * unit(hash(gx, gz, S_SHAFT_X))) * SHAFT_CELL;
+                final double sz = (gz + 0.15 + 0.7 * unit(hash(gx, gz, S_SHAFT_Z))) * SHAFT_CELL;
+                if (!column((int) Math.floor(sx), (int) Math.floor(sz), col)) {
+                    continue; // must start in the open cavern
+                }
+                final double angle = 2.0 * Math.PI * unit(hash(gx, gz, S_SHAFT_DIR));
+                final double len = SHAFT_LENGTH_MIN + SHAFT_LENGTH_VAR * unit(hash(gx, gz, S_SHAFT_LEN));
+                final double top = SHAFT_TOP_MIN + SHAFT_TOP_VAR * unit(hash(gx, gz, S_SHAFT_TOP));
+                final double ex = sx + Math.cos(angle) * len, ez = sz + Math.sin(angle) * len;
+                tunnel(mask, x0, z0, sx, col.floor + 1.8, sz, ex, top, ez,
+                        hash(gx, gz, S_TUNNEL_WAVE), 5.0 + 7.0 * unit(hash(gx, gz, S_TUNNEL_AMP)));
+                ellipsoid(mask, x0, z0, ex, top, ez, SHAFT_CHAMBER);
+            }
         }
-        return cavernAir(blockX, y, blockZ, col) || spaghettiAir(blockX, y, blockZ);
+
+        // passes through the bigger massifs, at floor height on both sides
+        final int mcx = (int) Math.floor((x0 + 8) / MASSIF_CELL);
+        final int mcz = (int) Math.floor((z0 + 8) / MASSIF_CELL);
+        for (int gz = mcz - 1; gz <= mcz + 1; gz++) {
+            for (int gx = mcx - 1; gx <= mcx + 1; gx++) {
+                if (!massifExists(gx, gz) || unit(hash(gx, gz, S_PASS_ON)) >= PASS_CHANCE) {
+                    continue;
+                }
+                final double r = massifRadiusFitted(gx, gz);
+                if (r < PASS_MIN_MASSIF) {
+                    continue;
+                }
+                final double angle = 2.0 * Math.PI * unit(hash(gx, gz, S_PASS_DIR));
+                final double half = r * (1.0 + MASSIF_WOBBLE) + MASSIF_EDGE;
+                final double mx = massifX(gx, gz), mz = massifZ(gx, gz);
+                final double ax = mx - Math.cos(angle) * half, az = mz - Math.sin(angle) * half;
+                final double bx = mx + Math.cos(angle) * half, bz = mz + Math.sin(angle) * half;
+                tunnel(mask, x0, z0, ax, floorY(ax, az) + 1.8, az, bx, floorY(bx, bz) + 1.8, bz,
+                        hash(gx, gz, S_TUNNEL_WAVE), 3.0);
+            }
+        }
+        return mask;
+    }
+
+    /** Winding tunnel from a to b: whole sine waves to the side, so both ends stay where they are. */
+    private void tunnel(boolean[] mask, int x0, int z0, double ax, double ay, double az, double bx, double by, double bz,
+            long key, double amp) {
+        final double dx = bx - ax, dz = bz - az;
+        final double len = Math.sqrt(dx * dx + dz * dz);
+        // cheap reject: the tunnel can not come near the chunk
+        final double reach = amp + TUNNEL_RADIUS + TUNNEL_RADIUS_VAR + 1.0;
+        if (Math.max(ax, bx) + reach < x0 || Math.min(ax, bx) - reach > x0 + 15
+                || Math.max(az, bz) + reach < z0 || Math.min(az, bz) - reach > z0 + 15) {
+            return;
+        }
+        final double px = -dz / len, pz = dx / len; // sideways
+        final int waves = 1 + (int) (2.0 * unit(key));
+        final double phase = 2.0 * Math.PI * unit(mix(key));
+        final int steps = (int) Math.ceil(Math.hypot(len, by - ay) / 0.6) + 1;
+        for (int i = 0; i <= steps; i++) {
+            final double t = i / (double) steps;
+            final double side = amp * Math.sin(Math.PI * waves * t);
+            final double r = TUNNEL_RADIUS + TUNNEL_RADIUS_VAR * Math.sin(7.0 * t + phase);
+            ellipsoid(mask, x0, z0, ax + dx * t + px * side, ay + (by - ay) * t, az + dz * t + pz * side, r);
+        }
+    }
+
+    private static void ellipsoid(boolean[] mask, int x0, int z0, double cx, double cy, double cz, double r) {
+        final double ry = r * TUNNEL_FLATTEN;
+        final int minX = Math.max(x0, (int) Math.floor(cx - r)), maxX = Math.min(x0 + 15, (int) Math.floor(cx + r));
+        final int minZ = Math.max(z0, (int) Math.floor(cz - r)), maxZ = Math.min(z0 + 15, (int) Math.floor(cz + r));
+        final int minY = Math.max(MIN_AIR_Y, (int) Math.floor(cy - ry)), maxY = Math.min(CONNECTOR_MAX_Y, (int) Math.floor(cy + ry));
+        for (int y = minY; y <= maxY; y++) {
+            final double ny = (y + 0.5 - cy) / ry;
+            for (int z = minZ; z <= maxZ; z++) {
+                final double nz = (z + 0.5 - cz) / r;
+                for (int x = minX; x <= maxX; x++) {
+                    final double nx = (x + 0.5 - cx) / r;
+                    if (nx * nx + ny * ny + nz * nz <= 1.0) {
+                        mask[maskIndex(x - x0, y, z - z0)] = true;
+                    }
+                }
+            }
+        }
     }
 
     /** Air height of the cavern at a position before ceiling details, below EDGE_AIR = solid rock. */

@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "redero.abyssaldepths.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "MineshaftStructureMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
