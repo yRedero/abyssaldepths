@@ -63,6 +63,8 @@ public class AbyssalDepths {
     // ambience of the thalan layer, files in assets/abyssaldepths/sounds.json
     public static final DeferredHolder<SoundEvent, SoundEvent> AMBIENT_LOOP = sound("ambient.thalan_layer.loop");
     public static final DeferredHolder<SoundEvent, SoundEvent> AMBIENT_DRIP = sound("ambient.thalan_layer.drip");
+    /** Ear ringing of Deep Pressure from stage 3 on. */
+    public static final DeferredHolder<SoundEvent, SoundEvent> PRESSURE_RINGING = sound("effect.deep_pressure.ringing");
 
     /** Carves the tunnel layer. Added to all overworld biomes by data/abyssaldepths/neoforge/biome_modifier. */
     public static final DeferredHolder<Feature<?>, TunnelFeature> TUNNEL_LAYER =

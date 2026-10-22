@@ -72,5 +72,14 @@
         "volume": 0.18
       }
     ]
+  },
+  "effect.deep_pressure.ringing": {
+    "sounds": [
+      {
+        "name": "minecraft:block/beacon/ambient",
+        "volume": 0.6,
+        "pitch": 2.0
+      }
+    ]
   }
 }
