@@ -1,6 +1,7 @@
 {
-  "parent": "minecraft:block/cube_all",
+  "parent": "minecraft:block/cube_column",
   "textures": {
-    "all": "abyssaldepths:block/thalan"
+    "end": "abyssaldepths:block/thalan_top",
+    "side": "abyssaldepths:block/thalan"
   }
 }

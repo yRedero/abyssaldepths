@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "abyssaldepths:block/cracked_thalan_tiles"
+  }
+}

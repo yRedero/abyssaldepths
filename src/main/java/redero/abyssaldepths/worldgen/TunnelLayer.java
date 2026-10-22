@@ -15,6 +15,10 @@ package redero.abyssaldepths.worldgen;
  * <li><b>Rock masses:</b> blobs of solid rock where the ceiling comes down to the floor. Their
  * share changes by region (open plains vs. areas with narrow passages between the rock), but it
  * stays well below the percolation threshold, so they never wall off part of the cavern.</li>
+ * <li><b>Massifs:</b> big solid rock blobs, one per cell of a jittered grid (most cells). The
+ * jitter is large, so there are no straight corridors along the grid lines. Two massifs never
+ * come closer than a corridor width, so they are islands and the cavern stays connected: you can
+ * walk on forever, just not in a straight line.</li>
  * <li><b>Pillars:</b> one per cell of a jittered grid (most cells), slightly swaying, flared at
  * floor and ceiling like merged stalactites and stalagmites. Only in halls tall enough.</li>
  * <li><b>Ceiling:</b> stalactite clusters and 3D noise, so it is not a flat lid.</li>
@@ -26,18 +30,18 @@ package redero.abyssaldepths.worldgen;
 public final class TunnelLayer {
     /** Lowest block of the world (bedrock). */
     public static final int BOTTOM_Y = -128;
-    /** Lowest block that can be air. */
-    public static final int MIN_AIR_Y = -127;
+    /** Lowest block that can be air, keeps solid rock above the bedrock (which reaches up to y=-124). */
+    public static final int MIN_AIR_Y = -120;
     /** Highest block that can be air, keeps a solid roof below the vanilla caves at y>=-64. */
     public static final int MAX_AIR_Y = -68;
     /** Lowest / highest possible cavern floor (first air block of a column). */
-    public static final int MIN_FLOOR_Y = -124;
-    public static final int MAX_FLOOR_Y = -100;
+    public static final int MIN_FLOOR_Y = -120;
+    public static final int MAX_FLOOR_Y = -96;
     /** Highest base ceiling of the cavern, the 3D ceiling noise can go a few blocks above. */
     private static final int MAX_CEILING_Y = -72;
 
     // floor
-    private static final double FLOOR_BASE = -113.0;
+    private static final double FLOOR_BASE = -109.0;
     private static final double FLOOR_AMP = 10.0;
     private static final double FLOOR_SCALE = 340.0;
     private static final double FLOOR_DETAIL_AMP = 2.5;
@@ -57,6 +61,18 @@ public final class TunnelLayer {
     private static final double ROCK_THRESHOLD_OPEN = 0.82;  // open plains: few rock masses
     private static final double ROCK_THRESHOLD_DENSE = 0.66; // dense regions: narrow passages
     private static final double ROCK_EDGE = 0.22;            // width of the sloped edge in noise units
+
+    // massifs (sizes in blocks)
+    private static final double MASSIF_CELL = 128.0;
+    private static final double MASSIF_CHANCE = 0.9;
+    private static final double MASSIF_JITTER_MIN = 0.12;
+    private static final double MASSIF_JITTER_SPAN = 0.76;
+    private static final double MASSIF_RADIUS_MIN = 30.0;
+    private static final double MASSIF_RADIUS_VAR = 24.0;
+    private static final double MASSIF_RADIUS_DROP = 10.0; // squeezed below this: no massif
+    private static final double MASSIF_WOBBLE = 0.18;   // relative, the outline is not a circle
+    private static final double MASSIF_CORRIDOR = 16.0; // min. gap between two massifs
+    private static final double MASSIF_EDGE = 10.0;     // the ceiling comes down over this distance
 
     // pillars
     private static final double PILLAR_CELL = 21.0;
@@ -86,7 +102,8 @@ public final class TunnelLayer {
     private static final int S_FLOOR = 1, S_FLOOR_DETAIL = 2, S_HEIGHT = 3, S_ROCK = 4, S_ROCK_DETAIL = 5,
             S_ROCK_REGION = 6, S_PILLAR_ON = 7, S_PILLAR_X = 8, S_PILLAR_Z = 9, S_PILLAR_R = 10,
             S_PILLAR_SWAY_X = 11, S_PILLAR_SWAY_Z = 12, S_PILLAR_WOBBLE = 13, S_STALACTITE = 14,
-            S_STALACTITE_AMP = 15, S_CEILING = 16, S_SPAGHETTI = 20; // 20.. 20 + 3 * SPAGHETTI.length
+            S_STALACTITE_AMP = 15, S_CEILING = 16, S_MASSIF_ON = 17,
+            S_MASSIF_X = 18, S_MASSIF_Z = 19, S_MASSIF_R = 20, S_MASSIF_WOBBLE = 21, S_SPAGHETTI = 22; // 22.. 22 + 3 * SPAGHETTI.length
 
     private final long[] salted = new long[S_SPAGHETTI + 3 * SPAGHETTI.length];
 
@@ -269,10 +286,80 @@ public final class TunnelLayer {
         if (rock >= threshold) {
             return 0.0;
         }
+        final double massif = massifDistance(px, pz);
+        if (massif <= 0.0) {
+            return 0.0;
+        }
         // dome shaped towards the rock: the ceiling comes down, the floor stays walkable
-        final double u = clamp01((threshold - rock) / ROCK_EDGE);
+        final double u = Math.min(clamp01((threshold - rock) / ROCK_EDGE), clamp01(massif / MASSIF_EDGE));
         final double dome = Math.sqrt(1.0 - (1.0 - u) * (1.0 - u));
         return EDGE_AIR + (height - EDGE_AIR) * dome;
+    }
+
+    /**
+     * Distance in blocks to the outline of the nearest massif, <= 0 inside one. Only the 3x3
+     * cells around can reach the position (diameter + jitter stays below one cell).
+     */
+    private double massifDistance(double px, double pz) {
+        final int cx = (int) Math.floor(px / MASSIF_CELL);
+        final int cz = (int) Math.floor(pz / MASSIF_CELL);
+        final double reach = (MASSIF_RADIUS_MIN + MASSIF_RADIUS_VAR) * (1.0 + MASSIF_WOBBLE) + MASSIF_EDGE;
+        double best = MASSIF_EDGE;
+        for (int dz = -1; dz <= 1; dz++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                final int gx = cx + dx;
+                final int gz = cz + dz;
+                if (!massifExists(gx, gz)) {
+                    continue;
+                }
+                final double d = Math.hypot(px - massifX(gx, gz), pz - massifZ(gx, gz));
+                if (d > reach) {
+                    continue;
+                }
+                final double r = massifRadiusFitted(gx, gz);
+                if (r < MASSIF_RADIUS_DROP) {
+                    continue;
+                }
+                final double w = 1.0 + MASSIF_WOBBLE * clampSigned(2.0 * perlin(px / 24.0, 0.29, pz / 24.0, S_MASSIF_WOBBLE));
+                best = Math.min(best, d - r * w);
+            }
+        }
+        return best;
+    }
+
+    private boolean massifExists(int gx, int gz) {
+        return unit(hash(gx, gz, S_MASSIF_ON)) < MASSIF_CHANCE;
+    }
+
+    /**
+     * Radius shrunk so that each massif keeps at most half of the gap to every neighbour minus the
+     * corridor. Kept massifs never touch, so they can not enclose any part of the cavern.
+     */
+    private double massifRadiusFitted(int gx, int gz) {
+        final double x = massifX(gx, gz), z = massifZ(gx, gz);
+        double r = massifRadius(gx, gz);
+        for (int dz = -1; dz <= 1; dz++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                if ((dx | dz) == 0 || !massifExists(gx + dx, gz + dz)) {
+                    continue;
+                }
+                final double d = Math.hypot(x - massifX(gx + dx, gz + dz), z - massifZ(gx + dx, gz + dz));
+                r = Math.min(r, (d - MASSIF_CORRIDOR) / (2.0 * (1.0 + MASSIF_WOBBLE)));
+            }
+        }
+        return r;
+    }
+
+    private double massifX(int gx, int gz) {
+        return (gx + MASSIF_JITTER_MIN + MASSIF_JITTER_SPAN * unit(hash(gx, gz, S_MASSIF_X))) * MASSIF_CELL;
+    }
+
+    private double massifZ(int gx, int gz) {
+        return (gz + MASSIF_JITTER_MIN + MASSIF_JITTER_SPAN * unit(hash(gx, gz, S_MASSIF_Z))) * MASSIF_CELL;
+    }
+
+    private double massifRadius(int gx, int gz) {
+        return MASSIF_RADIUS_MIN + MASSIF_RADIUS_VAR * unit(hash(gx, gz, S_MASSIF_R));
     }
 
     /** Floor height (first air block) at a position. Smooth, slope always below 1. */

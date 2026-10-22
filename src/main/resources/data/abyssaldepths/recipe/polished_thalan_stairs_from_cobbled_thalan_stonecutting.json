@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:stonecutting",
+  "ingredient": {
+    "item": "abyssaldepths:cobbled_thalan"
+  },
+  "result": {
+    "count": 1,
+    "id": "abyssaldepths:polished_thalan_stairs"
+  }
+}

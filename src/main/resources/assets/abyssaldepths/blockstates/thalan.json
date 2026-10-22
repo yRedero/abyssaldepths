@@ -1,5 +1,62 @@
 {
   "variants": {
-    "": { "model": "abyssaldepths:block/thalan" }
+    "axis=x": [
+      {
+        "model": "abyssaldepths:block/thalan",
+        "x": 90,
+        "y": 90
+      },
+      {
+        "model": "abyssaldepths:block/thalan_mirrored",
+        "x": 90,
+        "y": 90
+      },
+      {
+        "model": "abyssaldepths:block/thalan",
+        "x": 90,
+        "y": 90
+      },
+      {
+        "model": "abyssaldepths:block/thalan_mirrored",
+        "x": 90,
+        "y": 90
+      }
+    ],
+    "axis=y": [
+      {
+        "model": "abyssaldepths:block/thalan"
+      },
+      {
+        "model": "abyssaldepths:block/thalan_mirrored"
+      },
+      {
+        "model": "abyssaldepths:block/thalan",
+        "y": 180
+      },
+      {
+        "model": "abyssaldepths:block/thalan_mirrored",
+        "y": 180
+      }
+    ],
+    "axis=z": [
+      {
+        "model": "abyssaldepths:block/thalan",
+        "x": 90
+      },
+      {
+        "model": "abyssaldepths:block/thalan_mirrored",
+        "x": 90
+      },
+      {
+        "model": "abyssaldepths:block/thalan",
+        "x": 90,
+        "y": 180
+      },
+      {
+        "model": "abyssaldepths:block/thalan_mirrored",
+        "x": 90,
+        "y": 180
+      }
+    ]
   }
 }

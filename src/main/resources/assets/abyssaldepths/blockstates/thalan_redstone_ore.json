@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "lit=false": {
+      "model": "abyssaldepths:block/thalan_redstone_ore"
+    },
+    "lit=true": {
+      "model": "abyssaldepths:block/thalan_redstone_ore"
+    }
+  }
+}

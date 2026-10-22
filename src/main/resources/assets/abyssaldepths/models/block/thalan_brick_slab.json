@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/slab",
+  "textures": {
+    "bottom": "abyssaldepths:block/thalan_bricks",
+    "side": "abyssaldepths:block/thalan_bricks",
+    "top": "abyssaldepths:block/thalan_bricks"
+  }
+}

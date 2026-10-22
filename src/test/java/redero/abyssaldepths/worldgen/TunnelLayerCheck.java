@@ -35,6 +35,7 @@ public final class TunnelLayerCheck {
         final TunnelLayer layer = new TunnelLayer(seed);
         final int[] floor = new int[size * size];  // walkable floor, NONE if rock or pillar
         final int[] ceil = new int[size * size];   // last air block above the floor (without spaghetti)
+        final boolean[] open = new boolean[size * size]; // not rock or massif (pillars ignored)
         final AtomicLong rock = new AtomicLong(), pillar = new AtomicLong(), low = new AtomicLong();
         final AtomicInteger minFloor = new AtomicInteger(Integer.MAX_VALUE), maxFloor = new AtomicInteger(Integer.MIN_VALUE);
 
@@ -49,6 +50,7 @@ public final class TunnelLayerCheck {
                     rock.incrementAndGet();
                     continue;
                 }
+                open[i] = true;
                 minFloor.accumulateAndGet(c.floor, Math::min);
                 maxFloor.accumulateAndGet(c.floor, Math::max);
                 if (!layer.cavernAir(x, c.floor, z, c) || !layer.cavernAir(x, c.floor + 1, z, c)) {
@@ -67,6 +69,30 @@ public final class TunnelLayerCheck {
             }
         });
         final double secs = (System.nanoTime() - t0) / 1e9;
+
+        // longest straight line through open cavern along x and along z
+        // and the mean free path: average run length seen from a random open column
+        int straightX = 0, straightZ = 0;
+        long openCols = 0, runSquares = 0;
+        for (int a = 0; a < size; a++) {
+            int runX = 0, runZ = 0;
+            for (int b = 0; b <= size; b++) {
+                final boolean openX = b < size && open[a * size + b];
+                final boolean openZ = b < size && open[b * size + a];
+                if (!openX && runX > 0) {
+                    runSquares += (long) runX * runX;
+                }
+                if (!openZ && runZ > 0) {
+                    runSquares += (long) runZ * runZ;
+                }
+                runX = openX ? runX + 1 : 0;
+                runZ = openZ ? runZ + 1 : 0;
+                openCols += (openX ? 1 : 0) + (openZ ? 1 : 0);
+                straightX = Math.max(straightX, runX);
+                straightZ = Math.max(straightZ, runZ);
+            }
+        }
+        final double meanRun = openCols == 0 ? 0.0 : (double) runSquares / openCols;
 
         // highest air block and minimum clearance in full 3D on a sample
         final int sample = Math.min(size, 256);
@@ -146,6 +172,7 @@ public final class TunnelLayerCheck {
                 TunnelLayer.MIN_FLOOR_Y, TunnelLayer.MAX_FLOOR_Y);
         System.out.printf("highest air block : %d (allowed <= %d)%n", maxAir.get(), TunnelLayer.MAX_AIR_Y);
         System.out.printf("min air height    : %d%n", minAir.get());
+        System.out.printf("longest straight  : x %d, z %d blocks, mean %.0f (pillars ignored)%n", straightX, straightZ, meanRun);
         System.out.printf("layer solid       : %.1f %%, spaghetti air: %.1f %% (3D sample %d^2)%n",
                 100.0 * solid3d.get() / layerBlocks, 100.0 * spaghetti.get() / layerBlocks, sample);
         System.out.printf("components        : %d (largest %.3f %% of walkable), enclosed: %d (%.3f %%)%n", components,

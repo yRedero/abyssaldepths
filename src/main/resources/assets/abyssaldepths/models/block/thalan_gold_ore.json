@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "end": "abyssaldepths:block/thalan_gold_ore_top",
+    "side": "abyssaldepths:block/thalan_gold_ore"
+  }
+}

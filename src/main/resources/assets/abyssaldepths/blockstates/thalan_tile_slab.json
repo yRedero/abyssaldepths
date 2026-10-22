@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "type=bottom": {
+      "model": "abyssaldepths:block/thalan_tile_slab"
+    },
+    "type=double": {
+      "model": "abyssaldepths:block/thalan_tiles"
+    },
+    "type=top": {
+      "model": "minecraft:block/deepslate_tile_slab_top"
+    }
+  }
+}
