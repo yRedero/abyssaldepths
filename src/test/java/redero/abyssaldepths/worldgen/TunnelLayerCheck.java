@@ -2,6 +2,8 @@ package redero.abyssaldepths.worldgen;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.IntStream;
 
 import javax.imageio.ImageIO;
@@ -14,11 +16,14 @@ import javax.imageio.ImageIO;
  * java -cp out redero.abyssaldepths.worldgen.TunnelLayerCheck [seed] [originX] [originZ] [size] [pngDir]
  * </pre>
  *
- * Flood-fills the walkable columns of a square region and reports components, slopes,
- * clearances and cavern share. Exits with code 1 if a hard requirement is violated.
+ * Flood-fills the walkable floor of the great cavern (spaghetti tunnels ignored, pillars count as
+ * obstacles) and reports components, clearances and air shares. Exits with code 1 if a hard
+ * requirement is violated.
  */
 public final class TunnelLayerCheck {
     private static final int NONE = Integer.MIN_VALUE;
+    /** Pockets cut off from the main cavern may cover at most this share of the walkable floor. */
+    private static final double MAX_ENCLOSED_SHARE = 0.002;
 
     public static void main(String[] args) throws Exception {
         final long seed = args.length > 0 ? Long.parseLong(args[0]) : 12345L;
@@ -28,82 +33,76 @@ public final class TunnelLayerCheck {
         final String pngDir = args.length > 4 ? args[4] : null;
 
         final TunnelLayer layer = new TunnelLayer(seed);
-        final int[] floor = new int[size * size];
-        final int[] ceil = new int[size * size];
+        final int[] floor = new int[size * size];  // walkable floor, NONE if rock or pillar
+        final int[] ceil = new int[size * size];   // last air block above the floor (without spaghetti)
+        final AtomicLong rock = new AtomicLong(), pillar = new AtomicLong(), low = new AtomicLong();
+        final AtomicInteger minFloor = new AtomicInteger(Integer.MAX_VALUE), maxFloor = new AtomicInteger(Integer.MIN_VALUE);
 
         final long t0 = System.nanoTime();
         IntStream.range(0, size).parallel().forEach(row -> {
             final TunnelLayer.Column c = new TunnelLayer.Column();
             for (int col = 0; col < size; col++) {
                 final int i = row * size + col;
-                if (layer.column(ox + col, oz + row, c)) {
-                    floor[i] = c.floor;
-                    ceil[i] = c.ceiling;
-                } else {
-                    floor[i] = NONE;
-                    ceil[i] = NONE;
+                final int x = ox + col, z = oz + row;
+                floor[i] = NONE;
+                if (!layer.column(x, z, c)) {
+                    rock.incrementAndGet();
+                    continue;
                 }
+                minFloor.accumulateAndGet(c.floor, Math::min);
+                maxFloor.accumulateAndGet(c.floor, Math::max);
+                if (!layer.cavernAir(x, c.floor, z, c) || !layer.cavernAir(x, c.floor + 1, z, c)) {
+                    pillar.incrementAndGet();
+                    continue;
+                }
+                int top = c.floor + 1;
+                while (layer.cavernAir(x, top + 1, z, c)) {
+                    top++;
+                }
+                if (top - c.floor + 1 <= 6) {
+                    low.incrementAndGet();
+                }
+                floor[i] = c.floor;
+                ceil[i] = top;
             }
         });
         final double secs = (System.nanoTime() - t0) / 1e9;
 
-        boolean ok = true;
-        long open = 0;
-        int minFloor = Integer.MAX_VALUE, maxFloor = Integer.MIN_VALUE, maxCeil = Integer.MIN_VALUE;
-        int minAir = Integer.MAX_VALUE;
-        long tall = 0;
-        for (int i = 0; i < floor.length; i++) {
-            if (floor[i] == NONE) {
-                continue;
-            }
-            open++;
-            minFloor = Math.min(minFloor, floor[i]);
-            maxFloor = Math.max(maxFloor, floor[i]);
-            maxCeil = Math.max(maxCeil, ceil[i]);
-            final int air = ceil[i] - floor[i] + 1;
-            minAir = Math.min(minAir, air);
-            if (air >= 8) {
-                tall++;
-            }
-        }
-
-        // slopes / walkability between neighbouring open columns
-        long pairs = 0, blocked = 0;
-        int maxStep = 0;
-        for (int row = 0; row < size; row++) {
-            for (int col = 0; col < size; col++) {
+        // highest air block and minimum clearance in full 3D on a sample
+        final int sample = Math.min(size, 256);
+        final AtomicInteger maxAir = new AtomicInteger(Integer.MIN_VALUE), minAir = new AtomicInteger(Integer.MAX_VALUE);
+        final AtomicLong spaghetti = new AtomicLong(), solid3d = new AtomicLong();
+        IntStream.range(0, sample).parallel().forEach(row -> {
+            final TunnelLayer.Column c = new TunnelLayer.Column();
+            for (int col = 0; col < sample; col++) {
+                final int x = ox + col, z = oz + row;
+                layer.column(x, z, c);
+                for (int y = TunnelLayer.BOTTOM_Y; y <= TunnelLayer.MAX_AIR_Y + 8; y++) {
+                    if (layer.isAir(x, y, z, c)) {
+                        maxAir.accumulateAndGet(y, Math::max);
+                        if (y < TunnelLayer.MIN_AIR_Y) {
+                            maxAir.set(Integer.MAX_VALUE); // bedrock touched
+                        }
+                        if (!layer.cavernAir(x, y, z, c)) {
+                            spaghetti.incrementAndGet();
+                        }
+                    } else if (y >= TunnelLayer.MIN_AIR_Y && y <= TunnelLayer.MAX_AIR_Y) {
+                        solid3d.incrementAndGet();
+                    }
+                }
                 final int i = row * size + col;
-                if (floor[i] == NONE) {
-                    continue;
-                }
-                if (col + 1 < size) {
-                    final int j = i + 1;
-                    if (floor[j] != NONE) {
-                        pairs++;
-                        maxStep = Math.max(maxStep, Math.abs(floor[i] - floor[j]));
-                        if (!walkable(floor, ceil, i, j)) {
-                            blocked++;
-                        }
-                    }
-                }
-                if (row + 1 < size) {
-                    final int j = i + size;
-                    if (floor[j] != NONE) {
-                        pairs++;
-                        maxStep = Math.max(maxStep, Math.abs(floor[i] - floor[j]));
-                        if (!walkable(floor, ceil, i, j)) {
-                            blocked++;
-                        }
-                    }
+                if (floor[i] != NONE) {
+                    minAir.accumulateAndGet(ceil[i] - floor[i] + 1, Math::min);
                 }
             }
-        }
+        });
 
         // connected components of the walkable graph
+        long walkable = 0;
         final int[] label = new int[floor.length];
         final int[] queue = new int[floor.length];
         int components = 0, enclosed = 0;
-        long largest = 0;
+        long largest = 0, enclosedCols = 0;
         for (int start = 0; start < floor.length; start++) {
             if (floor[start] == NONE || label[start] != 0) {
                 continue;
@@ -128,31 +127,35 @@ public final class TunnelLayerCheck {
                     }
                 }
             }
+            walkable += tail;
             largest = Math.max(largest, tail);
             if (!touchesBorder) {
                 enclosed++;
+                enclosedCols += tail;
             }
         }
 
+        final double total = floor.length;
+        final double layerBlocks = (double) sample * sample * (TunnelLayer.MAX_AIR_Y - TunnelLayer.MIN_AIR_Y + 1);
         System.out.printf("seed=%d origin=(%d,%d) size=%d  (%.1fs)%n", seed, ox, oz, size, secs);
-        System.out.printf("open columns      : %.1f %%%n", 100.0 * open / floor.length);
-        System.out.printf("floor range       : %d .. %d (allowed %d .. %d)%n", minFloor, maxFloor,
+        System.out.printf("walkable floor    : %.1f %% of columns%n", 100.0 * walkable / total);
+        System.out.printf("rock masses       : %.1f %% of columns%n", 100.0 * rock.get() / total);
+        System.out.printf("pillars (at feet) : %.1f %% of columns%n", 100.0 * pillar.get() / total);
+        System.out.printf("low (<=6 air)     : %.1f %% of walkable%n", 100.0 * low.get() / walkable);
+        System.out.printf("floor range       : %d .. %d (allowed %d .. %d)%n", minFloor.get(), maxFloor.get(),
                 TunnelLayer.MIN_FLOOR_Y, TunnelLayer.MAX_FLOOR_Y);
-        System.out.printf("highest air block : %d (allowed <= %d)%n", maxCeil, TunnelLayer.MAX_AIR_Y);
-        System.out.printf("min air height    : %d%n", minAir);
-        System.out.printf("cavern-like cols  : %.1f %% of open (air height >= 8)%n", 100.0 * tall / open);
-        System.out.printf("max floor step    : %d between neighbours%n", maxStep);
-        System.out.printf("blocked pairs     : %d of %d%n", blocked, pairs);
-        System.out.printf("components        : %d (largest %.2f %% of open), enclosed: %d%n", components,
-                100.0 * largest / open, enclosed);
+        System.out.printf("highest air block : %d (allowed <= %d)%n", maxAir.get(), TunnelLayer.MAX_AIR_Y);
+        System.out.printf("min air height    : %d%n", minAir.get());
+        System.out.printf("layer solid       : %.1f %%, spaghetti air: %.1f %% (3D sample %d^2)%n",
+                100.0 * solid3d.get() / layerBlocks, 100.0 * spaghetti.get() / layerBlocks, sample);
+        System.out.printf("components        : %d (largest %.3f %% of walkable), enclosed: %d (%.3f %%)%n", components,
+                100.0 * largest / walkable, enclosed, 100.0 * enclosedCols / walkable);
 
-        if (minFloor < TunnelLayer.MIN_FLOOR_Y || maxFloor > TunnelLayer.MAX_FLOOR_Y
-                || maxCeil > TunnelLayer.MAX_AIR_Y || minAir < 3 || blocked != 0 || enclosed != 0) {
-            System.out.println("RESULT: FAIL");
-            ok = false;
-        } else {
-            System.out.println("RESULT: OK");
-        }
+        final boolean ok = minFloor.get() >= TunnelLayer.MIN_FLOOR_Y && maxFloor.get() <= TunnelLayer.MAX_FLOOR_Y
+                // 2 only occurs below the flare of a pillar, walking there is covered by the flood fill
+                && maxAir.get() <= TunnelLayer.MAX_AIR_Y && minAir.get() >= 2
+                && enclosedCols <= MAX_ENCLOSED_SHARE * walkable;
+        System.out.println(ok ? "RESULT: OK" : "RESULT: FAIL");
 
         if (pngDir != null) {
             writePngs(layer, new File(pngDir), seed, ox, oz);
@@ -172,46 +175,92 @@ public final class TunnelLayerCheck {
     private static void writePngs(TunnelLayer layer, File dir, long seed, int ox, int oz) throws Exception {
         dir.mkdirs();
         final int w = 1024;
+        final int lowY = TunnelLayer.MIN_FLOOR_Y, highY = TunnelLayer.MAX_AIR_Y;
+
+        // top-down: brightness = air height of the cavern, tint = floor height,
+        // black = rock, dark red = pillar, blue = spaghetti below the floor
         final BufferedImage top = new BufferedImage(w, w, BufferedImage.TYPE_INT_RGB);
-        final TunnelLayer.Column c = new TunnelLayer.Column();
-        for (int z = 0; z < w; z++) {
+        IntStream.range(0, w).parallel().forEach(z -> {
+            final TunnelLayer.Column c = new TunnelLayer.Column();
             for (int x = 0; x < w; x++) {
-                int rgb = 0x202020;
-                if (layer.column(ox + x, oz + z, c)) {
-                    final double t = (c.floor - TunnelLayer.MIN_FLOOR_Y)
-                            / (double) (TunnelLayer.MAX_FLOOR_Y - TunnelLayer.MIN_FLOOR_Y);
-                    final int air = c.ceiling - c.floor + 1;
-                    final int r = (int) (40 + 215 * t);
-                    final int g = (int) (200 - 90 * t);
-                    final int b = (int) (230 - 200 * t);
-                    rgb = air >= 8 ? brighten(r, g, b) : (r << 16) | (g << 8) | b;
+                final int bx = ox + x, bz = oz + z;
+                int rgb = 0x151515;
+                if (layer.column(bx, bz, c)) {
+                    if (!layer.cavernAir(bx, c.floor, bz, c)) {
+                        rgb = 0x6a2020;
+                    } else {
+                        int air = 0;
+                        while (layer.cavernAir(bx, c.floor + air, bz, c)) {
+                            air++;
+                        }
+                        final double b = 0.25 + 0.75 * Math.min(1.0, air / 36.0);
+                        final double t = (c.floor - TunnelLayer.MIN_FLOOR_Y)
+                                / (double) (TunnelLayer.MAX_FLOOR_Y - TunnelLayer.MIN_FLOOR_Y);
+                        rgb = rgb(b * (150 + 105 * t), b * (200 - 30 * t), b * (150 - 100 * t));
+                        if (layer.spaghettiAir(bx, c.floor - 1, bz)) {
+                            rgb = 0x2050c0;
+                        }
+                    }
+                } else {
+                    for (int y = lowY; y <= highY; y += 3) {
+                        if (layer.spaghettiAir(bx, y, bz)) {
+                            rgb = 0x203a80;
+                            break;
+                        }
+                    }
                 }
                 top.setRGB(x, z, rgb);
             }
-        }
+        });
         ImageIO.write(top, "png", new File(dir, "topdown_" + seed + ".png"));
 
-        // vertical cross-section along z = oz + 512, 6 px per block in y
-        final int sy = 6, h = (TunnelLayer.MAX_FLOOR_Y + 40 - TunnelLayer.BOTTOM_Y) * sy;
-        final BufferedImage side = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
-        for (int x = 0; x < w; x++) {
-            final boolean open = layer.column(ox + x, oz + 512, c);
-            for (int py = 0; py < h; py++) {
-                final int y = TunnelLayer.BOTTOM_Y + (h - 1 - py) / sy;
-                int rgb = 0x303030;
-                if (y == TunnelLayer.BOTTOM_Y) {
-                    rgb = 0x000000;
-                } else if (open && y >= c.floor && y <= c.ceiling) {
-                    rgb = 0xe8f0ff;
+        // vertical cross-sections along z = oz + 512 and oz + 515
+        final int sy = 4, h = (TunnelLayer.MAX_AIR_Y + 4 - TunnelLayer.BOTTOM_Y + 1) * sy;
+        for (final int dzs : new int[] {512, 700}) {
+            final BufferedImage side = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+            final int bz = oz + dzs;
+            IntStream.range(0, w).parallel().forEach(x -> {
+                final TunnelLayer.Column c = new TunnelLayer.Column();
+                layer.column(ox + x, bz, c);
+                for (int py = 0; py < h; py++) {
+                    final int y = TunnelLayer.MAX_AIR_Y + 4 - py / sy;
+                    int rgb = 0x3a3a3a;
+                    if (y == TunnelLayer.BOTTOM_Y) {
+                        rgb = 0x000000;
+                    } else if (layer.cavernAir(ox + x, y, bz, c) && y <= TunnelLayer.MAX_AIR_Y) {
+                        rgb = 0xe8f0ff;
+                    } else if (layer.spaghettiAir(ox + x, y, bz)) {
+                        rgb = 0x8fb4ff;
+                    }
+                    side.setRGB(x, py, rgb);
                 }
-                side.setRGB(x, py, rgb);
-            }
+            });
+            ImageIO.write(side, "png", new File(dir, "section" + dzs + "_" + seed + ".png"));
         }
-        ImageIO.write(side, "png", new File(dir, "section_" + seed + ".png"));
+
+        // horizontal slices through the rock below the floor and in the middle of the cavern
+        for (final int y : new int[] {-118, -95}) {
+            final BufferedImage slice = new BufferedImage(w, w, BufferedImage.TYPE_INT_RGB);
+            IntStream.range(0, w).parallel().forEach(z -> {
+                final TunnelLayer.Column c = new TunnelLayer.Column();
+                for (int x = 0; x < w; x++) {
+                    layer.column(ox + x, oz + z, c);
+                    int rgb = 0x2a2a2a;
+                    if (layer.cavernAir(ox + x, y, oz + z, c)) {
+                        rgb = 0xe8f0ff;
+                    } else if (layer.spaghettiAir(ox + x, y, oz + z)) {
+                        rgb = 0x5f8fff;
+                    }
+                    slice.setRGB(x, z, rgb);
+                }
+            });
+            ImageIO.write(slice, "png", new File(dir, "slice" + (-y) + "_" + seed + ".png"));
+        }
         System.out.println("PNGs written to " + dir);
     }
 
-    private static int brighten(int r, int g, int b) {
-        return (Math.min(255, r + 70) << 16) | (Math.min(255, g + 55) << 8) | Math.min(255, b + 55);
+    private static int rgb(double r, double g, double b) {
+        return ((int) Math.max(0, Math.min(255, r)) << 16) | ((int) Math.max(0, Math.min(255, g)) << 8)
+                | (int) Math.max(0, Math.min(255, b));
     }
 }

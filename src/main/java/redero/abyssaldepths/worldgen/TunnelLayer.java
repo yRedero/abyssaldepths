@@ -1,25 +1,26 @@
 package redero.abyssaldepths.worldgen;
 
 /**
- * Deterministic, infinite tunnel system for the layer y=-65 .. y=-128.
+ * Deterministic, infinite cave layer for y=-65 .. y=-128.
  * <p>
- * Pure function of (seed, x, z): no state, no Minecraft dependencies, so it can be unit tested
+ * Pure function of (seed, x, y, z): no state, no Minecraft dependencies, so it can be unit tested
  * and used from any chunk in any order.
  * <p>
  * How it works:
  * <ul>
- * <li><b>Network:</b> Voronoi diagram of a jittered point grid, bent by a smooth domain warp. The
- * tunnels follow the cell borders. The border graph of a Voronoi diagram is always connected, so
- * the system has no isolated parts and never ends.</li>
- * <li><b>Width:</b> a column is a tunnel where the distance to the nearest cell border is smaller
- * than a (varying) half width.</li>
- * <li><b>Caverns:</b> some grid points get a round cavern. Its centre is the midpoint between
- * the point and its nearest neighbour. That midpoint always lies on a Voronoi edge (a third
- * point inside the circle with that diameter would be closer than the neighbour), so every
- * cavern is attached to the network. Caverns only add space, connectivity is kept.</li>
- * <li><b>Height:</b> the floor is a smooth height field of (x, z) only, mostly flat, with a
- * bounded slope (never more than one block per block), so it is continuous across junctions and
- * always walkable. The ceiling is a dome above the floor with at least 3 blocks of air.</li>
+ * <li><b>Great cavern:</b> the whole layer is one open cavern without an outer edge. Its floor is
+ * a gentle height field (slope well below one block per block, so it is always walkable). Its
+ * height varies a lot: tall halls, and stretches where the ceiling comes down to a low crawl
+ * space.</li>
+ * <li><b>Rock masses:</b> blobs of solid rock where the ceiling comes down to the floor. Their
+ * share changes by region (open plains vs. areas with narrow passages between the rock), but it
+ * stays well below the percolation threshold, so they never wall off part of the cavern.</li>
+ * <li><b>Pillars:</b> one per cell of a jittered grid (most cells), slightly swaying, flared at
+ * floor and ceiling like merged stalactites and stalagmites. Only in halls tall enough.</li>
+ * <li><b>Ceiling:</b> stalactite clusters and 3D noise, so it is not a flat lid.</li>
+ * <li><b>Spaghetti tunnels:</b> like the vanilla spaghetti caves: the tube where two 3D noises
+ * are both close to zero. Sparse and widely spaced. They wind through the rock below the floor, above the
+ * ceiling and through the rock masses, go up and down and break into the cavern here and there.</li>
  * </ul>
  */
 public final class TunnelLayer {
@@ -29,87 +30,96 @@ public final class TunnelLayer {
     public static final int MIN_AIR_Y = -127;
     /** Highest block that can be air, keeps a solid roof below the vanilla caves at y>=-64. */
     public static final int MAX_AIR_Y = -68;
-    /** Lowest / highest possible floor (first air block of a column). */
-    public static final int MIN_FLOOR_Y = -125;
-    public static final int MAX_FLOOR_Y = -92;
-
-    // network
-    private static final double CELL = 88.0;
-    private static final double JITTER_MIN = 0.10;
-    private static final double JITTER_SPAN = 0.80;
-    private static final int WINDOW = 2; // look at (2*WINDOW+1)^2 grid cells around a position
-    private static final double WARP_SCALE = 100.0;
-    private static final double WARP_AMP = 14.0;
-
-    // tunnels
-    private static final double HALF_WIDTH_MIN = 2.8;
-    private static final double HALF_WIDTH_VAR = 1.8;
-    private static final double WALL_ROUGHNESS = 0.8;
-    private static final double TUNNEL_HEIGHT_MIN = 4.0;
-    private static final double TUNNEL_HEIGHT_VAR = 2.0;
-    /** Air height at the very edge of any open area. Needs to be >= 3 for 1 block steps. */
-    private static final double EDGE_AIR = 3.0;
-
-    // caverns
-    private static final double CAVERN_CHANCE = 0.45;
-    private static final double CAVERN_RADIUS_MIN = 12.0;
-    private static final double CAVERN_RADIUS_VAR = 22.0;
-    private static final double CAVERN_HEIGHT_MIN = 7.0;
-    private static final double CAVERN_HEIGHT_VAR = 9.0;
-    private static final double CAVERN_WOBBLE = 2.5;
-    private static final double CAVERN_WOBBLE_SCALE = 18.0;
-    private static final double CAVERN_REACH = CAVERN_RADIUS_MIN + CAVERN_RADIUS_VAR + 0.8 * CELL;
+    /** Lowest / highest possible cavern floor (first air block of a column). */
+    public static final int MIN_FLOOR_Y = -124;
+    public static final int MAX_FLOOR_Y = -100;
+    /** Highest base ceiling of the cavern, the 3D ceiling noise can go a few blocks above. */
+    private static final int MAX_CEILING_Y = -72;
 
     // floor
-    private static final double FLOOR_SCALE = 400.0;
-    private static final double FLOOR_BASE = -122.0;
-    private static final double FLOOR_RANGE = 30.0;
-    private static final double FLOOR_DETAIL_SCALE = 40.0;
-    private static final double FLOOR_DETAIL_AMP = 3.0;
+    private static final double FLOOR_BASE = -113.0;
+    private static final double FLOOR_AMP = 10.0;
+    private static final double FLOOR_SCALE = 340.0;
+    private static final double FLOOR_DETAIL_AMP = 2.5;
+    private static final double FLOOR_DETAIL_SCALE = 45.0;
+
+    // cavern height
+    private static final double HEIGHT_MIN = 5.0; // the low, thin stretches
+    private static final double HEIGHT_VAR = 33.0;
+    private static final double HEIGHT_SCALE = 240.0;
+    /** Air height at the very edge of a rock mass. Needs to be >= 3 for 1 block steps. */
+    private static final double EDGE_AIR = 3.0;
+
+    // rock masses
+    private static final double ROCK_SCALE = 58.0;
+    private static final double ROCK_DETAIL_SCALE = 19.0;
+    private static final double ROCK_REGION_SCALE = 520.0;
+    private static final double ROCK_THRESHOLD_OPEN = 0.82;  // open plains: few rock masses
+    private static final double ROCK_THRESHOLD_DENSE = 0.66; // dense regions: narrow passages
+    private static final double ROCK_EDGE = 0.22;            // width of the sloped edge in noise units
+
+    // pillars
+    private static final double PILLAR_CELL = 21.0;
+    private static final double PILLAR_CHANCE = 0.75;
+    private static final double PILLAR_JITTER_MIN = 0.15;
+    private static final double PILLAR_JITTER_SPAN = 0.70;
+    private static final double PILLAR_RADIUS_MIN = 1.4;
+    private static final double PILLAR_RADIUS_VAR = 2.3;
+    private static final double PILLAR_FLARE = 0.9;     // relative extra radius at floor / ceiling
+    private static final double PILLAR_FLARE_ADD = 1.0; // absolute extra radius at floor / ceiling
+    private static final double PILLAR_SWAY = 1.6;
+    private static final double PILLAR_MIN_HALL = 10.0; // no pillars in lower parts of the cavern
+
+    // ceiling
+    private static final double STALACTITE_SCALE = 5.0;
+    private static final double STALACTITE_MAX = 7.0;
+    private static final double CEILING_WOBBLE_MAX = 3.0;
+
+    // spaghetti tunnels {xz scale, y scale, min radius, radius variation} in noise units
+    private static final double[][] SPAGHETTI = {
+            {130.0, 95.0, 0.040, 0.028},
+    };
+    private static final double SPAGHETTI_RADIUS_SCALE = 150.0;
+    private static final double SPAGHETTI_FADE = 5.0; // shrink tubes near the bottom and the roof
 
     // salts for the individual noises
-    private static final int S_SITE_X = 1, S_SITE_Z = 2, S_WARP_X = 3, S_WARP_Z = 4, S_WIDTH = 5,
-            S_FLOOR = 7, S_DETAIL = 8, S_HEIGHT = 9, S_ROUGH_A = 10, S_ROUGH_B = 11,
-            S_CAV_ON = 12, S_CAV_R = 13, S_CAV_H = 14, S_CAV_WOBBLE = 15;
+    private static final int S_FLOOR = 1, S_FLOOR_DETAIL = 2, S_HEIGHT = 3, S_ROCK = 4, S_ROCK_DETAIL = 5,
+            S_ROCK_REGION = 6, S_PILLAR_ON = 7, S_PILLAR_X = 8, S_PILLAR_Z = 9, S_PILLAR_R = 10,
+            S_PILLAR_SWAY_X = 11, S_PILLAR_SWAY_Z = 12, S_PILLAR_WOBBLE = 13, S_STALACTITE = 14,
+            S_STALACTITE_AMP = 15, S_CEILING = 16, S_SPAGHETTI = 20; // 20.. 20 + 3 * SPAGHETTI.length
 
-    private final long seed;
+    private final long[] salted = new long[S_SPAGHETTI + 3 * SPAGHETTI.length];
 
     public TunnelLayer(long seed) {
-        this.seed = seed;
+        for (int i = 0; i < salted.length; i++) {
+            salted[i] = mix(seed ^ (i * 0x9E3779B97F4A7C15L));
+        }
     }
 
-    /** Result of a column query. {@code floor} / {@code ceiling} are the first / last air block. */
+    /**
+     * Per column data of the great cavern, filled by {@link #column}. {@code floor} is the first
+     * air block, {@code ceiling} the last one before the 3D ceiling noise is applied.
+     */
     public static final class Column {
         public boolean open;
         public int floor;
         public int ceiling;
+        double wobble;
+        int pillars;
+        final double[] pillarX = new double[9];
+        final double[] pillarZ = new double[9];
+        final double[] pillarR = new double[9];
+        final long[] pillarKey = new long[9];
     }
 
-    /** Fills {@code out} for the column and returns whether it contains any air. */
+    /** Fills {@code out} for the column and returns whether the great cavern is open there. */
     public boolean column(int blockX, int blockZ, Column out) {
         final double px = blockX + 0.5;
         final double pz = blockZ + 0.5;
+        out.pillars = 0;
 
-        // domain warp makes the straight Voronoi borders wind. It is continuous with a slope
-        // well below 1, so it is a homeomorphism: it cannot tear the network apart.
-        final double qx = px + (valueNoise(px, pz, WARP_SCALE, S_WARP_X) - 0.5) * 2.0 * WARP_AMP;
-        final double qz = pz + (valueNoise(px, pz, WARP_SCALE, S_WARP_Z) - 0.5) * 2.0 * WARP_AMP;
-
-        double dist = borderDistance(qx, qz);
-        dist += (valueNoise(px, pz, 12.0, S_ROUGH_A) - 0.5) * 2.0 * WALL_ROUGHNESS * 0.7;
-        dist += (valueNoise(px, pz, 5.0, S_ROUGH_B) - 0.5) * 2.0 * WALL_ROUGHNESS * 0.3;
-
-        final double halfWidth = HALF_WIDTH_MIN + HALF_WIDTH_VAR * valueNoise(px, pz, 90.0, S_WIDTH);
-
-        double air = 0.0; // air height of the column, 0 = solid
-        if (dist < halfWidth) {
-            final double u = Math.max(0.0, dist) / halfWidth;
-            final double maxHeight = TUNNEL_HEIGHT_MIN + TUNNEL_HEIGHT_VAR * valueNoise(px, pz, 70.0, S_HEIGHT);
-            air = dome(u, maxHeight);
-        }
-        air = Math.max(air, cavernAir(px, pz, qx, qz));
-
-        if (air <= 0.0) {
+        final double hall = hallHeight(px, pz);
+        if (hall < EDGE_AIR) {
             out.open = false;
             out.floor = 0;
             out.ceiling = -1;
@@ -117,160 +127,229 @@ public final class TunnelLayer {
         }
 
         final int floor = floorY(px, pz);
+        int ceiling = Math.min(floor + (int) Math.round(hall) - 1, MAX_CEILING_Y);
+        final int air = ceiling - floor + 1;
+
+        // stalactites: narrow bumps hanging down, only in the taller parts
+        final double room = Math.min(STALACTITE_MAX, (air - 8) * 0.35);
+        if (room > 0.0) {
+            final double s = perlin(px / STALACTITE_SCALE, 0.37, pz / STALACTITE_SCALE, S_STALACTITE);
+            final double cluster = perlin(px / 40.0, 0.61, pz / 40.0, S_STALACTITE_AMP);
+            final double drop = room * clamp01((s - 0.12) / 0.35) * clamp01(0.5 + 2.0 * cluster);
+            ceiling -= (int) Math.round(drop);
+        }
+
         out.open = true;
         out.floor = floor;
-        out.ceiling = Math.min(floor + (int) Math.round(air) - 1, MAX_AIR_Y);
+        out.ceiling = ceiling;
+        // the 3D wobble must never take the air below 3 blocks
+        out.wobble = Math.max(0.0, Math.min(CEILING_WOBBLE_MAX, (ceiling - floor - 3) * 0.3));
+
+        // pillars of the 3x3 grid cells around (their reach is less than one cell)
+        final int cx = (int) Math.floor(px / PILLAR_CELL);
+        final int cz = (int) Math.floor(pz / PILLAR_CELL);
+        for (int dz = -1; dz <= 1; dz++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                final int gx = cx + dx;
+                final int gz = cz + dz;
+                if (unit(hash(gx, gz, S_PILLAR_ON)) >= PILLAR_CHANCE) {
+                    continue;
+                }
+                final double sx = (gx + PILLAR_JITTER_MIN + PILLAR_JITTER_SPAN * unit(hash(gx, gz, S_PILLAR_X))) * PILLAR_CELL;
+                final double sz = (gz + PILLAR_JITTER_MIN + PILLAR_JITTER_SPAN * unit(hash(gx, gz, S_PILLAR_Z))) * PILLAR_CELL;
+                final double centreHall = hallHeight(sx, sz);
+                if (centreHall < PILLAR_MIN_HALL) {
+                    continue;
+                }
+                final double rnd = unit(hash(gx, gz, S_PILLAR_R));
+                // thinner pillars in lower halls
+                final double size = clamp01((centreHall - PILLAR_MIN_HALL) / 14.0);
+                final int k = out.pillars++;
+                out.pillarX[k] = sx;
+                out.pillarZ[k] = sz;
+                out.pillarR[k] = PILLAR_RADIUS_MIN + PILLAR_RADIUS_VAR * rnd * (0.45 + 0.55 * size);
+                out.pillarKey[k] = hash(gx, gz, S_PILLAR_SWAY_X);
+            }
+        }
         return true;
     }
 
-    public boolean isAir(int x, int y, int z, Column scratch) {
-        return column(x, z, scratch) && y >= scratch.floor && y <= scratch.ceiling;
-    }
-
-    /** Dome shaped cross section: EDGE_AIR blocks at u=1, maxHeight in the middle (u=0). */
-    private static double dome(double u, double maxHeight) {
-        return EDGE_AIR + (maxHeight - EDGE_AIR) * Math.sqrt(Math.max(0.0, 1.0 - u * u));
-    }
-
-    /** Floor height (first air block) at a position. Smooth, mostly flat, slope always below 1. */
-    public int floorY(double px, double pz) {
-        final double t = valueNoise(px, pz, FLOOR_SCALE, S_FLOOR);
-        // flat plateau around the middle, steeper only towards the extremes
-        final double c = t - 0.5;
-        final double g = 0.5 + 4.0 * c * c * c;
-        final double detail = (valueNoise(px, pz, FLOOR_DETAIL_SCALE, S_DETAIL) - 0.5) * FLOOR_DETAIL_AMP;
-        final long y = Math.round(FLOOR_BASE + FLOOR_RANGE * g + detail);
-        return (int) Math.max(MIN_FLOOR_Y, Math.min(MAX_FLOOR_Y, y));
-    }
-
-    /**
-     * Air height contributed by caverns at a position, 0 if it is in none. Caverns are circles in
-     * the warped (q) space, so they stay attached to the warped network.
-     */
-    private double cavernAir(double px, double pz, double qx, double qz) {
-        final int cx = (int) Math.floor(qx / CELL);
-        final int cz = (int) Math.floor(qz / CELL);
-        double best = 0.0;
-        for (int dz = -WINDOW; dz <= WINDOW; dz++) {
-            for (int dx = -WINDOW; dx <= WINDOW; dx++) {
-                final int gx = cx + dx;
-                final int gz = cz + dz;
-                if (unit(hash(gx, gz, S_CAV_ON)) >= CAVERN_CHANCE) {
-                    continue;
-                }
-                final double sx = siteX(gx, gz);
-                final double sz = siteZ(gx, gz);
-                if ((sx - qx) * (sx - qx) + (sz - qz) * (sz - qz) > CAVERN_REACH * CAVERN_REACH) {
-                    continue;
-                }
-                // nearest neighbour of this site (within +-WINDOW cells it is always the true one)
-                double nd = Double.MAX_VALUE;
-                double nx = sx;
-                double nz = sz;
-                for (int ez = -WINDOW; ez <= WINDOW; ez++) {
-                    for (int ex = -WINDOW; ex <= WINDOW; ex++) {
-                        if (ex == 0 && ez == 0) {
-                            continue;
-                        }
-                        final double ox = siteX(gx + ex, gz + ez);
-                        final double oz = siteZ(gx + ex, gz + ez);
-                        final double d2 = (ox - sx) * (ox - sx) + (oz - sz) * (oz - sz);
-                        if (d2 < nd) {
-                            nd = d2;
-                            nx = ox;
-                            nz = oz;
-                        }
-                    }
-                }
-                final double mx = 0.5 * (sx + nx);
-                final double mz = 0.5 * (sz + nz);
-                final double rnd = unit(hash(gx, gz, S_CAV_R));
-                final double radius = CAVERN_RADIUS_MIN + CAVERN_RADIUS_VAR * rnd * rnd;
-                final double wobble = (valueNoise(px, pz, CAVERN_WOBBLE_SCALE, S_CAV_WOBBLE) - 0.5) * 2.0 * CAVERN_WOBBLE;
-                final double r = Math.sqrt((qx - mx) * (qx - mx) + (qz - mz) * (qz - mz)) + wobble;
-                if (r >= radius) {
-                    continue;
-                }
-                final double height = CAVERN_HEIGHT_MIN + CAVERN_HEIGHT_VAR * unit(hash(gx, gz, S_CAV_H));
-                best = Math.max(best, dome(Math.max(0.0, r) / radius, height));
-            }
+    /** Whether the block is air in the great cavern. {@code col} must be filled for (x, z). */
+    public boolean cavernAir(int blockX, int y, int blockZ, Column col) {
+        if (!col.open || y < col.floor) {
+            return false;
         }
-        return best;
+        final double px = blockX + 0.5;
+        final double py = y + 0.5;
+        final double pz = blockZ + 0.5;
+        int top = col.ceiling;
+        if (col.wobble > 0.0) {
+            top += (int) Math.round(col.wobble * clampSigned(1.6 * perlin(px / 11.0, py / 7.0, pz / 11.0, S_CEILING)));
+        }
+        if (y > Math.min(top, MAX_AIR_Y)) {
+            return false;
+        }
+        return !inPillar(px, py, pz, col);
     }
 
-    /**
-     * Exact distance from the point to the border of its Voronoi cell, i.e. to the closest tunnel
-     * centre line. The cell is convex, so this is the minimum over all bisector lines.
-     */
-    public double borderDistance(double x, double z) {
-        final int cx = (int) Math.floor(x / CELL);
-        final int cz = (int) Math.floor(z / CELL);
-
-        final int n = 2 * WINDOW + 1;
-        final double[] sx = new double[n * n];
-        final double[] sz = new double[n * n];
-        double best = Double.MAX_VALUE;
-        int bi = 0;
-        int i = 0;
-        for (int dz = -WINDOW; dz <= WINDOW; dz++) {
-            for (int dx = -WINDOW; dx <= WINDOW; dx++, i++) {
-                sx[i] = siteX(cx + dx, cz + dz);
-                sz[i] = siteZ(cx + dx, cz + dz);
-                final double d2 = (sx[i] - x) * (sx[i] - x) + (sz[i] - z) * (sz[i] - z);
-                if (d2 < best) {
-                    best = d2;
-                    bi = i;
-                }
-            }
+    private boolean inPillar(double px, double py, double pz, Column col) {
+        if (col.pillars == 0) {
+            return false;
         }
-
-        double min = Double.MAX_VALUE;
-        for (int k = 0; k < sx.length; k++) {
-            if (k == bi) {
+        final double span = Math.max(1.0, col.ceiling - col.floor);
+        final double t = (py - col.floor) / span;
+        final double e = Math.pow(Math.abs(2.0 * t - 1.0), 4.0); // 1 at floor and ceiling, ~0 in the middle
+        for (int k = 0; k < col.pillars; k++) {
+            final long key = col.pillarKey[k];
+            final double sx = col.pillarX[k] + PILLAR_SWAY * (noise1(py / 13.0, key) - 0.5) * 2.0;
+            final double sz = col.pillarZ[k] + PILLAR_SWAY * (noise1(py / 13.0, key ^ S_PILLAR_SWAY_Z) - 0.5) * 2.0;
+            final double r0 = col.pillarR[k];
+            final double r = r0 * (1.0 + PILLAR_FLARE * e) + PILLAR_FLARE_ADD * e;
+            final double reach = r + 0.7;
+            final double d2 = (px - sx) * (px - sx) + (pz - sz) * (pz - sz);
+            if (d2 > reach * reach) {
                 continue;
             }
-            final double d2 = (sx[k] - x) * (sx[k] - x) + (sz[k] - z) * (sz[k] - z);
-            final double sep = Math.sqrt((sx[k] - sx[bi]) * (sx[k] - sx[bi]) + (sz[k] - sz[bi]) * (sz[k] - sz[bi]));
-            final double d = (d2 - best) / (2.0 * sep);
-            if (d < min) {
-                min = d;
+            final double wobble = 0.7 * perlin(px / 4.0, py / 6.0, pz / 4.0, S_PILLAR_WOBBLE);
+            if (Math.sqrt(d2) < r + wobble) {
+                return true;
             }
         }
-        return min;
+        return false;
     }
 
-    private double siteX(int gx, int gz) {
-        return (gx + JITTER_MIN + JITTER_SPAN * unit(hash(gx, gz, S_SITE_X))) * CELL;
+    /** Whether the block is air in one of the spaghetti tunnels. */
+    public boolean spaghettiAir(int blockX, int y, int blockZ) {
+        if (y < MIN_AIR_Y || y > MAX_AIR_Y) {
+            return false;
+        }
+        final double px = blockX + 0.5;
+        final double py = y + 0.5;
+        final double pz = blockZ + 0.5;
+        final double fade = clamp01((py - MIN_AIR_Y) / SPAGHETTI_FADE) * clamp01((MAX_AIR_Y + 1 - py) / SPAGHETTI_FADE);
+        if (fade <= 0.0) {
+            return false;
+        }
+        for (int i = 0; i < SPAGHETTI.length; i++) {
+            final double[] s = SPAGHETTI[i];
+            final int salt = S_SPAGHETTI + 3 * i;
+            final double width = 0.5 + 0.5 * clampSigned(1.8 * perlin(px / SPAGHETTI_RADIUS_SCALE, py / 60.0,
+                    pz / SPAGHETTI_RADIUS_SCALE, salt + 2));
+            final double radius = (s[2] + s[3] * width) * Math.sqrt(fade);
+            final double a = perlin(px / s[0], py / s[1], pz / s[0], salt);
+            if (Math.abs(a) >= radius) {
+                continue;
+            }
+            final double b = perlin(px / s[0], py / s[1], pz / s[0], salt + 1);
+            if (a * a + b * b < radius * radius) {
+                return true;
+            }
+        }
+        return false;
     }
 
-    private double siteZ(int gx, int gz) {
-        return (gz + JITTER_MIN + JITTER_SPAN * unit(hash(gx, gz, S_SITE_Z))) * CELL;
+    /** Full query. {@code col} must be filled for (x, z) by {@link #column}. */
+    public boolean isAir(int blockX, int y, int blockZ, Column col) {
+        if (y < MIN_AIR_Y || y > MAX_AIR_Y) {
+            return false;
+        }
+        return cavernAir(blockX, y, blockZ, col) || spaghettiAir(blockX, y, blockZ);
+    }
+
+    /** Air height of the cavern at a position before ceiling details, below EDGE_AIR = solid rock. */
+    private double hallHeight(double px, double pz) {
+        final double t = 0.5 + 0.5 * clampSigned(2.2 * perlin(px / HEIGHT_SCALE, 0.23, pz / HEIGHT_SCALE, S_HEIGHT));
+        // a plateau of tall halls, now and then dropping to the thin crawl stretches
+        final double height = HEIGHT_MIN + HEIGHT_VAR * smoothstep(0.12, 0.62, t);
+
+        final double region = 0.5 + 0.5 * clampSigned(2.0 * perlin(px / ROCK_REGION_SCALE, 0.71, pz / ROCK_REGION_SCALE, S_ROCK_REGION));
+        final double threshold = ROCK_THRESHOLD_OPEN + (ROCK_THRESHOLD_DENSE - ROCK_THRESHOLD_OPEN) * smoothstep(0.3, 0.8, region);
+        final double rock = 0.5 + 0.5 * clampSigned(1.7 * (0.8 * perlin(px / ROCK_SCALE, 0.13, pz / ROCK_SCALE, S_ROCK)
+                + 0.35 * perlin(px / ROCK_DETAIL_SCALE, 0.89, pz / ROCK_DETAIL_SCALE, S_ROCK_DETAIL)));
+        if (rock >= threshold) {
+            return 0.0;
+        }
+        // dome shaped towards the rock: the ceiling comes down, the floor stays walkable
+        final double u = clamp01((threshold - rock) / ROCK_EDGE);
+        final double dome = Math.sqrt(1.0 - (1.0 - u) * (1.0 - u));
+        return EDGE_AIR + (height - EDGE_AIR) * dome;
+    }
+
+    /** Floor height (first air block) at a position. Smooth, slope always below 1. */
+    public int floorY(double px, double pz) {
+        final double big = perlin(px / FLOOR_SCALE, 0.41, pz / FLOOR_SCALE, S_FLOOR);
+        final double detail = perlin(px / FLOOR_DETAIL_SCALE, 0.53, pz / FLOOR_DETAIL_SCALE, S_FLOOR_DETAIL);
+        final long y = Math.round(FLOOR_BASE + FLOOR_AMP * clampSigned(1.8 * big) + FLOOR_DETAIL_AMP * detail * 2.0);
+        return (int) Math.max(MIN_FLOOR_Y, Math.min(MAX_FLOOR_Y, y));
     }
 
     // ---- noise helpers --------------------------------------------------------------------
 
-    private double valueNoise(double x, double z, double scale, int salt) {
-        final double fx = x / scale;
-        final double fz = z / scale;
-        final int ix = (int) Math.floor(fx);
-        final int iz = (int) Math.floor(fz);
-        final double tx = fade(fx - ix);
-        final double tz = fade(fz - iz);
-        final double v00 = unit(hash(ix, iz, salt));
-        final double v10 = unit(hash(ix + 1, iz, salt));
-        final double v01 = unit(hash(ix, iz + 1, salt));
-        final double v11 = unit(hash(ix + 1, iz + 1, salt));
-        final double a = v00 + (v10 - v00) * tx;
-        final double b = v01 + (v11 - v01) * tx;
-        return a + (b - a) * tz;
+    /** Gradient (Perlin) noise, roughly in [-1, 1], mostly in [-0.5, 0.5]. */
+    private double perlin(double x, double y, double z, int salt) {
+        final int ix = (int) Math.floor(x);
+        final int iy = (int) Math.floor(y);
+        final int iz = (int) Math.floor(z);
+        final double fx = x - ix, fy = y - iy, fz = z - iz;
+        final double u = fade(fx), v = fade(fy), w = fade(fz);
+        final long base = salted[salt];
+        final double x00 = lerp(u, grad(base, ix, iy, iz, fx, fy, fz), grad(base, ix + 1, iy, iz, fx - 1, fy, fz));
+        final double x10 = lerp(u, grad(base, ix, iy + 1, iz, fx, fy - 1, fz), grad(base, ix + 1, iy + 1, iz, fx - 1, fy - 1, fz));
+        final double x01 = lerp(u, grad(base, ix, iy, iz + 1, fx, fy, fz - 1), grad(base, ix + 1, iy, iz + 1, fx - 1, fy, fz - 1));
+        final double x11 = lerp(u, grad(base, ix, iy + 1, iz + 1, fx, fy - 1, fz - 1), grad(base, ix + 1, iy + 1, iz + 1, fx - 1, fy - 1, fz - 1));
+        return lerp(w, lerp(v, x00, x10), lerp(v, x01, x11));
+    }
+
+    private static double grad(long base, int x, int y, int z, double dx, double dy, double dz) {
+        final long h = mix(base + x * 0xD6E8FEB86659FD93L + y * 0xA0761D6478BD642FL + z * 0xCA5A826395121157L);
+        switch ((int) (h >>> 60)) { // the 12 cube edge directions, 4 repeated
+            case 0: case 12: return dx + dy;
+            case 1: case 13: return -dx + dy;
+            case 2: return dx - dy;
+            case 3: return -dx - dy;
+            case 4: return dx + dz;
+            case 5: return -dx + dz;
+            case 6: return dx - dz;
+            case 7: return -dx - dz;
+            case 8: case 14: return dy + dz;
+            case 9: case 15: return -dy + dz;
+            case 10: return dy - dz;
+            default: return -dy - dz;
+        }
+    }
+
+    /** Smooth 1D value noise in [0, 1]. */
+    private static double noise1(double t, long key) {
+        final int i = (int) Math.floor(t);
+        final double f = fade(t - i);
+        final double a = unit(mix(key + i * 0xD6E8FEB86659FD93L));
+        final double b = unit(mix(key + (i + 1) * 0xD6E8FEB86659FD93L));
+        return a + (b - a) * f;
     }
 
     private static double fade(double t) {
         return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
     }
 
+    private static double lerp(double t, double a, double b) {
+        return a + (b - a) * t;
+    }
+
+    private static double clamp01(double v) {
+        return v < 0.0 ? 0.0 : (v > 1.0 ? 1.0 : v);
+    }
+
+    private static double clampSigned(double v) {
+        return v < -1.0 ? -1.0 : (v > 1.0 ? 1.0 : v);
+    }
+
+    private static double smoothstep(double a, double b, double v) {
+        final double t = clamp01((v - a) / (b - a));
+        return t * t * (3.0 - 2.0 * t);
+    }
+
     private long hash(int x, int z, int salt) {
-        long h = mix(seed ^ (salt * 0x9E3779B97F4A7C15L));
+        long h = salted[salt];
         h = mix(h + x * 0xD6E8FEB86659FD93L);
         h = mix(h + z * 0xCA5A826395121157L);
         return h;
