@@ -3,13 +3,18 @@ package redero.abyssaldepths;
 import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
+import com.mojang.serialization.Codec;
 
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.util.valueproviders.ConstantInt;
 import net.minecraft.util.valueproviders.UniformInt;
+import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.level.block.Block;
@@ -28,10 +33,12 @@ import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConf
 import net.minecraft.world.level.material.MapColor;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.attachment.AttachmentType;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
+import net.neoforged.neoforge.registries.NeoForgeRegistries;
 import redero.abyssaldepths.worldgen.TunnelFeature;
 
 @Mod(AbyssalDepths.MODID)
@@ -43,6 +50,19 @@ public class AbyssalDepths {
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(MODID);
     public static final DeferredRegister<Feature<?>> FEATURES = DeferredRegister.create(Registries.FEATURE, MODID);
     public static final DeferredRegister<CreativeModeTab> CREATIVE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MODID);
+    public static final DeferredRegister<MobEffect> MOB_EFFECTS = DeferredRegister.create(Registries.MOB_EFFECT, MODID);
+    public static final DeferredRegister<SoundEvent> SOUND_EVENTS = DeferredRegister.create(Registries.SOUND_EVENT, MODID);
+    public static final DeferredRegister<AttachmentType<?>> ATTACHMENT_TYPES = DeferredRegister.create(NeoForgeRegistries.Keys.ATTACHMENT_TYPES, MODID);
+
+    /** Icon: textures/mob_effect/deep_pressure.png */
+    public static final DeferredHolder<MobEffect, DeepPressure> DEEP_PRESSURE = MOB_EFFECTS.register("deep_pressure", DeepPressure::new);
+    /** Ticks a player has spent in the thalan layer without Deep Pressure, see {@link DeepPressure}. */
+    public static final Supplier<AttachmentType<Integer>> TICKS_BELOW = ATTACHMENT_TYPES.register("ticks_below",
+            () -> AttachmentType.builder(() -> 0).serialize(Codec.INT).build());
+
+    // ambience of the thalan layer, files in assets/abyssaldepths/sounds.json
+    public static final DeferredHolder<SoundEvent, SoundEvent> AMBIENT_LOOP = sound("ambient.thalan_layer.loop");
+    public static final DeferredHolder<SoundEvent, SoundEvent> AMBIENT_DRIP = sound("ambient.thalan_layer.drip");
 
     /** Carves the tunnel layer. Added to all overworld biomes by data/abyssaldepths/neoforge/biome_modifier. */
     public static final DeferredHolder<Feature<?>, TunnelFeature> TUNNEL_LAYER =
@@ -105,6 +125,10 @@ public class AbyssalDepths {
                     .displayItems((params, output) -> ITEMS.getEntries().forEach(item -> output.accept(item.get())))
                     .build());
 
+    private static DeferredHolder<SoundEvent, SoundEvent> sound(String name) {
+        return SOUND_EVENTS.register(name, () -> SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath(MODID, name)));
+    }
+
     /** Sound etc. of the deepslate counterpart, as much harder than thalan as those are than deepslate (3.5 vs 3). */
     private static DeferredBlock<Block> building(String name, Block deepslateBlock) {
         return withItem(BLOCKS.register(name, () -> new Block(BlockBehaviour.Properties.ofFullCopy(deepslateBlock).strength(5.5F, 9.0F))));
@@ -138,5 +162,8 @@ public class AbyssalDepths {
         ITEMS.register(modEventBus);
         FEATURES.register(modEventBus);
         CREATIVE_TABS.register(modEventBus);
+        MOB_EFFECTS.register(modEventBus);
+        SOUND_EVENTS.register(modEventBus);
+        ATTACHMENT_TYPES.register(modEventBus);
     }
 }

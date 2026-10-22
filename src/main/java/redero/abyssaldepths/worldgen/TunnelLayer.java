@@ -46,8 +46,10 @@ public final class TunnelLayer {
     private static final double FLOOR_BASE = -109.0;
     private static final double FLOOR_AMP = 10.0;
     private static final double FLOOR_SCALE = 340.0;
-    private static final double FLOOR_DETAIL_AMP = 2.5;
+    private static final double FLOOR_DETAIL_AMP = 3.2;
     private static final double FLOOR_DETAIL_SCALE = 45.0;
+    private static final double FLOOR_BUMP_AMP = 1.3;    // small humps and dips
+    private static final double FLOOR_BUMP_SCALE = 11.0;
 
     // cavern height
     private static final double HEIGHT_MIN = 5.0; // the low, thin stretches
@@ -116,7 +118,7 @@ public final class TunnelLayer {
             S_STALACTITE_AMP = 15, S_CEILING = 16, S_MASSIF_ON = 17,
             S_MASSIF_X = 18, S_MASSIF_Z = 19, S_MASSIF_R = 20, S_MASSIF_WOBBLE = 21, S_SHAFT_ON = 22,
             S_SHAFT_X = 23, S_SHAFT_Z = 24, S_SHAFT_DIR = 25, S_SHAFT_LEN = 26, S_SHAFT_TOP = 27,
-            S_TUNNEL_WAVE = 28, S_TUNNEL_AMP = 29, S_PASS_ON = 30, S_PASS_DIR = 31, SALTS = 32;
+            S_TUNNEL_WAVE = 28, S_TUNNEL_AMP = 29, S_PASS_ON = 30, S_PASS_DIR = 31, S_FLOOR_BUMP = 32, SALTS = 33;
 
     private final long[] salted = new long[SALTS];
 
@@ -451,7 +453,9 @@ public final class TunnelLayer {
     public int floorY(double px, double pz) {
         final double big = perlin(px / FLOOR_SCALE, 0.41, pz / FLOOR_SCALE, S_FLOOR);
         final double detail = perlin(px / FLOOR_DETAIL_SCALE, 0.53, pz / FLOOR_DETAIL_SCALE, S_FLOOR_DETAIL);
-        final long y = Math.round(FLOOR_BASE + FLOOR_AMP * clampSigned(1.8 * big) + FLOOR_DETAIL_AMP * detail * 2.0);
+        final double bump = perlin(px / FLOOR_BUMP_SCALE, 0.67, pz / FLOOR_BUMP_SCALE, S_FLOOR_BUMP);
+        final long y = Math.round(FLOOR_BASE + FLOOR_AMP * clampSigned(1.8 * big) + FLOOR_DETAIL_AMP * detail * 2.0
+                + FLOOR_BUMP_AMP * bump * 2.0);
         return (int) Math.max(MIN_FLOOR_Y, Math.min(MAX_FLOOR_Y, y));
     }
 
