@@ -60,16 +60,16 @@ public final class TunnelLayer {
     private static final double ROCK_SCALE = 58.0;
     private static final double ROCK_DETAIL_SCALE = 19.0;
     private static final double ROCK_REGION_SCALE = 520.0;
-    private static final double ROCK_THRESHOLD_OPEN = 0.82;  // open plains: few rock masses
-    private static final double ROCK_THRESHOLD_DENSE = 0.66; // dense regions: narrow passages
+    private static final double ROCK_THRESHOLD_OPEN = 0.80;  // open plains: few rock masses
+    private static final double ROCK_THRESHOLD_DENSE = 0.655; // dense regions: narrow passages
     private static final double ROCK_EDGE = 0.22;            // width of the sloped edge in noise units
 
     // massifs (sizes in blocks)
-    private static final double MASSIF_CELL = 128.0;
-    private static final double MASSIF_CHANCE = 0.9;
+    private static final double MASSIF_CELL = 112.0;
+    private static final double MASSIF_CHANCE = 0.95;
     private static final double MASSIF_JITTER_MIN = 0.12;
     private static final double MASSIF_JITTER_SPAN = 0.76;
-    private static final double MASSIF_RADIUS_MIN = 30.0;
+    private static final double MASSIF_RADIUS_MIN = 36.0;
     private static final double MASSIF_RADIUS_VAR = 24.0;
     private static final double MASSIF_RADIUS_DROP = 10.0; // squeezed below this: no massif
     private static final double MASSIF_WOBBLE = 0.18;   // relative, the outline is not a circle
