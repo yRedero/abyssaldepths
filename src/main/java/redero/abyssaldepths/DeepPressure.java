@@ -38,7 +38,7 @@ public final class DeepPressure extends MobEffect {
     /** Timer value of the full pressure (last stage). */
     public static final int MAX_TICKS = STAGE_TICKS[STAGE_TICKS.length - 1];
     // per level I .. IV
-    private static final double[] MINING = {-0.4, -0.5, -0.65, -0.75}; // like mining fatigue, multiplies
+    private static final double[] MINING = {0.0, -0.7, -0.7, -0.91};   // mining fatigue I from II, II at IV (vanilla values)
     private static final double[] MOVEMENT = {0.0, -0.15, -0.15, -0.3}; // like slowness I / II
     private static final double[] ATTACK = {0.0, 0.0, -3.0, -4.0};      // like weakness
     private static final float[] EXHAUSTION = {0.0F, 0.005F, 0.005F, 0.0075F}; // per tick, hunger I = 0.005
