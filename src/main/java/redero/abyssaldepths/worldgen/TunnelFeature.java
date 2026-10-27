@@ -3,6 +3,7 @@ package redero.abyssaldepths.worldgen;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.DoubleBinaryOperator;
 
 import com.mojang.serialization.Codec;
 
@@ -55,13 +56,18 @@ public class TunnelFeature extends Feature<NoneFeatureConfiguration> {
         final ChunkPos chunk = new ChunkPos(context.origin());
         final int x0 = chunk.getMinBlockX(), z0 = chunk.getMinBlockZ();
         final Biomes biomes = biomes(level);
-        // shale flats and silt dunes are open plains: no pillars there (decided at the pillar centre)
+        // the shale flats are an open plain: no pillars there; the dunes keep about a third of them as
+        // lone supports of their big hall (decided at the pillar centre)
         final Map<Long, Boolean> pillars = new HashMap<>();
         final TunnelLayer layer = new TunnelLayer(level.getSeed(), (px, pz) -> pillars.computeIfAbsent(
                 BlockPos.asLong((int) Math.floor(px), 0, (int) Math.floor(pz)), k -> {
                     final int biome = biomes.at((int) Math.floor(px), (int) Math.floor(pz));
-                    return biome != Biomes.FLATS && biome != Biomes.DUNES;
-                }));
+                    if (biome == Biomes.DUNES) {
+                        final long h = BlockPos.asLong((int) Math.floor(px), 0, (int) Math.floor(pz)) * 0x9E3779B97F4A7C15L;
+                        return Long.remainderUnsigned(h ^ (h >>> 29) ^ level.getSeed(), 100) < 35;
+                    }
+                    return biome != Biomes.FLATS;
+                }), openness(biomes));
         // the chunk's columns and one ring around it (the walls look across the chunk border)
         final TunnelLayer.Column[] ring = new TunnelLayer.Column[18 * 18];
         for (int dz = -1; dz <= 16; dz++) {
@@ -126,6 +132,30 @@ public class TunnelFeature extends Feature<NoneFeatureConfiguration> {
             }
         }
         return placed;
+    }
+
+    /**
+     * How much the silt dunes surround a position (share of a 5 x 5 grid of samples 8 blocks apart,
+     * eased), cached per 4 x 4 block cell like the biomes themselves: the dunes open up into one big
+     * hall, fading out over about 16 blocks at their border.
+     */
+    private static DoubleBinaryOperator openness(Biomes biomes) {
+        final Map<Long, Double> cache = new HashMap<>();
+        return (px, pz) -> {
+            final int qx = (int) Math.floor(px) >> 2, qz = (int) Math.floor(pz) >> 2;
+            return cache.computeIfAbsent(BlockPos.asLong(qx, 0, qz), k -> {
+                int hit = 0;
+                for (int i = -2; i <= 2; i++) {
+                    for (int j = -2; j <= 2; j++) {
+                        if (biomes.at((qx << 2) + 2 + i * 8, (qz << 2) + 2 + j * 8) == Biomes.DUNES) {
+                            hit++;
+                        }
+                    }
+                }
+                final double t = Math.max(0.0, Math.min(1.0, (hit / 25.0 - 0.2) / 0.7));
+                return t * t * (3.0 - 2.0 * t);
+            });
+        };
     }
 
     /**

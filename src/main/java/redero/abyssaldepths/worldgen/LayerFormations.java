@@ -10,17 +10,15 @@ import java.util.List;
  * formations near it and lets each one fill its own columns; formations crossing chunk borders are
  * therefore built piece by piece, every chunk placing only its share, after its own carving.
  * <ul>
- * <li><b>Shale flats:</b> spires (pointed towers with a fractured vein, rubble ring), shards (round
- * cones with a broad foot and a sharp point, in groups, rubble heaps), tilted round slabs of fractured
- * shale (shelter below the raised side), stone cairns, and small thalan-lined craters (some with a
- * hole into a cavity with ore in its walls).</li>
- * <li><b>Silt dunes:</b> tall slender arches, big outcrops, collapsed basins with dark rock, fossils
- * and ore at the bottom, sediment falls (a ledge with silt pouring over into a fan) and collapse holes
- * into cavities with fossils and ore.</li>
+ * <li><b>Shale flats:</b> only shards: round columns of fractured shale leaning out of the ground at
+ * 35 to 70 degrees, pointed at the top, in groups, rubble around their feet. They fill the flats,
+ * leaving only winding paths and a few clearings open.</li>
+ * <li><b>Silt dunes:</b> tall slender arches, big outcrops, flat basins where the dunes settled away,
+ * and collapse holes into cavities with fossils and ore.</li>
  * <li><b>Thermal reaches:</b> vent cones of vent blocks, broad at the foot (in clusters around an
  * oxide deposit with a sulfur core, or alone), fields of small vents in the ground, mineral chimneys,
  * sinter terraces with stepped basins around a pool, and collapsed vent
- * craters showing older layers, with a pool or a vent at the bottom (then glowing around it).</li>
+ * craters lined with thermal rock, with a pool or a vent at the bottom (then glowing around it).</li>
  * </ul>
  */
 public final class LayerFormations {
@@ -49,6 +47,9 @@ public final class LayerFormations {
 
         void set(int x, int y, int z, Mat mat);
     }
+
+    /** Noise channels of TunnelLayer.surfaceNoise for the open paths and clearings between the shards of the shale flats. */
+    private static final int SHARD_PATHS = 18, SHARD_CLEARINGS = 15;
 
     /** Lowest y a cavity may reach, keeps rock above the bedrock. */
     private static final int CAVITY_FLOOR = -121;
@@ -101,9 +102,8 @@ public final class LayerFormations {
 
     private enum Type {
         // cell, chance, biome, largest reach from the centre (group spread included)
-        BLADES(18, 0.7, Biomes.FLATS, 32), PLATE(30, 0.55, Biomes.FLATS, 16), CAIRN(40, 0.3, Biomes.FLATS, 7),
-        SPIRE(36, 0.45, Biomes.FLATS, 10), SHALE_CRATER(30, 0.35, Biomes.FLATS, 12), ARCH(70, 0.4, Biomes.DUNES, 28), OUTCROP(64, 0.45, Biomes.DUNES, 26),
-        BASIN(64, 0.35, Biomes.DUNES, 26), FALL(50, 0.4, Biomes.DUNES, 25), CAVITY(36, 0.35, Biomes.DUNES, 8),
+        SHARDS(9, 0.8, Biomes.FLATS, 40), ARCH(46, 0.55, Biomes.DUNES, 28), OUTCROP(110, 0.3, Biomes.DUNES, 26),
+        BASIN(64, 0.35, Biomes.DUNES, 26), CAVITY(36, 0.35, Biomes.DUNES, 8),
         VENT_CLUSTER(64, 0.55, Biomes.THERMAL, 16), FUMAROLE(14, 0.22, Biomes.THERMAL, 5), CHIMNEY(34, 0.3, Biomes.THERMAL, 8),
         VENT_FIELD(48, 0.45, Biomes.THERMAL, 13),
         // terraces hold water at their own levels: little jitter, so two of them never touch
@@ -168,45 +168,28 @@ public final class LayerFormations {
         final int raise = type.biome == Biomes.FLATS ? Math.max(0, Math.min(layer.plateau(bx, bz), col.ceiling - col.floor + 1 - 8)) : 0;
         final int base = col.floor + raise, room = col.ceiling - col.floor + 1 - raise;
         switch (type) {
-            case BLADES -> {
-                final int n = 1 + (int) (r.next() * 6);
+            case SHARDS -> {
+                // the flats are full of shards, hard to cross; only winding open paths (a ridge line of the
+                // noise) and a few clearings lead through, with a lone shard here and there
+                final boolean path = Math.abs(layer.surfaceNoise(SHARD_PATHS, cx / 150.0, cz / 150.0)) < 0.05;
+                final boolean clearing = layer.surfaceNoise(SHARD_CLEARINGS, cx / 45.0, cz / 45.0) > 0.42;
+                final boolean open = path || clearing;
+                if (open && r.next() > 0.05) {
+                    return;
+                }
+                // a small group of leaning shards (a lone one in the open); many small, a few very large
+                final int n = open ? 1 : 1 + (int) (r.next() * 3);
+                final double yaw0 = r.next() * 2 * Math.PI;
                 for (int i = 0; i < n; i++) {
-                    final double a = r.next() * 2 * Math.PI, d = i == 0 ? 0 : 2 + r.next() * 6;
-                    // many small shards, a few very large ones; tall ones are thick
+                    final double a = r.next() * 2 * Math.PI, d = i == 0 ? 0 : 2.5 + r.next() * 3;
                     final double size = Math.pow(r.next(), 1.6);
-                    final double h = Math.min(4 + size * 24, room - 2);
-                    if (h >= 3) {
-                        final double lean = 0.12 * h;
-                        out.add(new Blade(cx + Math.cos(a) * d, cz + Math.sin(a) * d, base, 0.8 + size * 3 + r.next() * 0.6, h,
-                                (r.next() - 0.5) * lean, (r.next() - 0.5) * lean, r.seed()));
+                    // leaning 35 to 70 degrees from the ground, mostly the same way within a group
+                    final double elev = Math.toRadians(35 + r.next() * 35), yaw = yaw0 + (r.next() - 0.5) * 1.2;
+                    final double radius = 1.0 + size * 2.5 + r.next() * 0.5;
+                    final double length = Math.min(7 + size * 26, (room - 3) / Math.sin(elev));
+                    if (length >= 5) {
+                        out.add(new Shard(cx + Math.cos(a) * d, cz + Math.sin(a) * d, base, yaw, elev, radius, length, r.seed()));
                     }
-                }
-            }
-            case PLATE -> {
-                final double rise = Math.min(3 + r.next() * 4, room - 4);
-                if (rise >= 2) {
-                    out.add(new Plate(cx, cz, base, r.next() * 2 * Math.PI, 10 + r.next() * 10, 5 + r.next() * 5,
-                            2 + (int) (r.next() * 2), rise, r.seed()));
-                }
-            }
-            case CAIRN -> {
-                if (room > 8) {
-                    out.add(new Cairn(cx, cz, base, 3 + (int) (r.next() * 4), 1.6 + r.next() * 0.8, r));
-                }
-            }
-            case SPIRE -> {
-                final double h = Math.min(10 + r.next() * 14, room - 2);
-                if (h >= 8) {
-                    out.add(new Spire(cx, cz, base, 1.5 + r.next() * 1.5, h, (r.next() - 0.5) * 2.0, (r.next() - 0.5) * 2.0, r.seed()));
-                }
-            }
-            case SHALE_CRATER -> {
-                final double radius = 3 + r.next() * 3;
-                final int depth = 1 + (int) (r.next() * 3);
-                final double kind = r.next(); // a third lead into a cavity, about a quarter show an ore seam
-                out.add(new ShaleCrater(cx, cz, base, radius, depth, r.seed()));
-                if (kind < 0.33 && base - depth - 8 >= CAVITY_FLOOR) {
-                    out.add(new Cavity(cx, cz, base - depth, 1.2, base - depth - 5, 3.5, 2.3, false, r.seed()));
                 }
             }
             case ARCH -> {
@@ -225,12 +208,6 @@ public final class LayerFormations {
                 }
             }
             case BASIN -> out.add(new Basin(cx, cz, base, 10 + r.next() * 10, 1 + (int) (r.next() * 3), r.seed()));
-            case FALL -> {
-                final double h = Math.min(4 + r.next() * 3, room - 4);
-                if (h >= 3) {
-                    out.add(new Fall(cx, cz, base, r.next() * 2 * Math.PI, 5 + r.next() * 3, 4 + r.next() * 3, h, r.seed()));
-                }
-            }
             case CAVITY -> {
                 if (base - 8 >= CAVITY_FLOOR) {
                     out.add(new Cavity(cx, cz, base, 1.5 + r.next() * 1.5, base - 5, 3.5, 2.5, true, r.seed()));
@@ -349,198 +326,63 @@ public final class LayerFormations {
     }
 
     /**
-     * Shard: round cone of shale standing out of the ground, a broad flared foot narrowing to a sharp
-     * point, leaning a little. The thick ones have one vein of fractured shale running up through
-     * them; broken pieces in heaps at the foot.
+     * Shard of the shale flats: a round column of fractured shale leaning out of the ground at 35 to
+     * 70 degrees, its lower end buried, running straight and narrowing to a point over its last third.
+     * Rubble lies in blobs around the foot.
      */
-    final class Blade extends Formation {
-        final double r0, h, leanX, leanZ;
+    final class Shard extends Formation {
+        final double ux, uy, uz, radius, length, sx, sy, sz, entryX, entryZ;
 
-        Blade(double cx, double cz, int base, double r0, double h, double leanX, double leanZ, long seed) {
+        Shard(double cx, double cz, int base, double yaw, double elev, double radius, double length, long seed) {
             super(cx, cz, base, seed);
-            this.r0 = r0;
-            this.h = h;
-            this.leanX = leanX;
-            this.leanZ = leanZ;
+            ux = Math.cos(yaw) * Math.cos(elev);
+            uy = Math.sin(elev);
+            uz = Math.sin(yaw) * Math.cos(elev);
+            this.radius = radius;
+            this.length = length;
+            // the axis starts buried below the ground, so the foot is cut by the ground, not rounded off
+            final double buried = radius + 1.5;
+            sx = cx - ux / uy * buried;
+            sy = base - buried;
+            sz = cz - uz / uy * buried;
+            entryX = cx;
+            entryZ = cz;
         }
 
-        double reach() { return r0 * 1.7 + Math.hypot(leanX, leanZ) + 3; }
+        double reach() { return length * Math.cos(Math.asin(uy)) + radius + 4; }
+
+        /** Radius at distance t along the axis: full, then narrowing to a point; never below 0.75 so the tip stays connected. */
+        private double radiusAt(double t) {
+            final double taper = (length - t) / (length * 0.35);
+            return Math.max(0.75, radius * Math.min(1.0, taper));
+        }
 
         @Override
         public void column(int x, int z, int floor, int ceiling, Sink s) {
+            final double px = x + 0.5 - sx, pz = z + 0.5 - sz;
             boolean any = false;
-            for (int y = floor; y < base + h && y < ceiling - 1; y++) {
-                final double rel = Math.max(0.0, y + 0.5 - base), t = rel / h;
-                final double ox = cx + leanX * t, oz = cz + leanZ * t;
-                // narrows to a point, the foot flares out over the lowest blocks
-                final double r = 0.3 + r0 * Math.pow(1.0 - t, 1.3) + 0.6 * r0 * Math.max(0.0, 1.0 - rel / 3.0);
-                // every block stands on the one below: nothing hangs in the air in front of the shard
-                if (Math.hypot(x + 0.5 - ox, z + 0.5 - oz) >= r || !s.open(x, y, z) || s.air(x, y - 1, z)) {
-                    break;
+            for (int y = floor; y < ceiling - 1; y++) {
+                final double py = y + 0.5 - sy;
+                final double t = px * ux + py * uy + pz * uz;
+                if (t < 0 || t > length) {
+                    continue;
                 }
-                s.set(x, y, z, r0 > 1.8 && vein(seed, x, y, z, ox, oz, r0) ? Mat.FRACTURED_SHALE : Mat.SHALE);
-                any = true;
+                final double qx = px - ux * t, qy = py - uy * t, qz = pz - uz * t;
+                if (qx * qx + qy * qy + qz * qz < radiusAt(t) * radiusAt(t) && s.open(x, y, z)) {
+                    s.set(x, y, z, Mat.FRACTURED_SHALE);
+                    any = true;
+                }
             }
-            // broken pieces collect in heaps at the foot
-            if (!any && Math.hypot(x + 0.5 - cx, z + 0.5 - cz) < 1.6 * r0 + 1.5 && s.air(x, floor, z) && !s.air(x, floor - 1, z)
-                    && blob(x, floor, z, 2.5, 29) < 0.4) {
+            // broken pieces in blobs around the foot
+            if (!any && Math.hypot(x + 0.5 - entryX, z + 0.5 - entryZ) < radius * 1.6 + 2.5 && s.air(x, floor, z)
+                    && !s.air(x, floor - 1, z) && blob(x, floor, z, 2.5, 29) < 0.45) {
                 s.set(x, floor, z, Mat.SHALE_RUBBLE);
             }
         }
     }
 
     /**
-     * Round slab of fractured shale rising out of the ground: one side buried, the other raised,
-     * shelter below it. One block only, so it stands apart from the shale around it.
-     */
-    final class Plate extends Formation {
-        final double dx, dz, length, width, rise;
-        final int thick;
-
-        Plate(double cx, double cz, int base, double yaw, double length, double width, int thick, double rise, long seed) {
-            super(cx, cz, base, seed);
-            dx = Math.cos(yaw);
-            dz = Math.sin(yaw);
-            this.length = length;
-            this.width = width;
-            this.thick = thick;
-            this.rise = rise;
-        }
-
-        double reach() { return Math.hypot(length / 2, width / 2) + 2; }
-
-        @Override
-        public void column(int x, int z, int floor, int ceiling, Sink s) {
-            final double px = x + 0.5 - cx, pz = z + 0.5 - cz;
-            final double a = px * dx + pz * dz, b = -px * dz + pz * dx;
-            // a round outline (an ellipse), a little wobbly
-            final double e = Math.hypot(a / (length / 2), b / (width / 2)) - 0.12 * layer.noise3(x / 4.0, 0.3, z / 4.0, 3);
-            if (e >= 1.0) {
-                return;
-            }
-            // the edge is rounded off too: thinner towards the rim
-            final double top = rise * (a / length + 0.5), t = thick * Math.sqrt(1.0 - e * e) + 0.5;
-            for (int y = floor; y < ceiling; y++) {
-                final double rel = y + 0.5 - base;
-                if (rel <= top && rel > top - t && s.open(x, y, z)) {
-                    s.set(x, y, z, Mat.FRACTURED_SHALE);
-                }
-            }
-        }
-    }
-
-    /** Pile of flat shale stones, each a bit smaller and shifted, the top one broken. */
-    final class Cairn extends Formation {
-        final double[] r, ox, oz;
-
-        Cairn(double cx, double cz, int base, int levels, double r0, Rand rand) {
-            super(cx, cz, base, rand.seed());
-            r = new double[levels];
-            ox = new double[levels];
-            oz = new double[levels];
-            double sx = 0, sz = 0;
-            for (int k = 0; k < levels; k++) {
-                r[k] = r0 * (1.0 - 0.16 * k);
-                sx += (rand.next() - 0.5) * 0.9;
-                sz += (rand.next() - 0.5) * 0.9;
-                ox[k] = sx;
-                oz[k] = sz;
-            }
-        }
-
-        double reach() { return r[0] + 3; }
-
-        @Override
-        public void column(int x, int z, int floor, int ceiling, Sink s) {
-            for (int k = 0; k < r.length; k++) {
-                final double dx = Math.abs(x + 0.5 - cx - ox[k]), dz = Math.abs(z + 0.5 - cz - oz[k]);
-                if (dx * dx * dx + dz * dz * dz >= r[k] * r[k] * r[k]) {
-                    continue; // squarish flat stone
-                }
-                final int from = k == 0 ? floor : base + k, to = base + k;
-                for (int y = from; y <= to && y < ceiling; y++) {
-                    if (s.open(x, y, z)) {
-                        s.set(x, y, z, k == r.length - 1 ? Mat.FRACTURED_SHALE : Mat.SHALE);
-                    }
-                }
-            }
-        }
-    }
-
-    /** Pointed tower of shale with one vein of fractured shale running up through it, a ring of rubble at its base. */
-    final class Spire extends Formation {
-        final double r0, h, leanX, leanZ;
-
-        Spire(double cx, double cz, int base, double r0, double h, double leanX, double leanZ, long seed) {
-            super(cx, cz, base, seed);
-            this.r0 = r0;
-            this.h = h;
-            this.leanX = leanX;
-            this.leanZ = leanZ;
-        }
-
-        double reach() { return r0 + Math.hypot(leanX, leanZ) + 3; }
-
-        @Override
-        public void column(int x, int z, int floor, int ceiling, Sink s) {
-            boolean any = false;
-            for (int y = floor; y < base + h && y < ceiling - 1; y++) {
-                final double t = Math.max(0.0, y + 0.5 - base) / h;
-                final double ox = cx + leanX * t, oz = cz + leanZ * t;
-                final double d = Math.hypot(x + 0.5 - ox, z + 0.5 - oz);
-                final double r = r0 * Math.pow(1.0 - t, 0.85) + 0.3; // tapers to a point
-                if (d >= r || !s.open(x, y, z) || s.air(x, y - 1, z)) {
-                    break; // standing on the block below, never hanging
-                }
-                s.set(x, y, z, vein(seed, x, y, z, ox, oz, r0) ? Mat.FRACTURED_SHALE : Mat.SHALE);
-                any = true;
-            }
-            final double d = Math.hypot(x + 0.5 - cx, z + 0.5 - cz);
-            if (!any && d < r0 + 1.8 && s.air(x, floor, z) && !s.air(x, floor - 1, z)) {
-                s.set(x, floor, z, Mat.SHALE_RUBBLE); // the ring of fallen pieces
-            }
-        }
-    }
-
-    /**
-     * Small bowl in the shale, the whole hollow (bottom, sides and the edge around it) dark thalan:
-     * one block, where the shale was broken away.
-     */
-    final class ShaleCrater extends Formation {
-        final double radius;
-        final int depth;
-
-        ShaleCrater(double cx, double cz, int base, double radius, int depth, long seed) {
-            super(cx, cz, base, seed);
-            this.radius = radius;
-            this.depth = depth;
-        }
-
-        double reach() { return radius + 2; }
-
-        @Override
-        public void column(int x, int z, int floor, int ceiling, Sink s) {
-            final double d = Math.hypot(x + 0.5 - cx, z + 0.5 - cz);
-            if (d >= radius + 1.2) {
-                return;
-            }
-            // dug out inside the radius; the edge around it only gets its sides lined
-            final int dig = d >= radius ? 0 : Math.max(1, (int) Math.round(depth * (1.0 - (d / radius) * (d / radius))));
-            for (int y = floor - dig; y < floor; y++) {
-                if (s.solid(x, y, z)) {
-                    s.set(x, y, z, Mat.AIR);
-                }
-            }
-            // everything the hollow shows: the bottom and every block a deeper neighbour looks at
-            for (int y = floor - depth - 2; y < floor - dig; y++) {
-                if (s.solid(x, y, z)) {
-                    s.set(x, y, z, Mat.THALAN);
-                }
-            }
-        }
-    }
-
-    /**
+     * Hole from the surface    /**
      * Hole from the surface into a small cavity below: pits of the fracture fields (ore in the walls)
      * or collapse holes of the dunes (fossils and ore, the sand around the hole packed).
      */
@@ -566,12 +408,6 @@ public final class LayerFormations {
                 for (int y = (int) Math.floor(cy); y < Math.min(floor + 22, ceiling); y++) {
                     if (y < floor ? s.solid(x, y, z) : (s.open(x, y, z) && !s.air(x, y, z))) {
                         s.set(x, y, z, Mat.AIR);
-                    }
-                }
-            } else if (dunes && d < hole + 1.2) {
-                for (int y = floor; y < Math.min(floor + 22, ceiling); y++) {
-                    if (s.open(x, y, z) && !s.air(x, y, z)) {
-                        s.set(x, y, z, Mat.PACKED_SILT); // the rim holds
                     }
                 }
             }
@@ -690,7 +526,7 @@ public final class LayerFormations {
         }
     }
 
-    /** Wide hollow where the sediment settled away: dark rock at the bottom, fossils and ore in the middle. */
+    /** Wide flat hollow where the sediment settled away: no dunes inside, only the fine silt ground. */
     final class Basin extends Formation {
         final double radius;
         final int depth;
@@ -705,75 +541,13 @@ public final class LayerFormations {
 
         @Override
         public void column(int x, int z, int floor, int ceiling, Sink s) {
-            final double d = Math.hypot(x + 0.5 - cx, z + 0.5 - cz);
-            if (d >= radius || !s.air(x, floor, z)) {
-                return; // outside, or sand lies here (digging below it would leave it hanging)
-            }
-            final int dig = (int) Math.round(depth * (1.0 - (d / radius) * (d / radius)));
-            for (int y = floor - dig; y < floor; y++) {
-                if (s.solid(x, y, z)) {
-                    s.set(x, y, z, Mat.AIR);
-                }
-            }
-            final int bottom = floor - dig - 1;
-            if (!s.solid(x, bottom, z)) {
-                return;
-            }
-            if (d < 3.0 && blob(x, bottom, z, 2.0, 33) < 0.35) {
-                s.set(x, bottom, z, Mat.FOSSIL);
-            } else if (d < 3.5 && blob(x, bottom, z, 2.0, 34) < 0.3) {
-                s.set(x, bottom, z, ore(seed, x, bottom, z));
-            } else {
-                s.set(x, bottom, z, d < radius * 0.6 ? Mat.THALAN : Mat.SILTSTONE);
-            }
+            // nothing to build: the dunes are flattened here (duneDamp), the ground stays fine silt
         }
 
         @Override
         double duneDamp(double x, double z) {
             final double d = Math.hypot(x - cx, z - cz) / radius;
             return d < 0.75 ? 0.0 : Math.min(1.0, (d - 0.75) / 0.4);
-        }
-    }
-
-    /** Rock ledge with sediment on top that has poured over its edge into a broad fan. */
-    final class Fall extends Formation {
-        final double ux, uz, length, halfWidth, h;
-
-        Fall(double cx, double cz, int base, double yaw, double length, double halfWidth, double h, long seed) {
-            super(cx, cz, base, seed);
-            ux = Math.cos(yaw);
-            uz = Math.sin(yaw);
-            this.length = length;
-            this.halfWidth = halfWidth;
-            this.h = h;
-        }
-
-        double reach() { return Math.max(length, 1.8 * h) + halfWidth + 3; }
-
-        @Override
-        public void column(int x, int z, int floor, int ceiling, Sink s) {
-            final double px = x + 0.5 - cx, pz = z + 0.5 - cz;
-            final double front = px * ux + pz * uz, side = -px * uz + pz * ux;
-            final double edge = halfWidth + 0.8 * layer.noise3(front / 3.0, 0.7, seed % 89, 5);
-            if (front < 0 && front >= -length && Math.abs(side) < edge) { // the ledge
-                final int top = (int) Math.floor(base + h);
-                for (int y = floor; y <= top && y < ceiling; y++) {
-                    if (s.open(x, y, z)) {
-                        s.set(x, y, z, y == top ? Mat.FINE_SILT : Mat.SILTSTONE);
-                    }
-                }
-                return;
-            }
-            final double reachFan = 1.8 * h;
-            if (front >= 0 && front < reachFan) { // the fan of sediment below it
-                final double w = side / (halfWidth + 2.0 + front * 0.4);
-                final double fan = h * (1.0 - front / reachFan) * (1.0 - w * w);
-                for (int y = floor; y < base + fan && y < ceiling; y++) {
-                    if (s.air(x, y, z)) {
-                        s.set(x, y, z, y >= base + fan - 2 ? Mat.FINE_SILT : Mat.PACKED_SILT);
-                    }
-                }
-            }
         }
     }
 
@@ -980,7 +754,7 @@ public final class LayerFormations {
         }
     }
 
-    /** Bowl where an old vent collapsed: rings of older layers in its walls, a pool or a vent at the bottom. */
+    /** Bowl where an old vent collapsed, lined with thermal rock, a pool or a vent at the bottom. */
     final class Crater extends Formation {
         final double radius;
         final int depth;
@@ -996,8 +770,6 @@ public final class LayerFormations {
 
         double reach() { return radius + 3; }
 
-        private final Mat[] layers = {Mat.THALAN, Mat.THALAN, Mat.THERMAL_ROCK};
-
         @Override
         public void column(int x, int z, int floor, int ceiling, Sink s) {
             final double d = Math.hypot(x + 0.5 - cx, z + 0.5 - cz);
@@ -1010,10 +782,10 @@ public final class LayerFormations {
                     s.set(x, y, z, Mat.AIR);
                 }
             }
-            // the walls show older layers, thin bands of the old deposits
-            for (int y = floor - depth - 1; y < floor - dig; y++) {
+            // the hollow is lined with thermal rock, one block all through
+            for (int y = floor - depth - 2; y < floor - dig; y++) {
                 if (s.solid(x, y, z)) {
-                    s.set(x, y, z, layers[Math.floorMod(y, layers.length)]);
+                    s.set(x, y, z, Mat.THERMAL_ROCK);
                 }
             }
             final int bottom = floor - dig;

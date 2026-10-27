@@ -18,7 +18,8 @@
         "type": "minecraft:ash"
       },
       "probability": 0.0015
-    }
+    },
+    "ambient_sound": "abyssaldepths:ambient.shale_flats.loop"
   },
   "carvers": {},
   "features": [

@@ -15,13 +15,11 @@ import redero.abyssaldepths.worldgen.LayerFormations.Biomes;
  * itself is the same in every biome; this only changes the ground, the bigger shapes are
  * {@link LayerFormations} placed afterwards:
  * <ul>
- * <li><b>Shale flats:</b> shale ground with patches of bare thalan and cobbled thalan, broad plateaus
- * 3 or 6 blocks high, rubble collected along low walls. The distinct shapes (spires, shards, plates,
- * craters) are formations, standing on the plateaus.</li>
- * <li><b>Silt dunes:</b> rolling silt dunes, mostly a few blocks high and here and there 10 to 20,
- * piled up against formations and missing in collapsed basins; packed silt on steep slopes and
- * against walls, siltstone below the dunes and in bare patches, holes where the dark thalan shows,
- * flat pools of quicksilt in the dips.</li>
+ * <li><b>Shale flats:</b> shale ground, broad shale plateaus 3 or 6 blocks high, broad rubble patches in the surface. The
+ * shards are formations, standing on the plateaus.</li>
+ * <li><b>Silt dunes:</b> all fine silt: the ground, and rolling dunes, mostly a few blocks high and here
+ * and there 10 to 20, piled up against formations and missing in the basins; rare quicksilt pools in
+ * the dips.</li>
  * <li><b>Thermal reaches:</b> the ground is mostly a skin of thermal rock over the thalan, oxide only in
  * rare small blobs. Activity varies by region (about 200 blocks): active areas get more thermal rock,
  * broad ridges, and dry fissures 2 to 4 blocks wide with a crust of thermal rock and glowing
@@ -38,8 +36,7 @@ final class LayerSurface {
     private static final int HEADROOM = 4;    // air kept above the dunes
 
     // noise channels of TunnelLayer.surfaceNoise (11 is shared with LayerFormations.fractureField)
-    private static final int DUNE_ROLL = 0, DUNE_CREST = 1, DUNE_WARP = 2, DUNE_BIG = 3, DUNE_HOLES = 4, SILTSTONE = 5,
-            FLATS_BARE = 6, FLATS_COBBLE = 7,
+    private static final int DUNE_ROLL = 0, DUNE_CREST = 1, DUNE_WARP = 2, DUNE_BIG = 3,
             RIDGE_MASK = 13, RIDGES = 14, ACTIVITY = 16, THERMAL_FISSURE = 17;
 
     private static final BlockState AIR = Blocks.AIR.defaultBlockState();
@@ -139,9 +136,6 @@ final class LayerSurface {
         final double big = smoothstep(0.12, 0.42, layer.surfaceNoise(DUNE_BIG, x / 230.0, z / 230.0));
         // ~18 % bare, most 1-4 blocks, ~5 % 5-9, ~1 % big dunes up to ~18
         double h = 1.75 + 4.0 * crest * roll + 15.0 * big * crest * roll;
-        if (layer.surfaceNoise(DUNE_HOLES, x / 40.0, z / 40.0) > 0.38) {
-            h -= 5.0; // the dark thalan shows through
-        }
         // sediment piles up against the formations, and has settled away in the basins
         h = h * LayerFormations.duneDamp(formations, x, z) + LayerFormations.duneBoost(formations, x, z);
         return h * smoothstep(0.0, 1.0, weight) - 0.8;
@@ -150,38 +144,28 @@ final class LayerSurface {
     /** Returns whether silt was placed. */
     private boolean dunes(int x, int z, int floor, int room, double weight) {
         final double h = Math.min(duneHeight(x, z, weight), room - HEADROOM);
-        final int height = (int) Math.floor(h);
-        final boolean thalanBelow = level.getBlockState(pos.set(x, floor - 1, z)).is(AbyssalDepths.THALAN.get());
-        // quicksilt pools in the dips between the dunes: flat, reaching two blocks below the floor
-        if (weight > 0.6 && h > -0.5 && h < 2.5 && room > 6 && layer.patch(x, 0, z, 4.0, 44) < 0.06) {
-            final int top = Math.max(1, height);
-            for (int y = floor - 2; y < floor + top; y++) {
+        final int height = Math.max(0, (int) Math.floor(h));
+        final BlockState silt = AbyssalDepths.FINE_SILT.get().defaultBlockState();
+        // the ground is fine silt everywhere, also between the dunes (the border fades in blobs)
+        if (layer.patch(x, 0, z, 6.0, 45) < weight) {
+            set(x, floor - 1, z, silt);
+            set(x, floor - 2, z, silt);
+        }
+        // rare, broad quicksilt pools in the dips between the dunes, flush with the surface and three blocks deep
+        if (weight > 0.7 && h < 2.0 && room > 6 && layer.patch(x, 0, z, 9.0, 44) < 0.02) {
+            for (int y = floor - 3; y < floor + height; y++) {
                 set(x, y, z, AbyssalDepths.QUICKSILT.get().defaultBlockState());
             }
             return true;
         }
-        if (height <= 0) {
-            // bare ground: thalan, with patches of hardened sediment
-            if (thalanBelow && weight > 0.5 && layer.surfaceNoise(SILTSTONE, x / 22.0, z / 22.0) > 0.28) {
-                set(x, floor - 1, z, AbyssalDepths.SILTSTONE.get().defaultBlockState());
-            }
+        if (height == 0) {
             return false;
         }
-        // the sediment hardened into siltstone below the dunes
-        if (thalanBelow) {
-            set(x, floor - 1, z, AbyssalDepths.SILTSTONE.get().defaultBlockState());
-        }
-        final double slope = Math.max(Math.abs(duneHeight(x + 1, z, weight) - duneHeight(x - 1, z, weight)),
-                Math.abs(duneHeight(x, z + 1, weight) - duneHeight(x, z - 1, weight))) * 0.5;
-        final boolean packedTop = slope > 1.4 || room < 10; // steep slopes and dunes against walls hold
         for (int k = 0; k < height; k++) {
-            final int y = floor + k;
-            if (!air(x, y, z)) {
+            if (!air(x, floor + k, z)) {
                 break;
             }
-            final boolean top = k == height - 1;
-            final boolean packed = k < height - 2 || (top && packedTop) || (k == height - 2 && packedTop);
-            set(x, y, z, packed ? AbyssalDepths.PACKED_SILT.get().defaultBlockState() : AbyssalDepths.FINE_SILT.get().defaultBlockState());
+            set(x, floor + k, z, silt);
         }
         return true;
     }
@@ -194,29 +178,22 @@ final class LayerSurface {
         }
         final BlockState shale = AbyssalDepths.SHALE.get().defaultBlockState();
 
-        // ground: shale, with patches of bare thalan and a few cobbled thalan deposits
-        final boolean bare = layer.surfaceNoise(FLATS_BARE, x / 34.0, z / 34.0) > 0.3;
-        if (!bare) {
-            for (int d = 1; d <= 2; d++) {
-                if (level.getBlockState(pos.set(x, floor - d, z)).is(AbyssalDepths.THALAN.get())) {
-                    set(x, floor - d, z, shale);
-                }
-            }
-            if (layer.surfaceNoise(FLATS_COBBLE, x / 9.0, z / 9.0) > 0.4) {
-                set(x, floor - 1, z, AbyssalDepths.COBBLED_THALAN.get().defaultBlockState());
+        // ground: shale, two blocks deep
+        for (int d = 1; d <= 2; d++) {
+            if (level.getBlockState(pos.set(x, floor - d, z)).is(AbyssalDepths.THALAN.get())) {
+                set(x, floor - d, z, shale);
             }
         }
-        // plateaus: the ground steps up in broad shelves, shale on top, the cliffs thalan (the walls
-        // give them the strata of the flats)
+        // plateaus: the ground steps up in broad shelves of shale
         final int plateau = plateauAt(x, z, room);
         for (int k = 0; k < plateau; k++) {
             if (air(x, floor + k, z)) {
-                set(x, floor + k, z, k >= plateau - 2 ? shale : AbyssalDepths.THALAN.get().defaultBlockState());
+                set(x, floor + k, z, shale);
             }
         }
-        // rubble collects in heaps along low walls
-        if (room - plateau < 7 && layer.patch(x, floor + plateau, z, 4.0, 23) < 0.45 && air(x, floor + plateau, z)) {
-            set(x, floor + plateau, z, AbyssalDepths.SHALE_RUBBLE.get().defaultBlockState());
+        // broad patches of rubble in place of the shale surface
+        if (layer.patch(x, 0, z, 7.0, 23) < 0.02) {
+            set(x, floor + plateau - 1, z, AbyssalDepths.SHALE_RUBBLE.get().defaultBlockState());
         }
     }
 

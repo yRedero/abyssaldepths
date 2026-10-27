@@ -18,7 +18,8 @@
         "type": "minecraft:white_ash"
       },
       "probability": 0.004
-    }
+    },
+    "ambient_sound": "abyssaldepths:ambient.silt_dunes.loop"
   },
   "carvers": {},
   "features": [

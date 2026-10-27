@@ -100,5 +100,301 @@
         "pitch": 0.7
       }
     ]
+  },
+  "ambient.shale_flats.loop": {
+    "sounds": [
+      {
+        "name": "minecraft:ambient/nether/soulsand_valley/ambience",
+        "volume": 0.35,
+        "pitch": 0.8,
+        "stream": true
+      }
+    ]
+  },
+  "ambient.silt_dunes.loop": {
+    "sounds": [
+      {
+        "name": "minecraft:ambient/nether/soulsand_valley/ambience",
+        "volume": 0.25,
+        "pitch": 1.35,
+        "stream": true
+      }
+    ]
+  },
+  "ambient.thermal_reaches.loop": {
+    "sounds": [
+      {
+        "name": "minecraft:ambient/nether/basalt_deltas/ambience",
+        "volume": 0.3,
+        "pitch": 0.6,
+        "stream": true
+      }
+    ]
+  },
+  "ambient.shale_flats.crack": {
+    "sounds": [
+      {
+        "name": "minecraft:ambient/nether/basalt_deltas/twist1",
+        "volume": 0.35,
+        "pitch": 0.75,
+        "attenuation_distance": 40
+      },
+      {
+        "name": "minecraft:ambient/nether/basalt_deltas/twist2",
+        "volume": 0.35,
+        "pitch": 0.75,
+        "attenuation_distance": 40
+      },
+      {
+        "name": "minecraft:ambient/nether/basalt_deltas/twist3",
+        "volume": 0.35,
+        "pitch": 0.75,
+        "attenuation_distance": 40
+      },
+      {
+        "name": "minecraft:ambient/nether/basalt_deltas/twist4",
+        "volume": 0.35,
+        "pitch": 0.75,
+        "attenuation_distance": 40
+      },
+      {
+        "name": "minecraft:ambient/nether/basalt_deltas/click1",
+        "volume": 0.35,
+        "pitch": 0.75,
+        "attenuation_distance": 40
+      },
+      {
+        "name": "minecraft:ambient/nether/basalt_deltas/click2",
+        "volume": 0.35,
+        "pitch": 0.75,
+        "attenuation_distance": 40
+      },
+      {
+        "name": "minecraft:ambient/nether/basalt_deltas/click3",
+        "volume": 0.35,
+        "pitch": 0.75,
+        "attenuation_distance": 40
+      },
+      {
+        "name": "minecraft:ambient/nether/basalt_deltas/click4",
+        "volume": 0.35,
+        "pitch": 0.75,
+        "attenuation_distance": 40
+      }
+    ]
+  },
+  "ambient.thalan_layer.rockfall": {
+    "sounds": [
+      {
+        "name": "minecraft:ambient/nether/basalt_deltas/debris1",
+        "volume": 0.5,
+        "pitch": 0.7,
+        "attenuation_distance": 56
+      },
+      {
+        "name": "minecraft:ambient/nether/basalt_deltas/debris2",
+        "volume": 0.5,
+        "pitch": 0.7,
+        "attenuation_distance": 56
+      },
+      {
+        "name": "minecraft:ambient/nether/basalt_deltas/debris3",
+        "volume": 0.5,
+        "pitch": 0.7,
+        "attenuation_distance": 56
+      },
+      {
+        "name": "minecraft:ambient/nether/basalt_deltas/long_debris1",
+        "volume": 0.5,
+        "pitch": 0.7,
+        "attenuation_distance": 56
+      },
+      {
+        "name": "minecraft:ambient/nether/basalt_deltas/long_debris2",
+        "volume": 0.5,
+        "pitch": 0.7,
+        "attenuation_distance": 56
+      }
+    ]
+  },
+  "ambient.silt_dunes.slide": {
+    "sounds": [
+      {
+        "name": "minecraft:ambient/nether/soulsand_valley/sand1",
+        "volume": 0.35,
+        "pitch": 0.6,
+        "attenuation_distance": 40
+      },
+      {
+        "name": "minecraft:ambient/nether/soulsand_valley/sand2",
+        "volume": 0.35,
+        "pitch": 0.6,
+        "attenuation_distance": 40
+      },
+      {
+        "name": "minecraft:ambient/nether/soulsand_valley/sand3",
+        "volume": 0.35,
+        "pitch": 0.6,
+        "attenuation_distance": 40
+      },
+      {
+        "name": "minecraft:dig/sand1",
+        "volume": 0.35,
+        "pitch": 0.6,
+        "attenuation_distance": 40
+      },
+      {
+        "name": "minecraft:dig/sand2",
+        "volume": 0.35,
+        "pitch": 0.6,
+        "attenuation_distance": 40
+      },
+      {
+        "name": "minecraft:dig/sand3",
+        "volume": 0.35,
+        "pitch": 0.6,
+        "attenuation_distance": 40
+      },
+      {
+        "name": "minecraft:dig/sand4",
+        "volume": 0.35,
+        "pitch": 0.6,
+        "attenuation_distance": 40
+      }
+    ]
+  },
+  "ambient.thermal_reaches.hiss": {
+    "sounds": [
+      {
+        "name": "minecraft:random/fizz",
+        "volume": 0.25,
+        "pitch": 0.5,
+        "attenuation_distance": 16
+      }
+    ]
+  },
+  "ambient.thalan_layer.groan": {
+    "sounds": [
+      {
+        "name": "minecraft:ambient/underwater/additions/dark1",
+        "volume": 0.6,
+        "pitch": 0.5,
+        "attenuation_distance": 96
+      },
+      {
+        "name": "minecraft:ambient/underwater/additions/dark2",
+        "volume": 0.6,
+        "pitch": 0.5,
+        "attenuation_distance": 96
+      },
+      {
+        "name": "minecraft:ambient/underwater/additions/dark3",
+        "volume": 0.6,
+        "pitch": 0.5,
+        "attenuation_distance": 96
+      },
+      {
+        "name": "minecraft:ambient/underwater/additions/dark4",
+        "volume": 0.6,
+        "pitch": 0.5,
+        "attenuation_distance": 96
+      },
+      {
+        "name": "minecraft:ambient/underwater/additions/bass_whale1",
+        "volume": 0.6,
+        "pitch": 0.5,
+        "attenuation_distance": 96
+      },
+      {
+        "name": "minecraft:ambient/underwater/additions/bass_whale2",
+        "volume": 0.6,
+        "pitch": 0.5,
+        "attenuation_distance": 96
+      }
+    ]
+  },
+  "ambient.thalan_layer.distant_creature": {
+    "sounds": [
+      {
+        "name": "minecraft:mob/ravager/roar1",
+        "volume": 0.35,
+        "pitch": 0.35,
+        "attenuation_distance": 96
+      },
+      {
+        "name": "minecraft:mob/ravager/roar2",
+        "volume": 0.35,
+        "pitch": 0.35,
+        "attenuation_distance": 96
+      },
+      {
+        "name": "minecraft:mob/ravager/roar3",
+        "volume": 0.35,
+        "pitch": 0.35,
+        "attenuation_distance": 96
+      },
+      {
+        "name": "minecraft:mob/ravager/roar4",
+        "volume": 0.35,
+        "pitch": 0.35,
+        "attenuation_distance": 96
+      }
+    ]
+  },
+  "ambient.thalan_layer.distant_steps": {
+    "sounds": [
+      {
+        "name": "minecraft:ambient/nether/basalt_deltas/plode1",
+        "volume": 0.4,
+        "pitch": 0.45,
+        "attenuation_distance": 96
+      },
+      {
+        "name": "minecraft:ambient/nether/basalt_deltas/plode2",
+        "volume": 0.4,
+        "pitch": 0.45,
+        "attenuation_distance": 96
+      },
+      {
+        "name": "minecraft:ambient/nether/basalt_deltas/plode3",
+        "volume": 0.4,
+        "pitch": 0.45,
+        "attenuation_distance": 96
+      }
+    ]
+  },
+  "ambient.thalan_layer.gust": {
+    "sounds": [
+      {
+        "name": "minecraft:ambient/nether/soulsand_valley/wind1",
+        "volume": 0.3,
+        "pitch": 0.7,
+        "attenuation_distance": 48
+      },
+      {
+        "name": "minecraft:ambient/nether/soulsand_valley/wind2",
+        "volume": 0.3,
+        "pitch": 0.7,
+        "attenuation_distance": 48
+      },
+      {
+        "name": "minecraft:ambient/nether/soulsand_valley/wind3",
+        "volume": 0.3,
+        "pitch": 0.7,
+        "attenuation_distance": 48
+      },
+      {
+        "name": "minecraft:ambient/nether/soulsand_valley/wind4",
+        "volume": 0.3,
+        "pitch": 0.7,
+        "attenuation_distance": 48
+      },
+      {
+        "name": "minecraft:item/elytra/elytra_loop",
+        "volume": 0.3,
+        "pitch": 0.7,
+        "attenuation_distance": 48
+      }
+    ]
   }
 }

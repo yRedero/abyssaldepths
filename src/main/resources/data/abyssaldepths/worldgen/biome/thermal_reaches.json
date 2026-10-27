@@ -7,7 +7,7 @@
     "sky_color": 0,
     "water_color": 6262650,
     "water_fog_color": 1714724,
-    "ambient_sound": "abyssaldepths:ambient.thalan_layer.loop",
+    "ambient_sound": "abyssaldepths:ambient.thermal_reaches.loop",
     "additions_sound": {
       "sound": "abyssaldepths:ambient.thermal_reaches.additions",
       "tick_chance": 0.004

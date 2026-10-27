@@ -1,7 +1,10 @@
 package redero.abyssaldepths.worldgen;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.MultifaceBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import redero.abyssaldepths.AbyssalDepths;
 import redero.abyssaldepths.worldgen.LayerFormations.Biomes;
@@ -10,19 +13,21 @@ import redero.abyssaldepths.worldgen.LayerFormations.Biomes;
  * Walls and ceilings of the layer biomes: every thalan block facing the cavern gets the look of its
  * biome (thalan depths keep plain thalan).
  * <ul>
- * <li><b>Shale flats:</b> walls in warped horizontal strata, the buried layers: shale, fractured shale,
- * thalan and thin siltstone bands. Shale ceilings with thin shards hanging down.</li>
- * <li><b>Silt dunes:</b> sediment crusted against the foot of the walls (packed silt), banded
- * siltstone above, ceilings partly siltstone. Dry: nothing hangs down.</li>
- * <li><b>Thermal reaches:</b> the grey stone stays. Where the area is active: thermal rock along the
- * lower walls, a few rusty streaks where mineral water ran down, and rare drips on the ceiling.</li>
+ * <li><b>Shale flats:</b> shale walls and ceilings, thin shards of fractured shale hanging down.</li>
+ * <li><b>Silt dunes:</b> siltstone walls and ceilings. Dry: nothing hangs down.</li>
+ * <li><b>Thermal reaches:</b> the grey stone stays. Where the area is active: a few rusty streaks where
+ * mineral water ran down, and rare drips on the ceiling.</li>
  * </ul>
+ * Never horizontal bands of different blocks: each biome has one wall block. Everywhere a few bare
+ * thalan blocks glimmer faintly, and the pillars of the dunes carry patches of glow lichen.
  * Whether a block faces air is read from the world inside the chunk; outside it the neighbour chunk
  * may not be carved yet, so the cavern shape itself is asked there.
  */
 final class LayerWalls {
     private static final int[][] SIDES = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-    private static final int STRATA = 8, STREAKS = 10, BANDS = 19;   // noise channels of TunnelLayer.surfaceNoise
+    private static final int STREAKS = 10;
+    /** Share of bare thalan wall and ceiling blocks that glimmer. */
+    private static final double GLIMMER = 0.004;   // noise channel of TunnelLayer.surfaceNoise
 
     private final WorldGenLevel level;
     private final TunnelLayer layer;
@@ -75,46 +80,30 @@ final class LayerWalls {
                 continue;
             }
             final int style = surface.style(x, y, z);
-            if (style == Biomes.DEPTHS) {
-                continue;
+            if (style != Biomes.DEPTHS) {
+                if (!ceiling && layer.isPillar(x, y, z, column(x, z))) {
+                    pillar(style, x, y, z); // a pillar standing in the open hall
+                } else if (ceiling) {
+                    ceiling(style, x, y, z);
+                } else {
+                    wall(style, x, y, z, sideFloor);
+                }
             }
-            if (!ceiling && layer.isPillar(x, y, z, column(x, z))) {
-                pillar(style, x, y, z); // a pillar standing in the open hall
-                continue;
-            }
-            if (ceiling) {
-                ceiling(style, x, y, z);
-            } else {
-                wall(style, x, y, z, sideFloor);
+            // faint glowing specks scattered over the bare thalan that is left, points of light in the dark
+            if (layer.random(x, z, 5000 + y) < GLIMMER && level.getBlockState(pos.set(x, y, z)).is(AbyssalDepths.THALAN.get())) {
+                set(x, y, z, AbyssalDepths.GLIMMERING_THALAN.get().defaultBlockState());
             }
         }
     }
 
     private void wall(int style, int x, int y, int z, int sideFloor) {
-        final double warped = y + 2.0 * layer.surfaceNoise(STRATA, x / 24.0, z / 24.0);
         switch (style) {
-            case Biomes.FLATS -> {
-                final int band = Math.floorMod((int) Math.floor(warped / 2.0), 6);
-                final BlockState[] strata = {shale(), shale(), null, fractured(), shale(), siltstone()};
-                if (strata[band] != null) {
-                    set(x, y, z, strata[band]);
-                }
-            }
-            case Biomes.DUNES -> {
-                final int crust = 2 + (int) Math.round(2.0 * layer.surfaceNoise(STRATA, x / 9.0, z / 9.0));
-                if (y < sideFloor + crust) {
-                    set(x, y, z, AbyssalDepths.PACKED_SILT.get().defaultBlockState());
-                } else if (Math.floorMod((int) Math.floor(warped / 3.0), 3) != 2) {
-                    set(x, y, z, siltstone());
-                }
-            }
+            case Biomes.FLATS -> set(x, y, z, shale());
+            case Biomes.DUNES -> set(x, y, z, siltstone());
             case Biomes.THERMAL -> {
                 final double act = surface.activity(x, z);
-                final int up = y - sideFloor;
                 if (act > 0.7 && layer.surfaceNoise(STREAKS, (x + z) / 5.0, (x - z) / 45.0) > 0.62) {
                     set(x, y, z, oxide()); // a rare streak where mineral water ran down
-                } else if (act > 0.25 && up < 4 && layer.surfaceNoise(BANDS, x / 12.0, z / 12.0) > 0.35 - 0.3 * act) {
-                    set(x, y, z, AbyssalDepths.THERMAL_ROCK.get().defaultBlockState()); // band of thermal rock along the foot
                 }
             }
             default -> {
@@ -123,19 +112,16 @@ final class LayerWalls {
     }
 
     private void ceiling(int style, int x, int y, int z) {
-        final double r = layer.patch(x, y, z, 5.0, 27);   // patches, not single blocks
         final double hang = layer.random(x, z, 3002);
         switch (style) {
             case Biomes.FLATS -> {
-                set(x, y, z, r < 0.9 ? shale() : fractured()); // mostly shale, a few broken patches
+                set(x, y, z, shale());
                 if (hang < 0.022) { // thin shards of slate hanging down
                     drip(x, y, z, 2 + (int) (layer.random(x, z, 3003) * 3), fractured(), fractured());
                 }
             }
             case Biomes.DUNES -> {
-                if (r < 0.55) {
-                    set(x, y, z, siltstone());
-                }
+                set(x, y, z, siltstone());
             }
             case Biomes.THERMAL -> {
                 if (hang < 0.015 * surface.activity(x, z)) { // rare mineral drips, the ceiling stays grey
@@ -156,13 +142,28 @@ final class LayerWalls {
         final boolean vein = Math.abs(layer.noise3(x / 3.0, y / 40.0, z / 3.0, 11)) < 0.06;
         switch (style) {
             case Biomes.FLATS -> set(x, y, z, vein ? fractured() : shale());
-            case Biomes.DUNES -> set(x, y, z, vein ? AbyssalDepths.THALAN.get().defaultBlockState() : siltstone());
+            case Biomes.DUNES -> {
+                set(x, y, z, vein ? AbyssalDepths.THALAN.get().defaultBlockState() : siltstone());
+                if (!vein && layer.patch(x, y, z, 3.0, 46) < 0.06) {
+                    lichen(x, y, z); // patches of faintly glowing lichen on the pillars of the dunes
+                }
+            }
             case Biomes.THERMAL -> {
                 if (vein) {
                     set(x, y, z, AbyssalDepths.THERMAL_ROCK.get().defaultBlockState());
                 }
             }
             default -> {
+            }
+        }
+    }
+
+    /** Glow lichen on the open sides of a block, only inside this chunk. */
+    private void lichen(int x, int y, int z) {
+        for (int[] d : SIDES) {
+            if (inChunk(x + d[0], z + d[1]) && level.getBlockState(pos.set(x + d[0], y, z + d[1])).isAir()) {
+                set(x + d[0], y, z + d[1], Blocks.GLOW_LICHEN.defaultBlockState()
+                        .setValue(MultifaceBlock.getFaceProperty(Direction.fromDelta(-d[0], 0, -d[1])), true));
             }
         }
     }

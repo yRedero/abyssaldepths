@@ -77,6 +77,18 @@ public class AbyssalDepths {
     public static final DeferredHolder<SoundEvent, SoundEvent> THERMAL_ADDITIONS = sound("ambient.thermal_reaches.additions");
     /** Ear ringing of Deep Pressure from stage 3 on. */
     public static final DeferredHolder<SoundEvent, SoundEvent> PRESSURE_RINGING = sound("effect.deep_pressure.ringing");
+    // ambience of the layer: biome loops, sounds from somewhere in the halls, rare deep sounds
+    public static final DeferredHolder<SoundEvent, SoundEvent> FLATS_LOOP = sound("ambient.shale_flats.loop");
+    public static final DeferredHolder<SoundEvent, SoundEvent> DUNES_LOOP = sound("ambient.silt_dunes.loop");
+    public static final DeferredHolder<SoundEvent, SoundEvent> THERMAL_LOOP = sound("ambient.thermal_reaches.loop");
+    public static final DeferredHolder<SoundEvent, SoundEvent> FLATS_CRACK = sound("ambient.shale_flats.crack");
+    public static final DeferredHolder<SoundEvent, SoundEvent> ROCKFALL = sound("ambient.thalan_layer.rockfall");
+    public static final DeferredHolder<SoundEvent, SoundEvent> DUNES_SLIDE = sound("ambient.silt_dunes.slide");
+    public static final DeferredHolder<SoundEvent, SoundEvent> VENT_HISS = sound("ambient.thermal_reaches.hiss");
+    public static final DeferredHolder<SoundEvent, SoundEvent> DEEP_GROAN = sound("ambient.thalan_layer.groan");
+    public static final DeferredHolder<SoundEvent, SoundEvent> DISTANT_CREATURE = sound("ambient.thalan_layer.distant_creature");
+    public static final DeferredHolder<SoundEvent, SoundEvent> DISTANT_STEPS = sound("ambient.thalan_layer.distant_steps");
+    public static final DeferredHolder<SoundEvent, SoundEvent> GUST = sound("ambient.thalan_layer.gust");
 
     /** Biome of the thalan layer (data/abyssaldepths/worldgen/biome), it brings the layer's features and sounds. */
     public static final ResourceKey<Biome> THALAN_DEPTHS = biome("thalan_depths");
@@ -102,6 +114,11 @@ public class AbyssalDepths {
                     .strength(5.0F, 9.0F)
                     .sound(SoundType.DEEPSLATE));
     public static final DeferredItem<BlockItem> THALAN_ITEM = ITEMS.registerSimpleBlockItem(THALAN);
+    /** Thalan with faintly glowing mineral specks, scattered sparsely over the walls of the layer. */
+    public static final DeferredBlock<Block> GLIMMERING_THALAN = withItem(BLOCKS.registerSimpleBlock("glimmering_thalan",
+            BlockBehaviour.Properties.of().mapColor(MapColor.DEEPSLATE).instrument(NoteBlockInstrument.BASEDRUM)
+                    .requiresCorrectToolForDrops().strength(5.0F, 9.0F).sound(SoundType.DEEPSLATE)
+                    .lightLevel(state -> 2).emissiveRendering((state, level, pos) -> true)));
 
     // Building blocks, the full deepslate set. Models, loot, recipes and tags are the vanilla deepslate ones renamed.
     public static final DeferredBlock<Block> COBBLED_THALAN = building("cobbled_thalan", Blocks.COBBLED_DEEPSLATE);

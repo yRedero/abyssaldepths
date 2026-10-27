@@ -13,6 +13,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
@@ -88,6 +89,11 @@ public final class ThermalClient {
 
         // steam plumes and haze
         for (BlockPos vent : VENTS) {
+            if (vent.distToCenterSqr(player.position()) < 12 * 12 && RANDOM.nextInt(400) == 0) {
+                // a vent close by hisses now and then
+                level.playLocalSound(vent.getX() + 0.5, vent.getY() + 1.0, vent.getZ() + 0.5, AbyssalDepths.VENT_HISS.get(), SoundSource.AMBIENT,
+                        1.0F, 0.8F + RANDOM.nextFloat() * 0.4F, false);
+            }
             if (vent.distToCenterSqr(player.position()) < PLUME_RANGE * PLUME_RANGE && RANDOM.nextInt(18) == 0) {
                 level.addAlwaysVisibleParticle(ParticleTypes.CAMPFIRE_COSY_SMOKE, true, vent.getX() + 0.3 + RANDOM.nextDouble() * 0.4,
                         vent.getY() + 1.1, vent.getZ() + 0.3 + RANDOM.nextDouble() * 0.4, 0.0, 0.05 + RANDOM.nextDouble() * 0.03, 0.0);

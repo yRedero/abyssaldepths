@@ -21,7 +21,8 @@ import redero.abyssaldepths.AbyssalDepths;
 
 /**
  * Dark fog in the thalan layer, so the huge halls fade into black instead of ending at the edge of
- * the rendered chunks with the sky showing through. Fades in between y=-60 and y=-70; the sky is
+ * the rendered chunks with the sky showing through. Tinted per biome and closer and darker in narrow
+ * passages ({@link LayerAmbience}). Fades in between y=-60 and y=-70; the sky is
  * fully fogged on the way and not drawn at all once the fog is complete.
  */
 @EventBusSubscriber(modid = AbyssalDepths.MODID, value = Dist.CLIENT)
@@ -29,7 +30,6 @@ public final class ThalanFog {
     private static final double FADE_TOP = -60.0, FADE_BOTTOM = -70.0;
     /** Fog starts / is opaque at this share of the render distance. */
     private static final float NEAR = 0.35F, FAR = 0.9F;
-    private static final float RED = 0.035F, GREEN = 0.035F, BLUE = 0.045F;
     private static final float WARM_RED = 0.11F, WARM_GREEN = 0.05F, WARM_BLUE = 0.032F;
 
     private ThalanFog() {
@@ -49,7 +49,9 @@ public final class ThalanFog {
         }
         final boolean sky = event.getMode() == FogRenderer.FogMode.FOG_SKY;
         final float distance = event.getRenderer().getRenderDistance();
-        final float near = sky ? 0.0F : NEAR * distance, far = sky ? 0.0F : FAR * distance;
+        // narrow passages close in: the fog comes nearer than in the open halls
+        final float close = 0.65F + 0.35F * LayerAmbience.openness();
+        final float near = sky ? 0.0F : NEAR * distance * close, far = sky ? 0.0F : FAR * distance * close;
         // never thinner than vanilla (blindness, darkness)
         event.setNearPlaneDistance(Math.min(event.getNearPlaneDistance(), lerp(t, event.getNearPlaneDistance(), near)));
         event.setFarPlaneDistance(Math.min(event.getFarPlaneDistance(), lerp(t, event.getFarPlaneDistance(), far)));
@@ -61,11 +63,12 @@ public final class ThalanFog {
     public static void onFogColor(ViewportEvent.ComputeFogColor event) {
         final float t = amount(event.getCamera());
         if (t > 0.0F) {
-            // the thermal reaches and the air around heat sources fade into a warm reddish brown
-            final float warm = t * ThermalClient.warmth();
-            event.setRed(lerp(warm, lerp(t, event.getRed(), RED), WARM_RED));
-            event.setGreen(lerp(warm, lerp(t, event.getGreen(), GREEN), WARM_GREEN));
-            event.setBlue(lerp(warm, lerp(t, event.getBlue(), BLUE), WARM_BLUE));
+            // each layer biome has its tint, the thermal reaches and the air around heat sources fade into a
+            // warm reddish brown; narrow passages are darker than the open halls
+            final float warm = t * ThermalClient.warmth(), dark = 0.6F + 0.4F * LayerAmbience.openness();
+            event.setRed(lerp(warm, lerp(t, event.getRed(), LayerAmbience.tint(0) * dark), WARM_RED));
+            event.setGreen(lerp(warm, lerp(t, event.getGreen(), LayerAmbience.tint(1) * dark), WARM_GREEN));
+            event.setBlue(lerp(warm, lerp(t, event.getBlue(), LayerAmbience.tint(2) * dark), WARM_BLUE));
         }
     }
 

@@ -1,6 +1,7 @@
 package redero.abyssaldepths.worldgen;
 
 import java.util.function.BiPredicate;
+import java.util.function.DoubleBinaryOperator;
 
 /**
  * Deterministic, infinite cave layer for y=-65 .. y=-128.
@@ -125,16 +126,19 @@ public final class TunnelLayer {
     private final long[] salted = new long[SALTS];
     /** Decides per pillar centre whether the pillar stands, null = all of them (biomes without pillars). */
     private final BiPredicate<Double, Double> pillarFilter;
+    /** 0 .. 1 per position: how much the cavern opens up into one big hall there (no rock masses, high ceiling); null = 0. */
+    private final DoubleBinaryOperator openness;
 
     public TunnelLayer(long seed) {
-        this(seed, null);
+        this(seed, null, null);
     }
 
-    public TunnelLayer(long seed, BiPredicate<Double, Double> pillarFilter) {
+    public TunnelLayer(long seed, BiPredicate<Double, Double> pillarFilter, DoubleBinaryOperator openness) {
         for (int i = 0; i < salted.length; i++) {
             salted[i] = mix(seed ^ (i * 0x9E3779B97F4A7C15L));
         }
         this.pillarFilter = pillarFilter;
+        this.openness = openness;
     }
 
     /** One of {@link #SURFACE_CHANNELS} independent 2D noises for the biome surfaces, roughly in [-1, 1]. */
@@ -412,17 +416,21 @@ public final class TunnelLayer {
     /** Air height of the cavern at a position before ceiling details, below EDGE_AIR = solid rock. */
     private double hallHeight(double px, double pz) {
         final double t = 0.5 + 0.5 * clampSigned(2.2 * perlin(px / HEIGHT_SCALE, 0.23, pz / HEIGHT_SCALE, S_HEIGHT));
+        // open areas (the dunes) fade into one big tall hall: the rock masses and massifs shrink away
+        final double open = openness == null ? 0.0 : openness.applyAsDouble(px, pz);
         // a plateau of tall halls, now and then dropping to the thin crawl stretches
-        final double height = HEIGHT_MIN + HEIGHT_VAR * smoothstep(0.12, 0.62, t);
+        final double base = HEIGHT_MIN + HEIGHT_VAR * smoothstep(0.12, 0.62, t);
+        final double height = base + (HEIGHT_MIN + HEIGHT_VAR - base) * 0.75 * open;
 
         final double region = 0.5 + 0.5 * clampSigned(2.0 * perlin(px / ROCK_REGION_SCALE, 0.71, pz / ROCK_REGION_SCALE, S_ROCK_REGION));
-        final double threshold = ROCK_THRESHOLD_OPEN + (ROCK_THRESHOLD_DENSE - ROCK_THRESHOLD_OPEN) * smoothstep(0.3, 0.8, region);
+        double threshold = ROCK_THRESHOLD_OPEN + (ROCK_THRESHOLD_DENSE - ROCK_THRESHOLD_OPEN) * smoothstep(0.3, 0.8, region);
+        threshold += (1.01 - threshold) * open;
         final double rock = 0.5 + 0.5 * clampSigned(1.7 * (0.8 * perlin(px / ROCK_SCALE, 0.13, pz / ROCK_SCALE, S_ROCK)
                 + 0.35 * perlin(px / ROCK_DETAIL_SCALE, 0.89, pz / ROCK_DETAIL_SCALE, S_ROCK_DETAIL)));
         if (rock >= threshold) {
             return 0.0;
         }
-        final double massif = massifDistance(px, pz);
+        final double massif = massifDistance(px, pz) + (MASSIF_RADIUS_MIN + MASSIF_RADIUS_VAR + MASSIF_EDGE) * open;
         if (massif <= 0.0) {
             return 0.0;
         }

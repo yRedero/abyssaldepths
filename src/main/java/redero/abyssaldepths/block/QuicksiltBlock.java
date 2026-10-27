@@ -1,16 +1,20 @@
 package redero.abyssaldepths.block;
 
+import javax.annotation.Nullable;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.pathfinder.PathType;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.EntityCollisionContext;
@@ -20,7 +24,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 /**
  * Quicksilt of the silt dunes: loose, waterlogged-looking silt in the dips between the dunes. Living
  * things walk into it and slowly sink; holding jump climbs out just as slowly. Once the head is under,
- * it suffocates like sand. Items and everything else rest on top.
+ * it suffocates like sand. Items and everything else rest on top. Mobs see the danger and walk around it.
  */
 public class QuicksiltBlock extends Block {
     /** Movement inside: slowed sideways, a slow sink, and climbing out is slow too. */
@@ -47,6 +51,17 @@ public class QuicksiltBlock extends Block {
                         0.0, 0.0, 0.0);
             }
         }
+    }
+
+    /** Mobs never path into it, and keep away from its edge. */
+    @Override
+    public PathType getBlockPathType(BlockState state, BlockGetter level, BlockPos pos, @Nullable Mob mob) {
+        return PathType.DAMAGE_OTHER;
+    }
+
+    @Override
+    public PathType getAdjacentBlockPathType(BlockState state, BlockGetter level, BlockPos pos, @Nullable Mob mob, PathType originalType) {
+        return originalType == PathType.OPEN || originalType == PathType.WALKABLE ? PathType.DANGER_OTHER : originalType;
     }
 
     /** Like a ladder: holding jump climbs out, slowed by being stuck. */
