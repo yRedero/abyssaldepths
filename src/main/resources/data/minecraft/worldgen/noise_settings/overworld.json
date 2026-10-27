@@ -36,7 +36,7 @@
       },
       "min_inclusive": -1000.0,
       "max_exclusive": -64.0,
-      "when_in_range": 0.0,
+      "when_in_range": 3.0,
       "when_out_of_range": "minecraft:overworld/depth"
     },
     "erosion": "minecraft:overworld/erosion",

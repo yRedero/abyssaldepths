@@ -25,6 +25,15 @@
     "abyssaldepths:thalan_tile_wall",
     "abyssaldepths:cracked_thalan_bricks",
     "abyssaldepths:cracked_thalan_tiles",
-    "abyssaldepths:chiseled_thalan"
+    "abyssaldepths:chiseled_thalan",
+    "abyssaldepths:fractured_shale",
+    "abyssaldepths:siltstone",
+    "abyssaldepths:thermal_rock",
+    "abyssaldepths:thermal_vent",
+    "abyssaldepths:oxide_deposit",
+    "abyssaldepths:sinter",
+    "abyssaldepths:fossilized_siltstone",
+    "abyssaldepths:sulfur_deposit",
+    "abyssaldepths:smouldering_rock"
   ]
 }

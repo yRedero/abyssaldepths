@@ -81,5 +81,24 @@
         "pitch": 2.0
       }
     ]
+  },
+  "ambient.thermal_reaches.additions": {
+    "sounds": [
+      {
+        "name": "minecraft:liquid/lavapop",
+        "volume": 0.15,
+        "pitch": 0.6
+      },
+      {
+        "name": "minecraft:block/bubble_column/upwards_ambient1",
+        "volume": 0.12,
+        "pitch": 0.7
+      },
+      {
+        "name": "minecraft:block/bubble_column/upwards_ambient3",
+        "volume": 0.12,
+        "pitch": 0.7
+      }
+    ]
   }
 }

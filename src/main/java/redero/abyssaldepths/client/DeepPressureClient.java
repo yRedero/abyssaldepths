@@ -68,7 +68,7 @@ public final class DeepPressureClient {
 
     // ---- tunnel vision ----------------------------------------------------------------
 
-    @EventBusSubscriber(modid = AbyssalDepths.MODID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
+    @EventBusSubscriber(modid = AbyssalDepths.MODID, value = Dist.CLIENT)
     public static final class Layers {
         @SubscribeEvent
         public static void register(RegisterGuiLayersEvent event) {

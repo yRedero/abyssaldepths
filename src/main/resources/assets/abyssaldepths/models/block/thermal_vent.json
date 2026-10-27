@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "end": "abyssaldepths:block/thermal_vent_top",
+    "side": "abyssaldepths:block/thermal_vent"
+  }
+}

@@ -1,5 +1,7 @@
 package redero.abyssaldepths.worldgen;
 
+import java.util.function.BiPredicate;
+
 /**
  * Deterministic, infinite cave layer for y=-65 .. y=-128.
  * <p>
@@ -118,14 +120,56 @@ public final class TunnelLayer {
             S_STALACTITE_AMP = 15, S_CEILING = 16, S_MASSIF_ON = 17,
             S_MASSIF_X = 18, S_MASSIF_Z = 19, S_MASSIF_R = 20, S_MASSIF_WOBBLE = 21, S_SHAFT_ON = 22,
             S_SHAFT_X = 23, S_SHAFT_Z = 24, S_SHAFT_DIR = 25, S_SHAFT_LEN = 26, S_SHAFT_TOP = 27,
-            S_TUNNEL_WAVE = 28, S_TUNNEL_AMP = 29, S_PASS_ON = 30, S_PASS_DIR = 31, S_FLOOR_BUMP = 32, SALTS = 33;
+            S_TUNNEL_WAVE = 28, S_TUNNEL_AMP = 29, S_PASS_ON = 30, S_PASS_DIR = 31, S_FLOOR_BUMP = 32, S_SURFACE = 33, SALTS = S_SURFACE + 20;
 
     private final long[] salted = new long[SALTS];
+    /** Decides per pillar centre whether the pillar stands, null = all of them (biomes without pillars). */
+    private final BiPredicate<Double, Double> pillarFilter;
 
     public TunnelLayer(long seed) {
+        this(seed, null);
+    }
+
+    public TunnelLayer(long seed, BiPredicate<Double, Double> pillarFilter) {
         for (int i = 0; i < salted.length; i++) {
             salted[i] = mix(seed ^ (i * 0x9E3779B97F4A7C15L));
         }
+        this.pillarFilter = pillarFilter;
+    }
+
+    /** One of {@link #SURFACE_CHANNELS} independent 2D noises for the biome surfaces, roughly in [-1, 1]. */
+    public double surfaceNoise(int channel, double x, double z) {
+        return perlin(x, 0.5 + 0.13 * channel, z, S_SURFACE + channel);
+    }
+
+    public static final int SURFACE_CHANNELS = 20;
+
+    /** Fixed random value in [0, 1) per (x, z) and channel; any channel number works. */
+    public double random(int x, int z, int channel) {
+        return unit(mix(hash(x, z, S_SURFACE) + channel * 0x9E3779B97F4A7C15L));
+    }
+
+    /**
+     * Patches: smooth 3D noise mapped to 0..1, about evenly spread. {@code patch(...) < p} marks about a share p
+     * of the blocks, in blobs of roughly {@code scale} blocks instead of scattered single blocks.
+     */
+    public double patch(double x, double y, double z, double scale, int channel) {
+        final double v = 0.5 + 1.1 * noise3(x / scale, y / scale + 0.37 * channel, z / scale, channel);
+        return v < 0.0 ? 0.0 : (v > 1.0 ? 1.0 : v);
+    }
+
+    /**
+     * Plateau height of the shale flats at a column, 0, 3 or 6 blocks: broad shelves with steep, slightly
+     * ragged edges. Pure, so the surface that builds them and the formations standing on them agree.
+     */
+    public int plateau(int x, int z) {
+        final double n = surfaceNoise(9, x / 85.0, z / 85.0) + 0.05 * surfaceNoise(9, x / 7.0, z / 7.0);
+        return n < 0.06 ? 0 : n < 0.2 ? 3 : 6;
+    }
+
+    /** 3D noise for irregular formation shapes, roughly in [-1, 1]. */
+    public double noise3(double x, double y, double z, int channel) {
+        return perlin(x, y, z, S_SURFACE + Math.floorMod(channel, SURFACE_CHANNELS));
     }
 
     /**
@@ -190,7 +234,7 @@ public final class TunnelLayer {
                 final double sx = (gx + PILLAR_JITTER_MIN + PILLAR_JITTER_SPAN * unit(hash(gx, gz, S_PILLAR_X))) * PILLAR_CELL;
                 final double sz = (gz + PILLAR_JITTER_MIN + PILLAR_JITTER_SPAN * unit(hash(gx, gz, S_PILLAR_Z))) * PILLAR_CELL;
                 final double centreHall = hallHeight(sx, sz);
-                if (centreHall < PILLAR_MIN_HALL) {
+                if (centreHall < PILLAR_MIN_HALL || (pillarFilter != null && !pillarFilter.test(sx, sz))) {
                     continue;
                 }
                 final double rnd = unit(hash(gx, gz, S_PILLAR_R));
@@ -222,6 +266,11 @@ public final class TunnelLayer {
             return false;
         }
         return !inPillar(px, py, pz, col);
+    }
+
+    /** Whether the block belongs to one of the pillars standing in the hall. {@code col} must be filled for (x, z). */
+    public boolean isPillar(int blockX, int y, int blockZ, Column col) {
+        return col.open && y >= col.floor && y <= col.ceiling && inPillar(blockX + 0.5, y + 0.5, blockZ + 0.5, col);
     }
 
     private boolean inPillar(double px, double py, double pz, Column col) {
