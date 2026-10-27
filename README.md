@@ -1,25 +1,52 @@
+# Abyssal Depths
 
-Installation information
-=======
+A NeoForge mod for Minecraft 1.21.1 that extends the overworld down to y = -128. Below the deepslate
+lies the **thalan layer**: one huge, dark cavern of thalan stone, with its own biomes, rock formations
+and ambience.
 
-This template repository can be directly cloned to get you started with a new
-mod. Simply create a new repository cloned from this one, by following the
-instructions provided by [GitHub](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template).
+## What's in it
 
-Once you have your clone, simply open the repository in the IDE of your choice. The usual recommendation for an IDE is either IntelliJ IDEA or Eclipse.
+- **The thalan layer** (y -65 to -128): a cavern with tall halls, rock masses, massifs, pillars and low
+  crawl stretches, connector tunnels and up-shafts into the deepslate. Thalan ores, lava lakes, and a
+  deep pressure effect that builds up the longer you stay down (tunnel vision, heartbeat, ringing,
+  hallucinations).
+- **Biomes**
+  - *Thalan depths*: plain thalan, faintly glimmering specks in the walls.
+  - *Shale flats*: shale plateaus full of leaning shards of fractured shale; you find your way along
+    winding paths between them.
+  - *Silt dunes*: one big open hall of fine silt dunes with lone pillars, slender arches and siltstone
+    outcrops, quicksilt pools that pull you down, and dune storms.
+  - *Thermal reaches*: thermal rock, glowing smouldering fissures, vent cones and vent fields with steam,
+    oxide and sulfur deposits, sinter terraces with warm pools.
+- **Blocks**: the thalan and siltstone building sets, shale, silt, thermal and vent blocks.
+- **Ambience**: biome sounds, echo in the halls, dust, drips, gusts, fog tinted per biome, no game
+  music in the layer.
 
-If at any point you are missing libraries in your IDE, or you've run into problems you can
-run `gradlew --refresh-dependencies` to refresh the local cache. `gradlew clean` to reset everything 
-{this does not affect your code} and then start the process again.
+## Playing
 
-Mapping Names:
-============
-By default, the MDK is configured to use the official mapping names from Mojang for methods and fields 
-in the Minecraft codebase. These names are covered by a specific license. All modders should be aware of this
-license. For the latest license text, refer to the mapping file itself, or the reference copy here:
-https://github.com/NeoForged/NeoForm/blob/main/Mojang.md
+Settings (fog distance, particles, storms, echo, sounds, music, performance) are in the mod's config
+screen or `config/abyssaldepths-client.toml`.
 
-Additional Resources: 
-==========
-Community Documentation: https://docs.neoforged.net/  
-NeoForged Discord: https://discord.neoforged.net/
+Test commands for operators:
+
+```
+/abyssaldepths hallucinate footsteps|mob|digging|shadow
+/abyssaldepths ambience groan|creature|steps|rockfall|gust
+/abyssaldepths storm start [seconds] | stop
+```
+
+## Building
+
+```
+./gradlew build        # the mod jar in build/libs
+./gradlew test         # offline checks of the layer generation
+./gradlew runClient    # play it
+```
+
+Development tools (screenshot autopilot, offline maps, resource checks) are described in
+[tools/README.md](tools/README.md).
+
+## Credits
+
+Textures are made with mctex from openly licensed photos, see [TEXTURE_CREDITS.md](TEXTURE_CREDITS.md).
+Sounds are pitched and mixed vanilla sounds.

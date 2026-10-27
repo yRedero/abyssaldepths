@@ -2,7 +2,6 @@ package redero.abyssaldepths.worldgen;
 
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.DoubleBinaryOperator;
 
 import com.mojang.serialization.Codec;
 
@@ -51,6 +50,8 @@ public class TunnelFeature extends Feature<NoneFeatureConfiguration> {
 
     @Override
     public boolean place(FeaturePlaceContext<NoneFeatureConfiguration> context) {
+        final long[] marks = WorldgenProfile.ON ? new long[WorldgenProfile.PHASES.length + 1] : null;
+        mark(marks, 0);
         final WorldGenLevel level = context.level();
         final ChunkPos chunk = new ChunkPos(context.origin());
         final int x0 = chunk.getMinBlockX(), z0 = chunk.getMinBlockZ();
@@ -65,9 +66,11 @@ public class TunnelFeature extends Feature<NoneFeatureConfiguration> {
                 layer.column(x0 + dx, z0 + dz, c);
             }
         }
+        mark(marks, 1);
         final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         final BlockPos.MutableBlockPos side = new BlockPos.MutableBlockPos();
         final boolean[] connectors = layer.connectorMask(chunk.x, chunk.z);
+        mark(marks, 2);
 
         boolean placed = false;
         for (int dx = 0; dx < 16; dx++) {
@@ -93,7 +96,9 @@ public class TunnelFeature extends Feature<NoneFeatureConfiguration> {
             }
         }
 
+        mark(marks, 3);
         final List<LayerFormations.Formation> near = world.formations.near(x0 - 1, z0 - 1, x0 + 16, z0 + 16);
+        mark(marks, 4);
         final LayerSurface surface = new LayerSurface(level, layer, near, x0, z0, biomes);
         final LayerFormations.Sink sink = new WorldSink(level);
         final LayerWalls walls = new LayerWalls(level, layer, surface, x0, z0, ring);
@@ -102,6 +107,7 @@ public class TunnelFeature extends Feature<NoneFeatureConfiguration> {
                 surface.apply(x0 + dx, z0 + dz, ring[(dz + 1) * 18 + dx + 1]);
             }
         }
+        mark(marks, 5);
         for (int dz = 0; dz < 16; dz++) {
             for (int dx = 0; dx < 16; dx++) {
                 final TunnelLayer.Column c = ring[(dz + 1) * 18 + dx + 1];
@@ -115,12 +121,23 @@ public class TunnelFeature extends Feature<NoneFeatureConfiguration> {
                 }
             }
         }
+        mark(marks, 6);
         for (int dz = 0; dz < 16; dz++) {
             for (int dx = 0; dx < 16; dx++) {
                 walls.apply(x0 + dx, z0 + dz);
             }
         }
+        if (marks != null) {
+            mark(marks, 7);
+            WorldgenProfile.add(marks, near.size());
+        }
         return placed;
+    }
+
+    private static void mark(long[] marks, int index) {
+        if (marks != null) {
+            marks[index] = System.nanoTime();
+        }
     }
 
     /**
@@ -159,7 +176,7 @@ public class TunnelFeature extends Feature<NoneFeatureConfiguration> {
                     }
                     return biome != Biomes.FLATS;
                 });
-            }, openness(biomes, dunesCache));
+            }, DuneOpenness.of(biomes, dunesCache));
             this.formations = new LayerFormations(layer, biomes);
         }
 
@@ -189,41 +206,6 @@ public class TunnelFeature extends Feature<NoneFeatureConfiguration> {
             cache.putIfAbsent(key, value);
             return value;
         }
-    }
-
-    /**
-     * How much the silt dunes surround a position (share of a 7 x 7 grid of samples 6 blocks apart,
-     * eased), continuous everywhere: the dunes open up into one big hall, fading out over about 20
-     * blocks at their border.
-     */
-    private static DoubleBinaryOperator openness(Biomes biomes, ConcurrentHashMap<Long, Double> corners) {
-        // the share of dunes is sampled at the corners of a 4 block grid (cached) and blended smoothly
-        // in between: a value that jumps from cell to cell would cut flat, grid-aligned walls into the
-        // rock at the border of the dunes
-        final java.util.function.LongFunction<Double> share = key -> {
-            final int cx = BlockPos.getX(key) << 2, cz = BlockPos.getZ(key) << 2;
-            int hit = 0;
-            for (int i = -3; i <= 3; i++) {
-                for (int j = -3; j <= 3; j++) {
-                    if (biomes.at(cx + i * 6, cz + j * 6) == Biomes.DUNES) {
-                        hit++;
-                    }
-                }
-            }
-            return hit / 49.0;
-        };
-        return (px, pz) -> {
-            final double gx = px / 4.0, gz = pz / 4.0;
-            final int qx = (int) Math.floor(gx), qz = (int) Math.floor(gz);
-            final double fx = gx - qx, fz = gz - qz;
-            final double a = Context.cached(corners, BlockPos.asLong(qx, 0, qz), share);
-            final double b = Context.cached(corners, BlockPos.asLong(qx + 1, 0, qz), share);
-            final double c = Context.cached(corners, BlockPos.asLong(qx, 0, qz + 1), share);
-            final double d = Context.cached(corners, BlockPos.asLong(qx + 1, 0, qz + 1), share);
-            final double v = (a * (1 - fx) + b * fx) * (1 - fz) + (c * (1 - fx) + d * fx) * fz;
-            final double t = Math.max(0.0, Math.min(1.0, (v - 0.2) / 0.7));
-            return t * t * (3.0 - 2.0 * t);
-        };
     }
 
     /**
@@ -264,7 +246,7 @@ public class TunnelFeature extends Feature<NoneFeatureConfiguration> {
         @Override
         public boolean open(int x, int y, int z) {
             final BlockState s = get(x, y, z);
-            return s.isAir() || s.is(AbyssalDepths.FINE_SILT.get()) || s.is(AbyssalDepths.PACKED_SILT.get());
+            return s.isAir() || s.is(AbyssalDepths.FINE_SILT.get());
         }
 
         @Override
@@ -282,13 +264,9 @@ public class TunnelFeature extends Feature<NoneFeatureConfiguration> {
             return switch (mat) {
                 case AIR -> AIR;
                 case WATER -> Blocks.WATER.defaultBlockState();
-                case THALAN -> AbyssalDepths.THALAN.get().defaultBlockState();
-                case SHALE -> AbyssalDepths.SHALE.get().defaultBlockState();
                 case FRACTURED_SHALE -> AbyssalDepths.FRACTURED_SHALE.get().defaultBlockState();
                 case SHALE_RUBBLE -> AbyssalDepths.SHALE_RUBBLE.get().defaultBlockState();
                 case SILTSTONE -> AbyssalDepths.SILTSTONE.get().defaultBlockState();
-                case PACKED_SILT -> AbyssalDepths.PACKED_SILT.get().defaultBlockState();
-                case FINE_SILT -> AbyssalDepths.FINE_SILT.get().defaultBlockState();
                 case FOSSIL -> AbyssalDepths.FOSSILIZED_SILTSTONE.get().defaultBlockState();
                 case THERMAL_ROCK -> AbyssalDepths.THERMAL_ROCK.get().defaultBlockState();
                 case OXIDE -> AbyssalDepths.OXIDE_DEPOSIT.get().defaultBlockState();

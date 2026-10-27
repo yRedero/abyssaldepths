@@ -33,20 +33,22 @@ displayName="${mod_name}" #mandatory
 #updateJSONURL="https://change.me.example.invalid/updates.json" #optional
 
 # A URL for the "homepage" for this mod, displayed in the mod UI
-#displayURL="https://change.me.to.your.mods.homepage.example.invalid/" #optional
+displayURL="https://github.com/yRedero/abyssaldepths"
 
 # A file name (in the root of the mod JAR) containing a logo for display
 #logoFile="examplemod.png" #optional
 
 # A text field displayed in the mod UI
-#credits="" #optional
+credits="Textures made with mctex from openly licensed photos, see TEXTURE_CREDITS.md"
 
 # The authors of the mod, displayed in the mod UI (optional)
-#authors=""
+authors="yRedero"
 
 # The description text for the mod (multi line!) (#mandatory)
 description='''
-Extends the overworld down to y=-128 and adds an endless, mostly flat tunnel system with large caverns between y=-65 and y=-128.
+Extends the overworld down to y=-128: below the deepslate lies the thalan layer, a huge dark cavern
+with its own biomes (thalan depths, shale flats, silt dunes, thermal reaches), rock formations, dune
+storms, a deep pressure that builds up the longer you stay, and a lot of ambience.
 '''
 
 # The [[mixins]] block allows you to declare your mixin config to FML so that it gets loaded.

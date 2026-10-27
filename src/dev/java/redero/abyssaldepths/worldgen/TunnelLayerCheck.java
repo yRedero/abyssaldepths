@@ -12,8 +12,7 @@ import javax.imageio.ImageIO;
  * Standalone check for {@link TunnelLayer} (no Minecraft needed).
  *
  * <pre>
- * javac -d out TunnelLayer.java TunnelLayerCheck.java
- * java -cp out redero.abyssaldepths.worldgen.TunnelLayerCheck [seed] [originX] [originZ] [size] [pngDir]
+ * ./gradlew layerCheck -Pargs="[seed] [originX] [originZ] [size] [pngDir]"
  * </pre>
  *
  * Flood-fills the walkable floor of the great cavern (connector tunnels ignored, pillars count as

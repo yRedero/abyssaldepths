@@ -34,6 +34,15 @@ base {
     archivesName = mod_id
 }
 
+// Development tools (screenshot autopilot, offline layer checks and maps): built against the mod, but
+// never packed into the jar. See tools/README.md.
+sourceSets {
+    dev {
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+}
+
 // Mojang ships Java 21 to end users in 1.21.1, so mods should target Java 21.
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
@@ -68,6 +77,8 @@ neoForge {
         // then closes (see AutoShot). Biomes and seed via -Pautoshot=... and -PautoshotSeed=...
         autoshot {
             client()
+            sourceSet = sourceSets.dev
+            systemProperty 'abyssaldepths.profile', project.findProperty('profile') ?: 'false'
             systemProperty 'abyssaldepths.autoshot', project.findProperty('autoshot') ?: 'thermal_reaches,shale_flats,silt_dunes,thalan_depths'
             systemProperty 'abyssaldepths.autoshot.seed', project.findProperty('autoshotSeed') ?: '12345'
             systemProperty 'abyssaldepths.autoshot.commands', project.findProperty('autoshotCommands') ?: ''
@@ -112,9 +123,12 @@ neoForge {
         // multi mod projects should define one per mod
         "${mod_id}" {
             sourceSet(sourceSets.main)
+            sourceSet(sourceSets.dev)
         }
     }
 }
+
+neoForge.addModdingDependenciesTo(sourceSets.dev)
 
 // Sets up a dependency configuration called 'localRuntime'.
 // This configuration should be used instead of 'runtimeOnly' to declare
@@ -125,27 +139,25 @@ configurations {
 }
 
 dependencies {
-    // Example optional mod dependency with JEI
-    // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime
-    // compileOnly "mezz.jei:jei-${mc_version}-common-api:${jei_version}"
-    // compileOnly "mezz.jei:jei-${mc_version}-neoforge-api:${jei_version}"
-    // We add the full version to localRuntime, not runtimeOnly, so that we do not publish a dependency on it
-    // localRuntime "mezz.jei:jei-${mc_version}-neoforge:${jei_version}"
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.3'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
 
-    // Example mod dependency using a mod jar from ./libs with a flat dir repository
-    // This maps to ./libs/coolmod-${mc_version}-${coolmod_version}.jar
-    // The group id is ignored when searching -- in this case, it is "blank"
-    // implementation "blank:coolmod-${mc_version}:${coolmod_version}"
+tasks.named('test', Test) {
+    useJUnitPlatform()
+}
 
-    // Example mod dependency using a file as dependency
-    // implementation files("libs/coolmod-${mc_version}-${coolmod_version}.jar")
-
-    // Example project dependency using a sister or child project:
-    // implementation project(":myproject")
-
-    // For more info:
-    // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
-    // http://www.gradle.org/docs/current/userguide/dependency_management.html
+// Offline tools for the thalan layer, no game needed: ./gradlew layerCheck / layerMap [-Pargs="..."]
+['layerCheck': 'redero.abyssaldepths.worldgen.TunnelLayerCheck', 'layerMap': 'redero.abyssaldepths.worldgen.LayerMap'].each { name, main ->
+    tasks.register(name, JavaExec) {
+        group = 'abyssal depths'
+        classpath = sourceSets.dev.runtimeClasspath
+        mainClass = main
+        workingDir = project.projectDir
+        if (project.hasProperty('args')) {
+            args project.property('args').split(' ')
+        }
+    }
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.

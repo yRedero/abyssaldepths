@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class LayerFormations {
     /** Materials, mapped to blocks by the caller. */
     public enum Mat {
-        AIR, WATER, THALAN, SHALE, FRACTURED_SHALE, SHALE_RUBBLE, SILTSTONE, PACKED_SILT, FINE_SILT, FOSSIL,
+        AIR, WATER, FRACTURED_SHALE, SHALE_RUBBLE, SILTSTONE, FOSSIL,
         THERMAL_ROCK, OXIDE, SINTER, VENT, ACTIVE_VENT, SULFUR, MAT, SMOULDERING, ORE_IRON, ORE_COPPER, ORE_GOLD, ORE_REDSTONE
     }
 
@@ -205,9 +205,10 @@ public final class LayerFormations {
                     final double size = Math.pow(r.next(), 1.6);
                     // leaning 35 to 70 degrees from the ground, mostly the same way within a group
                     final double elev = Math.toRadians(35 + r.next() * 35), yaw = yaw0 + (r.next() - 0.5) * 1.2;
-                    final double radius = 1.0 + size * 2.5 + r.next() * 0.5;
-                    final double length = Math.min(7 + size * 26, (room - 3) / Math.sin(elev));
-                    if (length >= 5) {
+                    // under a low ceiling they stay short and stubby, two blocks clear of the roof
+                    final double length = Math.min(7 + size * 26, (room - 2) / Math.sin(elev));
+                    final double radius = Math.min(1.0 + size * 2.5 + r.next() * 0.5, 0.6 + length * 0.3);
+                    if (length >= 3) {
                         out.add(new Shard(cx + Math.cos(a) * d, cz + Math.sin(a) * d, base, yaw, elev, radius, length, r.seed()));
                     }
                 }
@@ -311,7 +312,7 @@ public final class LayerFormations {
     }
 
     /** Ore of a cluster: the type changes only over several blocks, so a seam is one ore. */
-    private Mat ore(long seed, int x, int y, int z) {
+    private Mat ore(int x, int y, int z) {
         final double r = layer.patch(x, y, z, 6.0, 28);
         return r < 0.4 ? Mat.ORE_IRON : r < 0.7 ? Mat.ORE_COPPER : r < 0.85 ? Mat.ORE_GOLD : Mat.ORE_REDSTONE;
     }
@@ -443,7 +444,7 @@ public final class LayerFormations {
                     if (dunes && blob(x, y, z, 3.0, 30) < 0.14) {
                         s.set(x, y, z, Mat.FOSSIL);
                     } else if (blob(x, y, z, 2.5, 31) < (dunes ? 0.16 : 0.2)) {
-                        s.set(x, y, z, ore(seed, x, y, z));
+                        s.set(x, y, z, ore(x, y, z));
                     } else if (dunes && blob(x, y, z, 5.0, 32) < 0.5) {
                         s.set(x, y, z, Mat.SILTSTONE);
                     }
