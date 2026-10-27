@@ -18,6 +18,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterDimensionSpecialEffectsEvent;
 import net.neoforged.neoforge.client.event.ViewportEvent;
 import redero.abyssaldepths.AbyssalDepths;
+import redero.abyssaldepths.ClientConfig;
 
 /**
  * Dark fog in the thalan layer, so the huge halls fade into black instead of ending at the edge of
@@ -31,6 +32,7 @@ public final class ThalanFog {
     /** Fog starts / is opaque at this share of the render distance. */
     private static final float NEAR = 0.35F, FAR = 0.9F;
     private static final float WARM_RED = 0.11F, WARM_GREEN = 0.05F, WARM_BLUE = 0.032F;
+    private static final float STORM_RED = 0.15F, STORM_GREEN = 0.135F, STORM_BLUE = 0.11F, STORM_FAR = 12.0F;
 
     private ThalanFog() {
     }
@@ -49,9 +51,11 @@ public final class ThalanFog {
         }
         final boolean sky = event.getMode() == FogRenderer.FogMode.FOG_SKY;
         final float distance = event.getRenderer().getRenderDistance();
-        // narrow passages close in: the fog comes nearer than in the open halls
-        final float close = 0.65F + 0.35F * LayerAmbience.openness();
-        final float near = sky ? 0.0F : NEAR * distance * close, far = sky ? 0.0F : FAR * distance * close;
+        // narrow passages close in: the fog comes nearer than in the open halls; a dune storm closes it
+        // in to a few blocks
+        final float close = (0.65F + 0.35F * LayerAmbience.openness()) * ClientConfig.fogDistance(), storm = DuneStormClient.strength();
+        final float near = sky ? 0.0F : lerp(storm, NEAR * distance * close, 0.0F);
+        final float far = sky ? 0.0F : lerp(storm, FAR * distance * close, STORM_FAR);
         // never thinner than vanilla (blindness, darkness)
         event.setNearPlaneDistance(Math.min(event.getNearPlaneDistance(), lerp(t, event.getNearPlaneDistance(), near)));
         event.setFarPlaneDistance(Math.min(event.getFarPlaneDistance(), lerp(t, event.getFarPlaneDistance(), far)));
@@ -69,6 +73,11 @@ public final class ThalanFog {
             event.setRed(lerp(warm, lerp(t, event.getRed(), LayerAmbience.tint(0) * dark), WARM_RED));
             event.setGreen(lerp(warm, lerp(t, event.getGreen(), LayerAmbience.tint(1) * dark), WARM_GREEN));
             event.setBlue(lerp(warm, lerp(t, event.getBlue(), LayerAmbience.tint(2) * dark), WARM_BLUE));
+            // the dust of a storm in the dunes
+            final float storm = DuneStormClient.strength();
+            event.setRed(lerp(storm, event.getRed(), STORM_RED));
+            event.setGreen(lerp(storm, event.getGreen(), STORM_GREEN));
+            event.setBlue(lerp(storm, event.getBlue(), STORM_BLUE));
         }
     }
 

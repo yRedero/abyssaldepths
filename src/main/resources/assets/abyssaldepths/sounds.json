@@ -396,5 +396,21 @@
         "attenuation_distance": 48
       }
     ]
+  },
+  "ambient.silt_dunes.storm": {
+    "sounds": [
+      {
+        "name": "minecraft:item/elytra/elytra_loop",
+        "volume": 0.7,
+        "pitch": 0.55,
+        "stream": true
+      },
+      {
+        "name": "minecraft:ambient/nether/soulsand_valley/ambience",
+        "volume": 0.9,
+        "pitch": 1.5,
+        "stream": true
+      }
+    ]
   }
 }

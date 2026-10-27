@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:stonecutting",
+  "ingredient": {
+    "item": "abyssaldepths:siltstone_tiles"
+  },
+  "result": {
+    "count": 1,
+    "id": "abyssaldepths:siltstone_tile_stairs"
+  }
+}

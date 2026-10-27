@@ -3,8 +3,11 @@ package redero.abyssaldepths.client;
 import java.util.ArrayDeque;
 import java.util.concurrent.CompletableFuture;
 
+import org.joml.Vector3f;
+
 import com.mojang.blaze3d.systems.RenderSystem;
 
+import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -25,14 +28,13 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.monster.EnderMan;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
+import net.neoforged.neoforge.client.event.RenderFrameEvent;
 import net.neoforged.neoforge.client.event.sound.PlaySoundEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import redero.abyssaldepths.AbyssalDepths;
@@ -41,7 +43,7 @@ import redero.abyssaldepths.DeepPressure;
 /**
  * Client side of {@link DeepPressure}: tunnel vision growing with the pressure, muffled hearing,
  * heartbeat and ear ringing, and in the last stage hallucinations (footsteps behind the player,
- * mobs and digging that are not there, a shadow at the edge of the view that vanishes when looked at).
+ * mobs and digging that are not there, a black figure at the edge of the view that vanishes the moment one turns towards it).
  * Everything follows the effect timer, so it also fades away again while the timer counts down.
  */
 @EventBusSubscriber(modid = AbyssalDepths.MODID, value = Dist.CLIENT)
@@ -57,8 +59,10 @@ public final class DeepPressureClient {
     private static int hallucinationCooldown = 600;
     /** Delayed hallucination sounds, run once the player's tick count reaches {@code at}. */
     private static final ArrayDeque<Delayed> SCHEDULED = new ArrayDeque<>();
-    private static EnderMan shadow;
-    private static int shadowAge, shadowSeen;
+    private static ShadowFigure shadow;
+    private static int shadowAge;
+    /** The shadow was asked for by the test command: it must not vanish just because there is no pressure. */
+    private static boolean forced;
 
     private DeepPressureClient() {
     }
@@ -166,8 +170,8 @@ public final class DeepPressureClient {
         if (stage >= 4 && --hallucinationCooldown <= 0) {
             hallucinationCooldown = 600 + RANDOM.nextInt(900); // every 30 to 75 seconds
             hallucinate(mc.level, player);
-        } else if (stage < 4) {
-            removeShadow(mc.level);
+        } else if (stage < 4 && !forced) {
+            removeShadow(mc.level); // a shadow from the test command stays until it is seen or times out
         }
     }
 
@@ -199,8 +203,22 @@ public final class DeepPressureClient {
     }
 
     private static void hallucinate(ClientLevel level, LocalPlayer player) {
+        hallucinate(level, player, RANDOM.nextInt(4));
+    }
+
+    /** One hallucination on demand, for the test command: footsteps, mob, digging or shadow. */
+    static void hallucinate(String kind) {
+        final Minecraft mc = Minecraft.getInstance();
+        final int index = java.util.List.of("footsteps", "mob", "digging", "shadow").indexOf(kind);
+        if (mc.player != null && mc.level != null && index >= 0) {
+            forced = index == 3;
+            hallucinate(mc.level, mc.player, index);
+        }
+    }
+
+    private static void hallucinate(ClientLevel level, LocalPlayer player, int kind) {
         final Vec3 look = player.getViewVector(1.0F).multiply(1.0, 0.0, 1.0).normalize();
-        switch (RANDOM.nextInt(4)) {
+        switch (kind) {
             case 0 -> { // footsteps coming closer from behind
                 for (int i = 0; i < 5; i++) {
                     final double dist = 11.0 - i * 1.6;
@@ -259,22 +277,17 @@ public final class DeepPressureClient {
         if (ground == null) {
             return;
         }
-        final EnderMan figure = EntityType.ENDERMAN.create(level);
-        if (figure == null) {
-            return;
-        }
+        final ShadowFigure figure = new ShadowFigure(level);
         final double dx = player.getX() - (ground.getX() + 0.5), dz = player.getZ() - (ground.getZ() + 0.5);
         final float yaw = (float) (Mth.atan2(dz, dx) * Mth.RAD_TO_DEG) - 90.0F;
         figure.setId(SHADOW_ID);
         figure.setSilent(true);
-        figure.setNoAi(true);
         figure.moveTo(ground.getX() + 0.5, ground.getY(), ground.getZ() + 0.5, yaw, 0.0F);
         figure.setYHeadRot(yaw);
         figure.yBodyRot = yaw;
         level.addEntity(figure);
         shadow = figure;
         shadowAge = 0;
-        shadowSeen = 0;
     }
 
     /** First air block above solid ground near the given height, with room for a 3 block figure. */
@@ -296,11 +309,28 @@ public final class DeepPressureClient {
         }
         if (shadow.level() != level || ++shadowAge > 160) {
             removeShadow(level);
+            forced = false;
             return;
         }
-        final Vec3 to = shadow.position().add(0.0, 1.5, 0.0).subtract(player.getEyePosition()).normalize();
-        if (player.getViewVector(1.0F).dot(to) > 0.96 && ++shadowSeen > 3) {
+        lookedAt(level);
+    }
+
+    /** Checked every frame: the shadow is gone the moment the player turns towards it (within ~35 degrees). */
+    @SubscribeEvent
+    public static void onFrame(RenderFrameEvent.Pre event) {
+        final Minecraft mc = Minecraft.getInstance();
+        if (shadow != null && mc.level != null) {
+            lookedAt(mc.level);
+        }
+    }
+
+    private static void lookedAt(ClientLevel level) {
+        final Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
+        final Vec3 to = shadow.position().add(0.0, 1.0, 0.0).subtract(camera.getPosition()).normalize();
+        final Vector3f look = camera.getLookVector();
+        if (look.x() * to.x + look.y() * to.y + look.z() * to.z > 0.82) {
             removeShadow(level);
+            forced = false;
         }
     }
 

@@ -17,6 +17,7 @@ import net.neoforged.neoforge.client.event.sound.PlaySoundSourceEvent;
 import net.neoforged.neoforge.client.event.sound.PlayStreamingSourceEvent;
 import net.neoforged.neoforge.client.event.sound.SoundEvent.SoundSourceEvent;
 import redero.abyssaldepths.AbyssalDepths;
+import redero.abyssaldepths.ClientConfig;
 
 /**
  * Echo in the halls of the thalan layer: every sound that starts while the camera is in the layer is
@@ -47,7 +48,7 @@ public final class LayerReverb {
 
     private static void attach(SoundSourceEvent event) {
         final float depth = LayerAmbience.depth();
-        if (failed || depth <= 0.0F || event.getSound().getSource() == SoundSource.MUSIC || event.getSound().getSource() == SoundSource.MASTER
+        if (failed || depth <= 0.0F || !ClientConfig.reverb() || event.getSound().getSource() == SoundSource.MUSIC || event.getSound().getSource() == SoundSource.MASTER
                 || event.getSound().isRelative()) {
             return; // dry: outside the layer, music, menus and sounds glued to the camera
         }

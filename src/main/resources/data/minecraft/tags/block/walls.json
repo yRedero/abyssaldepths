@@ -3,6 +3,10 @@
     "abyssaldepths:cobbled_thalan_wall",
     "abyssaldepths:polished_thalan_wall",
     "abyssaldepths:thalan_tile_wall",
-    "abyssaldepths:thalan_brick_wall"
+    "abyssaldepths:thalan_brick_wall",
+    "abyssaldepths:siltstone_wall",
+    "abyssaldepths:polished_siltstone_wall",
+    "abyssaldepths:siltstone_tile_wall",
+    "abyssaldepths:siltstone_brick_wall"
   ]
 }

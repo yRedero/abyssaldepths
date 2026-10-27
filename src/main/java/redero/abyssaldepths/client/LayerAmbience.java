@@ -31,6 +31,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import redero.abyssaldepths.AbyssalDepths;
+import redero.abyssaldepths.ClientConfig;
 
 /**
  * Ambience of the whole thalan layer, client side:
@@ -60,6 +61,9 @@ public final class LayerAmbience {
     private static int measureCooldown, soundCooldown = 300, gustCooldown = 900, gustTicks, groanCooldown = 4000,
             creatureCooldown = 9000, glimmerScanCooldown;
     private static double gustX, gustZ;
+    /** Set by the test command: what to play next instead of chance (creature 1 = roar, 2 = steps). */
+    private static int creatureNext;
+    private static boolean forceRockfall, forceGust;
     private static final List<BlockPos> GLIMMERS = new ArrayList<>();
     private static final List<Scheduled> LATER = new ArrayList<>();
 
@@ -117,16 +121,20 @@ public final class LayerAmbience {
             tint[i] += Mth.clamp(target[i] - tint[i], -0.0004F, 0.0004F);
         }
 
-        dust(level, player, dunes || thermal);
-        drips(level, player, flats, dunes, thermal);
-        if (flats || dunes) {
+        if (RANDOM.nextFloat() < ClientConfig.particles()) {
+            dust(level, player, dunes || thermal);
+            drips(level, player, flats, dunes, thermal);
+            moths(level, player);
+        }
+        if (flats || dunes || forceGust || gustTicks > 0) {
             gusts(level, player, dunes);
         } else {
             gustTicks = 0;
         }
-        hallSounds(level, player, flats, dunes);
-        deepSounds(level, player);
-        moths(level, player);
+        if (ClientConfig.ambientSounds()) {
+            hallSounds(level, player, flats, dunes);
+            deepSounds(level, player);
+        }
     }
 
     // ---- size of the space ----------------------------------------------------------------
@@ -210,9 +218,10 @@ public final class LayerAmbience {
     /** Now and then a gust of wind sweeps dust over the ground of the open flats and dunes. */
     private static void gusts(ClientLevel level, LocalPlayer player, boolean dunes) {
         if (gustTicks <= 0) {
-            if (--gustCooldown > 0) {
+            if (--gustCooldown > 0 && !forceGust) {
                 return;
             }
+            forceGust = false;
             gustCooldown = 900 + RANDOM.nextInt(1500);
             gustTicks = 70;
             final double a = RANDOM.nextDouble() * 2 * Math.PI;
@@ -225,7 +234,7 @@ public final class LayerAmbience {
         final float strength = Mth.sin((70 - gustTicks) / 70.0F * Mth.PI); // swells and dies down
         final Vector3f colour = dunes ? new Vector3f(0.55F, 0.52F, 0.47F) : new Vector3f(0.28F, 0.29F, 0.32F);
         final ParticleOptions grain = new DustParticleOptions(colour, 0.9F);
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < Math.round(5 * ClientConfig.particles()); i++) {
             final double x = player.getX() + (RANDOM.nextDouble() - 0.5) * 36, z = player.getZ() + (RANDOM.nextDouble() - 0.5) * 36;
             final BlockPos.MutableBlockPos pos = BlockPos.containing(x, player.getEyeY(), z).mutable();
             int down = 0;
@@ -290,6 +299,44 @@ public final class LayerAmbience {
 
     // ---- sounds ----------------------------------------------------------------
 
+    /** One of the rare sounds on demand, for the test command: groan, creature, steps, rockfall or gust. */
+    static void trigger(String kind) {
+        final Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.level == null) {
+            return;
+        }
+        switch (kind) {
+            case "groan" -> groanCooldown = 0;
+            case "creature" -> creatureNext = 1;
+            case "steps" -> creatureNext = 2;
+            case "rockfall" -> forceRockfall = true;
+            case "gust" -> {
+                gustCooldown = 0;
+                gustTicks = 0;
+                forceGust = true;
+            }
+            default -> {
+                return;
+            }
+        }
+        if (!kind.equals("gust")) {
+            if (kind.equals("rockfall")) {
+                soundCooldown = 0;
+            } else if (!kind.equals("groan")) {
+                creatureCooldown = 0;
+            }
+            hallSoundsOrDeep(mc.level, mc.player);
+        }
+    }
+
+    private static void hallSoundsOrDeep(ClientLevel level, LocalPlayer player) {
+        if (forceRockfall) {
+            hallSounds(level, player, false, false);
+        } else {
+            deepSounds(level, player);
+        }
+    }
+
     /** A sound from somewhere in the hall every 10 to 25 seconds: cracking shale, sliding silt, rockfall. */
     private static void hallSounds(ClientLevel level, LocalPlayer player, boolean flats, boolean dunes) {
         if (--soundCooldown > 0) {
@@ -298,7 +345,8 @@ public final class LayerAmbience {
         soundCooldown = 200 + RANDOM.nextInt(300);
         final double a = RANDOM.nextDouble() * 2 * Math.PI, d = 10 + RANDOM.nextDouble() * 25;
         final double x = player.getX() + Math.cos(a) * d, y = player.getEyeY() + (RANDOM.nextDouble() - 0.3) * 8, z = player.getZ() + Math.sin(a) * d;
-        final boolean rockfall = RANDOM.nextInt(flats || dunes ? 3 : 1) == 0;
+        final boolean rockfall = forceRockfall || RANDOM.nextInt(flats || dunes ? 3 : 1) == 0;
+        forceRockfall = false;
         if (!rockfall) {
             play(flats ? AbyssalDepths.FLATS_CRACK.get() : AbyssalDepths.DUNES_SLIDE.get(), x, y, z, 1.0F, 0.85F + RANDOM.nextFloat() * 0.3F);
             return;
@@ -332,7 +380,9 @@ public final class LayerAmbience {
             creatureCooldown = 9000 + RANDOM.nextInt(12000);
             final double a = RANDOM.nextDouble() * 2 * Math.PI, walk = a + Math.PI / 2;
             final double x = player.getX() + Math.cos(a) * 60, y = player.getEyeY(), z = player.getZ() + Math.sin(a) * 60;
-            if (RANDOM.nextBoolean()) {
+            final boolean roar = creatureNext == 0 ? RANDOM.nextBoolean() : creatureNext == 1;
+            creatureNext = 0;
+            if (roar) {
                 play(AbyssalDepths.DISTANT_CREATURE.get(), x, y, z, 1.0F, 0.9F + RANDOM.nextFloat() * 0.2F);
             } else {
                 // heavy steps passing by in the distance

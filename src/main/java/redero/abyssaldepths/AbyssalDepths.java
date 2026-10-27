@@ -8,6 +8,8 @@ import com.mojang.serialization.Codec;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import net.minecraft.core.particles.ParticleType;
+import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
@@ -39,7 +41,9 @@ import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConf
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.material.PushReaction;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.attachment.AttachmentType;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -62,6 +66,10 @@ public class AbyssalDepths {
     public static final DeferredRegister<CreativeModeTab> CREATIVE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MODID);
     public static final DeferredRegister<MobEffect> MOB_EFFECTS = DeferredRegister.create(Registries.MOB_EFFECT, MODID);
     public static final DeferredRegister<SoundEvent> SOUND_EVENTS = DeferredRegister.create(Registries.SOUND_EVENT, MODID);
+    public static final DeferredRegister<ParticleType<?>> PARTICLE_TYPES = DeferredRegister.create(Registries.PARTICLE_TYPE, MODID);
+    /** Dust of the dune storms: small fast grains, and big faint puffs of haze seen from further away. */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> STORM_DUST = PARTICLE_TYPES.register("storm_dust", () -> new SimpleParticleType(false));
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> STORM_HAZE = PARTICLE_TYPES.register("storm_haze", () -> new SimpleParticleType(true));
     public static final DeferredRegister<AttachmentType<?>> ATTACHMENT_TYPES = DeferredRegister.create(NeoForgeRegistries.Keys.ATTACHMENT_TYPES, MODID);
 
     /** Icon: textures/mob_effect/deep_pressure.png */
@@ -89,6 +97,7 @@ public class AbyssalDepths {
     public static final DeferredHolder<SoundEvent, SoundEvent> DISTANT_CREATURE = sound("ambient.thalan_layer.distant_creature");
     public static final DeferredHolder<SoundEvent, SoundEvent> DISTANT_STEPS = sound("ambient.thalan_layer.distant_steps");
     public static final DeferredHolder<SoundEvent, SoundEvent> GUST = sound("ambient.thalan_layer.gust");
+    public static final DeferredHolder<SoundEvent, SoundEvent> DUNE_STORM = sound("ambient.silt_dunes.storm");
 
     /** Biome of the thalan layer (data/abyssaldepths/worldgen/biome), it brings the layer's features and sounds. */
     public static final ResourceKey<Biome> THALAN_DEPTHS = biome("thalan_depths");
@@ -217,6 +226,24 @@ public class AbyssalDepths {
             BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_GRAY).instrument(NoteBlockInstrument.BASEDRUM)
                     .requiresCorrectToolForDrops().strength(1.5F, 6.0F).sound(SoundType.BONE_BLOCK)));
 
+    // Siltstone building blocks, the thalan set without cobbled and cracked versions: siltstone itself takes the place of cobbled.
+    public static final DeferredBlock<StairBlock> SILTSTONE_STAIRS = stairs("siltstone_stairs", SILTSTONE);
+    public static final DeferredBlock<SlabBlock> SILTSTONE_SLAB = slab("siltstone_slab", SILTSTONE);
+    public static final DeferredBlock<WallBlock> SILTSTONE_WALL = wall("siltstone_wall", SILTSTONE);
+    public static final DeferredBlock<Block> POLISHED_SILTSTONE = siltBuilding("polished_siltstone");
+    public static final DeferredBlock<StairBlock> POLISHED_SILTSTONE_STAIRS = stairs("polished_siltstone_stairs", POLISHED_SILTSTONE);
+    public static final DeferredBlock<SlabBlock> POLISHED_SILTSTONE_SLAB = slab("polished_siltstone_slab", POLISHED_SILTSTONE);
+    public static final DeferredBlock<WallBlock> POLISHED_SILTSTONE_WALL = wall("polished_siltstone_wall", POLISHED_SILTSTONE);
+    public static final DeferredBlock<Block> SILTSTONE_BRICKS = siltBuilding("siltstone_bricks");
+    public static final DeferredBlock<StairBlock> SILTSTONE_BRICK_STAIRS = stairs("siltstone_brick_stairs", SILTSTONE_BRICKS);
+    public static final DeferredBlock<SlabBlock> SILTSTONE_BRICK_SLAB = slab("siltstone_brick_slab", SILTSTONE_BRICKS);
+    public static final DeferredBlock<WallBlock> SILTSTONE_BRICK_WALL = wall("siltstone_brick_wall", SILTSTONE_BRICKS);
+    public static final DeferredBlock<Block> SILTSTONE_TILES = siltBuilding("siltstone_tiles");
+    public static final DeferredBlock<StairBlock> SILTSTONE_TILE_STAIRS = stairs("siltstone_tile_stairs", SILTSTONE_TILES);
+    public static final DeferredBlock<SlabBlock> SILTSTONE_TILE_SLAB = slab("siltstone_tile_slab", SILTSTONE_TILES);
+    public static final DeferredBlock<WallBlock> SILTSTONE_TILE_WALL = wall("siltstone_tile_wall", SILTSTONE_TILES);
+    public static final DeferredBlock<Block> CHISELED_SILTSTONE = siltBuilding("chiseled_siltstone");
+
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> TAB = CREATIVE_TABS.register("abyssaldepths",
             () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup.abyssaldepths"))
@@ -235,6 +262,11 @@ public class AbyssalDepths {
     /** Sound etc. of the deepslate counterpart, as much harder than thalan as those are than deepslate (3.5 vs 3). */
     private static DeferredBlock<Block> building(String name, Block deepslateBlock) {
         return withItem(BLOCKS.register(name, () -> new Block(BlockBehaviour.Properties.ofFullCopy(deepslateBlock).strength(5.5F, 9.0F))));
+    }
+
+    /** Worked siltstone: like the raw stone, a bit harder (siltstone: 1.5 / 6). */
+    private static DeferredBlock<Block> siltBuilding(String name) {
+        return withItem(BLOCKS.register(name, () -> new Block(BlockBehaviour.Properties.ofFullCopy(SILTSTONE.get()).strength(2.0F, 6.0F))));
     }
 
     private static DeferredBlock<StairBlock> stairs(String name, DeferredBlock<Block> base) {
@@ -260,7 +292,8 @@ public class AbyssalDepths {
                 () -> factory.apply(BlockBehaviour.Properties.ofFullCopy(deepslateOre).strength(6.5F, 9.0F))));
     }
 
-    public AbyssalDepths(IEventBus modEventBus) {
+    public AbyssalDepths(IEventBus modEventBus, ModContainer container) {
+        container.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
         BLOCKS.register(modEventBus);
         ITEMS.register(modEventBus);
         FEATURES.register(modEventBus);
@@ -268,5 +301,6 @@ public class AbyssalDepths {
         MOB_EFFECTS.register(modEventBus);
         SOUND_EVENTS.register(modEventBus);
         ATTACHMENT_TYPES.register(modEventBus);
+        PARTICLE_TYPES.register(modEventBus);
     }
 }

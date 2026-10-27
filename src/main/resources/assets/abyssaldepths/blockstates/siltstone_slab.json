@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "type=bottom": {
+      "model": "abyssaldepths:block/siltstone_slab"
+    },
+    "type=double": {
+      "model": "abyssaldepths:block/siltstone"
+    },
+    "type=top": {
+      "model": "abyssaldepths:block/siltstone_slab_top"
+    }
+  }
+}

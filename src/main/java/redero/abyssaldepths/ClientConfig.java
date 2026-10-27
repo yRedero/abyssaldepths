@@ -1,0 +1,82 @@
+package redero.abyssaldepths;
+
+import net.neoforged.neoforge.common.ModConfigSpec;
+
+/**
+ * Client settings (config/abyssaldepths-client.toml, or the mod's config screen): mostly the look of the
+ * thalan layer and the cost of its effects, for anyone whose game struggles with them.
+ */
+public final class ClientConfig {
+    private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
+
+    private static final ModConfigSpec.DoubleValue FOG_DISTANCE = BUILDER
+            .comment("How far you can see through the fog of the thalan layer, relative to the default (1.0).")
+            .translation("abyssaldepths.config.fog_distance")
+            .defineInRange("fogDistance", 1.0, 0.5, 3.0);
+    private static final ModConfigSpec.DoubleValue PARTICLES = BUILDER
+            .comment("Amount of ambient particles in the layer: dust, drips, gusts, steam, glowing motes and dune storms.",
+                    "0 turns them off, 1 is the default, 2 doubles them.")
+            .translation("abyssaldepths.config.particles")
+            .defineInRange("particles", 1.0, 0.0, 2.0);
+    private static final ModConfigSpec.BooleanValue DUNE_STORMS = BUILDER
+            .comment("Show the storms of the silt dunes (dust and close fog). Off: the storm still happens, you just don't see it.")
+            .translation("abyssaldepths.config.dune_storms")
+            .define("duneStorms", true);
+    private static final ModConfigSpec.BooleanValue HEAT_VIGNETTE = BUILDER
+            .comment("Amber glow at the screen edges near heat sources in the thermal reaches.")
+            .translation("abyssaldepths.config.heat_vignette")
+            .define("heatVignette", true);
+    private static final ModConfigSpec.BooleanValue REVERB = BUILDER
+            .comment("Echo of sounds in the halls of the layer (OpenAL EFX). Turn off if sounds misbehave.")
+            .translation("abyssaldepths.config.reverb")
+            .define("reverb", true);
+    private static final ModConfigSpec.BooleanValue AMBIENT_SOUNDS = BUILDER
+            .comment("Sounds from somewhere in the halls: cracking shale, rockfall, deep groans, distant creatures.")
+            .translation("abyssaldepths.config.ambient_sounds")
+            .define("ambientSounds", true);
+    private static final ModConfigSpec.BooleanValue SILENCE_MUSIC = BUILDER
+            .comment("No game music while in the thalan layer.")
+            .translation("abyssaldepths.config.silence_music")
+            .define("silenceMusic", true);
+    private static final ModConfigSpec.IntValue THERMAL_SCAN_CHUNKS = BUILDER
+            .comment("Radius in chunks searched for vents, smouldering rock and warm pools (steam and heat). Lower is cheaper.")
+            .translation("abyssaldepths.config.thermal_scan_chunks")
+            .defineInRange("thermalScanChunks", 2, 1, 4);
+
+    public static final ModConfigSpec SPEC = BUILDER.build();
+
+    private ClientConfig() {
+    }
+
+    public static float fogDistance() {
+        return SPEC.isLoaded() ? FOG_DISTANCE.get().floatValue() : 1.0F;
+    }
+
+    public static float particles() {
+        return SPEC.isLoaded() ? PARTICLES.get().floatValue() : 1.0F;
+    }
+
+    public static boolean duneStorms() {
+        return !SPEC.isLoaded() || DUNE_STORMS.get();
+    }
+
+    public static boolean heatVignette() {
+        return !SPEC.isLoaded() || HEAT_VIGNETTE.get();
+    }
+
+    public static boolean reverb() {
+        return !SPEC.isLoaded() || REVERB.get();
+    }
+
+    public static boolean ambientSounds() {
+        return !SPEC.isLoaded() || AMBIENT_SOUNDS.get();
+    }
+
+    public static boolean silenceMusic() {
+        return !SPEC.isLoaded() || SILENCE_MUSIC.get();
+    }
+
+    public static int thermalScanChunks() {
+        return SPEC.isLoaded() ? THERMAL_SCAN_CHUNKS.get() : 2;
+    }
+}

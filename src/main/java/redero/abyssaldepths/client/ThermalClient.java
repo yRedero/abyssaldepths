@@ -27,6 +27,7 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import redero.abyssaldepths.AbyssalDepths;
+import redero.abyssaldepths.ClientConfig;
 import redero.abyssaldepths.worldgen.TunnelLayer;
 
 /**
@@ -45,7 +46,7 @@ public final class ThermalClient {
     private static final ResourceLocation VIGNETTE =
             ResourceLocation.fromNamespaceAndPath(AbyssalDepths.MODID, "textures/misc/heat_vignette.png");
     private static final RandomSource RANDOM = RandomSource.create();
-    private static final int SCAN_EVERY = 40, SCAN_CHUNKS = 2, MAX_SOURCES = 160;
+    private static final int SCAN_EVERY = 40, MAX_SOURCES = 160;
     private static final double PLUME_RANGE = 40.0, HEAT_RANGE = 10.0;
 
     private static final List<BlockPos> VENTS = new ArrayList<>();
@@ -94,13 +95,13 @@ public final class ThermalClient {
                 level.playLocalSound(vent.getX() + 0.5, vent.getY() + 1.0, vent.getZ() + 0.5, AbyssalDepths.VENT_HISS.get(), SoundSource.AMBIENT,
                         1.0F, 0.8F + RANDOM.nextFloat() * 0.4F, false);
             }
-            if (vent.distToCenterSqr(player.position()) < PLUME_RANGE * PLUME_RANGE && RANDOM.nextInt(18) == 0) {
+            if (vent.distToCenterSqr(player.position()) < PLUME_RANGE * PLUME_RANGE && RANDOM.nextFloat() < ClientConfig.particles() / 18) {
                 level.addAlwaysVisibleParticle(ParticleTypes.CAMPFIRE_COSY_SMOKE, true, vent.getX() + 0.3 + RANDOM.nextDouble() * 0.4,
                         vent.getY() + 1.1, vent.getZ() + 0.3 + RANDOM.nextDouble() * 0.4, 0.0, 0.05 + RANDOM.nextDouble() * 0.03, 0.0);
             }
         }
         for (BlockPos pool : POOLS) {
-            if (RANDOM.nextInt(90) == 0) {
+            if (RANDOM.nextFloat() < ClientConfig.particles() / 90) {
                 level.addParticle(ParticleTypes.WHITE_SMOKE, pool.getX() + RANDOM.nextDouble(), pool.getY() + 1.0,
                         pool.getZ() + RANDOM.nextDouble(), 0.0, 0.03, 0.0);
             }
@@ -109,7 +110,7 @@ public final class ThermalClient {
                         pool.getZ() + RANDOM.nextDouble(), 0.0, 0.01, 0.0);
             }
         }
-        if (!VENTS.isEmpty() && RANDOM.nextInt(8) == 0) {
+        if (!VENTS.isEmpty() && RANDOM.nextFloat() < ClientConfig.particles() / 8) {
             haze(level, player);
         }
 
@@ -157,8 +158,9 @@ public final class ThermalClient {
         final int cx = SectionPos.blockToSectionCoord(around.getX()), cz = SectionPos.blockToSectionCoord(around.getZ());
         final int minSection = level.getSectionIndex(TunnelLayer.MIN_AIR_Y), maxSection = level.getSectionIndex(TunnelLayer.LAYER_TOP_Y + 16);
         final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        for (int dz = -SCAN_CHUNKS; dz <= SCAN_CHUNKS; dz++) {
-            for (int dx = -SCAN_CHUNKS; dx <= SCAN_CHUNKS; dx++) {
+        final int chunks = ClientConfig.thermalScanChunks();
+        for (int dz = -chunks; dz <= chunks; dz++) {
+            for (int dx = -chunks; dx <= chunks; dx++) {
                 if (!level.hasChunk(cx + dx, cz + dz)) {
                     continue;
                 }
@@ -225,7 +227,7 @@ public final class ThermalClient {
         public static void register(RegisterGuiLayersEvent event) {
             event.registerAbove(VanillaGuiLayers.CAMERA_OVERLAYS, ResourceLocation.fromNamespaceAndPath(AbyssalDepths.MODID, "heat_vignette"),
                     (graphics, delta) -> {
-                        if (heat <= 0.01F) {
+                        if (heat <= 0.01F || !ClientConfig.heatVignette()) {
                             return;
                         }
                         RenderSystem.disableDepthTest();

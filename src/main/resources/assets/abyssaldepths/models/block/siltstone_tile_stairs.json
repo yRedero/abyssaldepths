@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/stairs",
+  "textures": {
+    "bottom": "abyssaldepths:block/siltstone_tiles",
+    "side": "abyssaldepths:block/siltstone_tiles",
+    "top": "abyssaldepths:block/siltstone_tiles"
+  }
+}

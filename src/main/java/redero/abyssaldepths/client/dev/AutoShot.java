@@ -46,6 +46,7 @@ import redero.abyssaldepths.worldgen.TunnelLayer;
 public final class AutoShot {
     private static final String PLAN = System.getProperty("abyssaldepths.autoshot", "");
     private static final String SEED = System.getProperty("abyssaldepths.autoshot.seed", "12345");
+    private static final String COMMANDS = System.getProperty("abyssaldepths.autoshot.commands", "");
     private static final int SETTLE_TICKS = 220, TURN_TICKS = 15;
 
     private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, DONE }
@@ -110,6 +111,12 @@ public final class AutoShot {
                         final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
                         p.setGameMode(GameType.SPECTATOR);
                         p.addEffect(new MobEffectInstance(MobEffects.NIGHT_VISION, -1, 0, false, false));
+                        // commands to set the scene, separated by ';', e.g. "abyssaldepths storm start 600"
+                        for (String command : COMMANDS.split(";")) {
+                            if (!command.isBlank()) {
+                                server.getCommands().performPrefixedCommand(p.createCommandSourceStack().withPermission(4), command.trim());
+                            }
+                        }
                     });
                     mc.options.hideGui = true;
                     mc.options.pauseOnLostFocus = false; // keeps running while another window has focus

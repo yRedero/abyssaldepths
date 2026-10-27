@@ -21,6 +21,22 @@
     "abyssaldepths:thalan_tile_wall",
     "abyssaldepths:cracked_thalan_bricks",
     "abyssaldepths:cracked_thalan_tiles",
-    "abyssaldepths:chiseled_thalan"
+    "abyssaldepths:chiseled_thalan",
+    "abyssaldepths:siltstone_stairs",
+    "abyssaldepths:siltstone_slab",
+    "abyssaldepths:siltstone_wall",
+    "abyssaldepths:polished_siltstone",
+    "abyssaldepths:polished_siltstone_stairs",
+    "abyssaldepths:polished_siltstone_slab",
+    "abyssaldepths:polished_siltstone_wall",
+    "abyssaldepths:siltstone_bricks",
+    "abyssaldepths:siltstone_brick_stairs",
+    "abyssaldepths:siltstone_brick_slab",
+    "abyssaldepths:siltstone_brick_wall",
+    "abyssaldepths:siltstone_tiles",
+    "abyssaldepths:siltstone_tile_stairs",
+    "abyssaldepths:siltstone_tile_slab",
+    "abyssaldepths:siltstone_tile_wall",
+    "abyssaldepths:chiseled_siltstone"
   ]
 }
