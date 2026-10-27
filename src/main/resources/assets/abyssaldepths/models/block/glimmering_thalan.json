@@ -1,6 +1,7 @@
 {
-  "parent": "minecraft:block/cube_all",
+  "parent": "minecraft:block/cube_column",
   "textures": {
-    "all": "abyssaldepths:block/glimmering_thalan"
+    "end": "abyssaldepths:block/glimmering_thalan_top",
+    "side": "abyssaldepths:block/glimmering_thalan"
   }
 }
