@@ -2,6 +2,7 @@ package redero.abyssaldepths.worldgen;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Rock formations of the layer biomes, as pure geometry: no Minecraft dependencies, so they can be
@@ -56,6 +57,9 @@ public final class LayerFormations {
 
     private final TunnelLayer layer;
     private final Biomes biomes;
+    /** Formations per grid cell and type, shared by all threads generating chunks. */
+    private final ConcurrentHashMap<Long, List<Formation>> cells = new ConcurrentHashMap<>();
+    private static final int MAX_CELLS = 400_000;
 
     public LayerFormations(TunnelLayer layer, Biomes biomes) {
         this.layer = layer;
@@ -72,12 +76,28 @@ public final class LayerFormations {
             final int gz0 = Math.floorDiv(z0 - margin, type.cell), gz1 = Math.floorDiv(z1 + margin, type.cell);
             for (int gz = gz0; gz <= gz1; gz++) {
                 for (int gx = gx0; gx <= gx1; gx++) {
-                    create(type, gx, gz, out);
+                    out.addAll(cell(type, gx, gz));
                 }
             }
         }
         out.removeIf(f -> f.maxX() < x0 || f.minX() > x1 || f.maxZ() < z0 || f.minZ() > z1);
         return out;
+    }
+
+    /**
+     * The formations of one grid cell, built once and kept: neighbouring chunks ask for the same cells
+     * over and over, and building them needs the cavern shape and the biome at their centre.
+     */
+    private List<Formation> cell(Type type, int gx, int gz) {
+        if (cells.size() > MAX_CELLS) {
+            cells.clear(); // rarely: keeps memory bounded on long journeys
+        }
+        final long key = ((long) gx & 0x3FFFFFFL) << 38 | ((long) gz & 0x3FFFFFFL) << 12 | type.ordinal();
+        return cells.computeIfAbsent(key, k -> {
+            final List<Formation> made = new ArrayList<>(1);
+            create(type, gx, gz, made);
+            return made.isEmpty() ? List.of() : List.copyOf(made);
+        });
     }
 
     /** Extra dune height from sediment piling up against formations, in blocks. */

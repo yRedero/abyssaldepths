@@ -156,30 +156,6 @@
         "volume": 0.35,
         "pitch": 0.75,
         "attenuation_distance": 40
-      },
-      {
-        "name": "minecraft:ambient/nether/basalt_deltas/click1",
-        "volume": 0.35,
-        "pitch": 0.75,
-        "attenuation_distance": 40
-      },
-      {
-        "name": "minecraft:ambient/nether/basalt_deltas/click2",
-        "volume": 0.35,
-        "pitch": 0.75,
-        "attenuation_distance": 40
-      },
-      {
-        "name": "minecraft:ambient/nether/basalt_deltas/click3",
-        "volume": 0.35,
-        "pitch": 0.75,
-        "attenuation_distance": 40
-      },
-      {
-        "name": "minecraft:ambient/nether/basalt_deltas/click4",
-        "volume": 0.35,
-        "pitch": 0.75,
-        "attenuation_distance": 40
       }
     ]
   },

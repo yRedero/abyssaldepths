@@ -1,8 +1,7 @@
 package redero.abyssaldepths.worldgen;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.DoubleBinaryOperator;
 
 import com.mojang.serialization.Codec;
@@ -55,19 +54,9 @@ public class TunnelFeature extends Feature<NoneFeatureConfiguration> {
         final WorldGenLevel level = context.level();
         final ChunkPos chunk = new ChunkPos(context.origin());
         final int x0 = chunk.getMinBlockX(), z0 = chunk.getMinBlockZ();
-        final Biomes biomes = biomes(level);
-        // the shale flats are an open plain: no pillars there; the dunes keep about a third of them as
-        // lone supports of their big hall (decided at the pillar centre)
-        final Map<Long, Boolean> pillars = new HashMap<>();
-        final TunnelLayer layer = new TunnelLayer(level.getSeed(), (px, pz) -> pillars.computeIfAbsent(
-                BlockPos.asLong((int) Math.floor(px), 0, (int) Math.floor(pz)), k -> {
-                    final int biome = biomes.at((int) Math.floor(px), (int) Math.floor(pz));
-                    if (biome == Biomes.DUNES) {
-                        final long h = BlockPos.asLong((int) Math.floor(px), 0, (int) Math.floor(pz)) * 0x9E3779B97F4A7C15L;
-                        return Long.remainderUnsigned(h ^ (h >>> 29) ^ level.getSeed(), 100) < 35;
-                    }
-                    return biome != Biomes.FLATS;
-                }), openness(biomes));
+        final Context world = Context.of(level);
+        final Biomes biomes = world.biomes;
+        final TunnelLayer layer = world.layer;
         // the chunk's columns and one ring around it (the walls look across the chunk border)
         final TunnelLayer.Column[] ring = new TunnelLayer.Column[18 * 18];
         for (int dz = -1; dz <= 16; dz++) {
@@ -104,7 +93,7 @@ public class TunnelFeature extends Feature<NoneFeatureConfiguration> {
             }
         }
 
-        final List<LayerFormations.Formation> near = new LayerFormations(layer, biomes).near(x0 - 1, z0 - 1, x0 + 16, z0 + 16);
+        final List<LayerFormations.Formation> near = world.formations.near(x0 - 1, z0 - 1, x0 + 16, z0 + 16);
         final LayerSurface surface = new LayerSurface(level, layer, near, x0, z0, biomes);
         final LayerFormations.Sink sink = new WorldSink(level);
         final LayerWalls walls = new LayerWalls(level, layer, surface, x0, z0, ring);
@@ -135,26 +124,105 @@ public class TunnelFeature extends Feature<NoneFeatureConfiguration> {
     }
 
     /**
-     * How much the silt dunes surround a position (share of a 5 x 5 grid of samples 8 blocks apart,
-     * eased), cached per 4 x 4 block cell like the biomes themselves: the dunes open up into one big
-     * hall, fading out over about 16 blocks at their border.
+     * Everything about the layer that is the same for every chunk of a world, built once per world and
+     * shared by all generation threads. The expensive answers (the biome of a spot needs the full climate
+     * noise; the share of dunes around a spot 49 of those; the formations of a grid cell the cavern shape)
+     * are kept in thread-safe caches instead of being worked out again for every neighbouring chunk.
      */
-    private static DoubleBinaryOperator openness(Biomes biomes) {
-        final Map<Long, Double> cache = new HashMap<>();
-        return (px, pz) -> {
-            final int qx = (int) Math.floor(px) >> 2, qz = (int) Math.floor(pz) >> 2;
-            return cache.computeIfAbsent(BlockPos.asLong(qx, 0, qz), k -> {
-                int hit = 0;
-                for (int i = -2; i <= 2; i++) {
-                    for (int j = -2; j <= 2; j++) {
-                        if (biomes.at((qx << 2) + 2 + i * 8, (qz << 2) + 2 + j * 8) == Biomes.DUNES) {
-                            hit++;
-                        }
+    private static final class Context {
+        private static final int MAX_ENTRIES = 1_000_000;
+        private static volatile Context current;
+
+        final long seed;
+        final BiomeSource source;
+        final Biomes biomes;
+        final TunnelLayer layer;
+        final LayerFormations formations;
+        private final ConcurrentHashMap<Long, Integer> biomeCache = new ConcurrentHashMap<>();
+        private final ConcurrentHashMap<Long, Double> dunesCache = new ConcurrentHashMap<>();
+        private final ConcurrentHashMap<Long, Boolean> pillarCache = new ConcurrentHashMap<>();
+
+        private Context(WorldGenLevel level, BiomeSource source) {
+            this.seed = level.getSeed();
+            this.source = source;
+            final Biomes raw = biomes(level);
+            this.biomes = (x, z) -> cached(biomeCache, BlockPos.asLong(x >> 2, 0, z >> 2), k -> raw.at(x, z));
+            // the shale flats are an open plain: no pillars there; the dunes keep about a third of them as
+            // lone supports of their big hall (decided at the pillar centre)
+            this.layer = new TunnelLayer(seed, (px, pz) -> {
+                final long key = BlockPos.asLong((int) Math.floor(px), 0, (int) Math.floor(pz));
+                return cached(pillarCache, key, k -> {
+                    final int biome = biomes.at((int) Math.floor(px), (int) Math.floor(pz));
+                    if (biome == Biomes.DUNES) {
+                        final long h = key * 0x9E3779B97F4A7C15L;
+                        return Long.remainderUnsigned(h ^ (h >>> 29) ^ seed, 100) < 35;
+                    }
+                    return biome != Biomes.FLATS;
+                });
+            }, openness(biomes, dunesCache));
+            this.formations = new LayerFormations(layer, biomes);
+        }
+
+        static Context of(WorldGenLevel level) {
+            final BiomeSource source = level.getLevel().getChunkSource().getGenerator().getBiomeSource();
+            Context c = current;
+            if (c == null || c.seed != level.getSeed() || c.source != source) {
+                synchronized (Context.class) {
+                    c = current;
+                    if (c == null || c.seed != level.getSeed() || c.source != source) {
+                        current = c = new Context(level, source); // another world: start over
                     }
                 }
-                final double t = Math.max(0.0, Math.min(1.0, (hit / 25.0 - 0.2) / 0.7));
-                return t * t * (3.0 - 2.0 * t);
-            });
+            }
+            return c;
+        }
+
+        private static <V> V cached(ConcurrentHashMap<Long, V> cache, long key, java.util.function.LongFunction<V> compute) {
+            final V hit = cache.get(key);
+            if (hit != null) {
+                return hit;
+            }
+            if (cache.size() > MAX_ENTRIES) {
+                cache.clear(); // rarely: keeps memory bounded on long journeys
+            }
+            final V value = compute.apply(key);
+            cache.putIfAbsent(key, value);
+            return value;
+        }
+    }
+
+    /**
+     * How much the silt dunes surround a position (share of a 7 x 7 grid of samples 6 blocks apart,
+     * eased), continuous everywhere: the dunes open up into one big hall, fading out over about 20
+     * blocks at their border.
+     */
+    private static DoubleBinaryOperator openness(Biomes biomes, ConcurrentHashMap<Long, Double> corners) {
+        // the share of dunes is sampled at the corners of a 4 block grid (cached) and blended smoothly
+        // in between: a value that jumps from cell to cell would cut flat, grid-aligned walls into the
+        // rock at the border of the dunes
+        final java.util.function.LongFunction<Double> share = key -> {
+            final int cx = BlockPos.getX(key) << 2, cz = BlockPos.getZ(key) << 2;
+            int hit = 0;
+            for (int i = -3; i <= 3; i++) {
+                for (int j = -3; j <= 3; j++) {
+                    if (biomes.at(cx + i * 6, cz + j * 6) == Biomes.DUNES) {
+                        hit++;
+                    }
+                }
+            }
+            return hit / 49.0;
+        };
+        return (px, pz) -> {
+            final double gx = px / 4.0, gz = pz / 4.0;
+            final int qx = (int) Math.floor(gx), qz = (int) Math.floor(gz);
+            final double fx = gx - qx, fz = gz - qz;
+            final double a = Context.cached(corners, BlockPos.asLong(qx, 0, qz), share);
+            final double b = Context.cached(corners, BlockPos.asLong(qx + 1, 0, qz), share);
+            final double c = Context.cached(corners, BlockPos.asLong(qx, 0, qz + 1), share);
+            final double d = Context.cached(corners, BlockPos.asLong(qx + 1, 0, qz + 1), share);
+            final double v = (a * (1 - fx) + b * fx) * (1 - fz) + (c * (1 - fx) + d * fx) * fz;
+            final double t = Math.max(0.0, Math.min(1.0, (v - 0.2) / 0.7));
+            return t * t * (3.0 - 2.0 * t);
         };
     }
 

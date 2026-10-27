@@ -22,7 +22,7 @@ import redero.abyssaldepths.ClientConfig;
 /**
  * Echo in the halls of the thalan layer: every sound that starts while the camera is in the layer is
  * also sent through an OpenAL reverb, longer and stronger the bigger the hall around the camera
- * ({@link LayerAmbience#openness()}). Outside the layer sounds stay dry. Needs the OpenAL EFX extension
+ * ({@link LayerAmbience#openness()}), muffled in a dune storm. Outside the layer sounds stay dry. Needs the OpenAL EFX extension
  * (OpenAL Soft, which Minecraft ships, has it); without it, or on any error, it switches itself off.
  * Runs on the sound thread, where the channel events are fired.
  */
@@ -30,7 +30,7 @@ import redero.abyssaldepths.ClientConfig;
 public final class LayerReverb {
     private static boolean failed;
     private static int effect, slot;
-    private static float appliedDecay = -1.0F;
+    private static float appliedDecay = -1.0F, appliedStorm;
     private static Field sourceField;
 
     private LayerReverb() {
@@ -85,18 +85,23 @@ public final class LayerReverb {
         return true;
     }
 
-    /** Hall size 0 (narrow passage) .. 1 (huge hall): short and quiet .. long and strong echo. */
+    /**
+     * Hall size 0 (narrow passage) .. 1 (huge hall): short and quiet .. long and strong echo. In a dune
+     * storm the dust in the air swallows most of it: short, dull and quiet.
+     */
     private static void update(float depth, float openness) {
-        final float decay = 0.8F + 4.2F * openness;
-        if (Math.abs(decay - appliedDecay) < 0.15F) {
+        final float storm = DuneStormClient.strength();
+        final float decay = (0.8F + 4.2F * openness) * (1.0F - 0.75F * storm);
+        if (Math.abs(decay - appliedDecay) < 0.15F && Math.abs(storm - appliedStorm) < 0.1F) {
             return;
         }
         appliedDecay = decay;
+        appliedStorm = storm;
         EXTEfx.alEffectf(effect, EXTEfx.AL_REVERB_DECAY_TIME, decay);
         EXTEfx.alEffectf(effect, EXTEfx.AL_REVERB_DENSITY, 1.0F);
         EXTEfx.alEffectf(effect, EXTEfx.AL_REVERB_DIFFUSION, 0.8F);
-        EXTEfx.alEffectf(effect, EXTEfx.AL_REVERB_GAIN, depth * (0.18F + 0.22F * openness));
-        EXTEfx.alEffectf(effect, EXTEfx.AL_REVERB_GAINHF, 0.6F);
+        EXTEfx.alEffectf(effect, EXTEfx.AL_REVERB_GAIN, depth * (0.18F + 0.22F * openness) * (1.0F - 0.85F * storm));
+        EXTEfx.alEffectf(effect, EXTEfx.AL_REVERB_GAINHF, 0.6F * (1.0F - 0.8F * storm));
         EXTEfx.alEffectf(effect, EXTEfx.AL_REVERB_DECAY_HFRATIO, 0.7F);
         EXTEfx.alEffectf(effect, EXTEfx.AL_REVERB_REFLECTIONS_DELAY, 0.01F + 0.05F * openness);
         EXTEfx.alEffectf(effect, EXTEfx.AL_REVERB_LATE_REVERB_DELAY, 0.02F + 0.06F * openness);
