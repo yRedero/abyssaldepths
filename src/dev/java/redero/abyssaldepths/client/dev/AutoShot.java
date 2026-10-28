@@ -24,6 +24,7 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.core.registries.Registries;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -35,7 +36,7 @@ import redero.abyssaldepths.worldgen.TunnelLayer;
 /**
  * Development only: takes screenshots of the layer biomes without anyone at the keyboard. Inert unless the
  * system property {@code abyssaldepths.autoshot} is set (the {@code runAutoshot} Gradle run does that); its
- * value lists the biomes, e.g. {@code thermal_reaches,shale_flats}.
+ * value lists the biomes, e.g. {@code thermal_reaches,shale_flats}, or {@code surface} for the world spawn.
  * <p>
  * It creates a world "abyss-autoshot" with a fixed seed, then for every biome finds the nearest place
  * with a tall open hall, flies there in spectator mode with night vision and the HUD hidden, waits for
@@ -47,6 +48,8 @@ public final class AutoShot {
     private static final String PLAN = System.getProperty("abyssaldepths.autoshot", "");
     private static final String SEED = System.getProperty("abyssaldepths.autoshot.seed", "12345");
     private static final String COMMANDS = System.getProperty("abyssaldepths.autoshot.commands", "");
+    /** Run as the player at every spot once its chunks are loaded, e.g. "fill ~-1 ~-2 ~3 ~1 ~ ~3 stone". */
+    private static final String SPOT_COMMANDS = System.getProperty("abyssaldepths.autoshot.spotCommands", "");
     private static final int SETTLE_TICKS = 220, TURN_TICKS = 15;
 
     private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, DONE }
@@ -55,7 +58,8 @@ public final class AutoShot {
     private static final Deque<String> BIOMES = new ArrayDeque<>();
     private static String biome;
     private static CompletableFuture<BlockPos> found;
-    private static int wait, shot;
+    private static int wait, shot, spotsDone;
+    private static boolean reloaded;
 
     private AutoShot() {
     }
@@ -113,7 +117,7 @@ public final class AutoShot {
                         p.addEffect(new MobEffectInstance(MobEffects.NIGHT_VISION, -1, 0, false, false));
                         // commands to set the scene, separated by ';', e.g. "abyssaldepths storm start 600"
                         for (String command : COMMANDS.split(";")) {
-                            if (!command.isBlank()) {
+                            if (!command.isBlank() && !command.trim().startsWith("client:")) {
                                 server.getCommands().performPrefixedCommand(p.createCommandSourceStack().withPermission(4), command.trim());
                             }
                         }
@@ -124,6 +128,18 @@ public final class AutoShot {
                 }
             }
             case NEXT -> {
+                // "client:reload" in the commands: reload the resources (like F3+T) after the first spot,
+                // to test what survives a restart of the sound engine and the renderer
+                if (!reloaded && spotsDone > 0 && COMMANDS.contains("client:reload")) {
+                    reloaded = true;
+                    AbyssalDepths.LOGGER.info("autoshot: reloading resources");
+                    mc.reloadResourcePacks();
+                    return;
+                }
+                if (mc.getOverlay() != null) {
+                    return; // still reloading
+                }
+                spotsDone++;
                 biome = BIOMES.poll();
                 if (biome == null) {
                     AbyssalDepths.LOGGER.info("autoshot: all done");
@@ -153,6 +169,17 @@ public final class AutoShot {
                 }
             }
             case SETTLING -> {
+                if (wait == SETTLE_TICKS / 2 && !SPOT_COMMANDS.isBlank()) {
+                    final MinecraftServer server = mc.getSingleplayerServer();
+                    server.execute(() -> {
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        for (String command : SPOT_COMMANDS.split(";")) {
+                            if (!command.isBlank()) {
+                                server.getCommands().performPrefixedCommand(p.createCommandSourceStack().withPermission(4), command.trim());
+                            }
+                        }
+                    });
+                }
                 if (++wait > SETTLE_TICKS) {
                     wait = 0;
                     step = Step.SHOOTING;
@@ -187,6 +214,14 @@ public final class AutoShot {
         final CompletableFuture<BlockPos> result = new CompletableFuture<>();
         server.execute(() -> {
             final ServerLevel level = server.overworld();
+            if (biomeName.equals("surface")) {
+                // above the world spawn (the second one 300 blocks further), for anything seen from the surface
+                final BlockPos spawn = level.getSharedSpawnPos().offset(n * 300, 0, n * 300);
+                level.getChunk(spawn); // generate it
+                result.complete(new BlockPos(spawn.getX(), level.getHeight(Heightmap.Types.MOTION_BLOCKING, spawn.getX(), spawn.getZ()) + 12,
+                        spawn.getZ()));
+                return;
+            }
             final ResourceKey<Biome> key = ResourceKey.create(Registries.BIOME, ResourceLocation.fromNamespaceAndPath(AbyssalDepths.MODID, biomeName));
             final BlockPos origin = new BlockPos(n * 600, -100, n * 600);
             final Pair<BlockPos, Holder<Biome>> hit = level.findClosestBiome3d(h -> h.is(key), origin, 6400, 32, 64);

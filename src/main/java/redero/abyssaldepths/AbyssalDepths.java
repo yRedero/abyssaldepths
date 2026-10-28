@@ -163,6 +163,14 @@ public class AbyssalDepths {
             RedStoneOreBlock::new);
     public static final DeferredBlock<Block> THALAN_DIAMOND_ORE = ore("thalan_diamond_ore", Blocks.DEEPSLATE_DIAMOND_ORE,
             p -> new DropExperienceBlock(UniformInt.of(3, 7), p));
+    /**
+     * Rare ore of the thalan layer only: small veins, drops nuggets. Its purple veins are drawn at full
+     * brightness (a second model layer), so they glow in the dark without emitting light.
+     */
+    public static final DeferredBlock<Block> NUMINOR_ORE = ore("numinor_ore", Blocks.DEEPSLATE_DIAMOND_ORE,
+            p -> new DropExperienceBlock(UniformInt.of(2, 5), p));
+    public static final DeferredItem<Item> NUMINOR_NUGGET = ITEMS.registerSimpleItem("numinor_nugget");
+    public static final DeferredItem<Item> NUMINOR_INGOT = ITEMS.registerSimpleItem("numinor_ingot");
 
     /** Blobs in the thalan layer, generated like tuff (data/abyssaldepths/worldgen). */
     public static final DeferredBlock<Block> SHALE = BLOCKS.registerSimpleBlock("shale",

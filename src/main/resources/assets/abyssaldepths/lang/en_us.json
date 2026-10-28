@@ -24,6 +24,7 @@
   "block.abyssaldepths.fossilized_siltstone": "Fossilized Siltstone",
   "block.abyssaldepths.fractured_shale": "Fractured Shale",
   "block.abyssaldepths.glimmering_thalan": "Glimmering Thalan",
+  "block.abyssaldepths.numinor_ore": "Numinor Ore",
   "block.abyssaldepths.oxide_deposit": "Oxide Deposit",
   "block.abyssaldepths.packed_silt": "Packed Silt",
   "block.abyssaldepths.polished_siltstone": "Polished Siltstone",
@@ -72,6 +73,8 @@
   "death.attack.abyssaldepths.steam": "%1$s was scalded by steam",
   "death.attack.abyssaldepths.steam.player": "%1$s was scalded by steam whilst fighting %2$s",
   "effect.abyssaldepths.deep_pressure": "Deep Pressure",
+  "item.abyssaldepths.numinor_ingot": "Numinor Ingot",
+  "item.abyssaldepths.numinor_nugget": "Numinor Nugget",
   "item.abyssaldepths.sulfur": "Sulfur",
   "itemGroup.abyssaldepths": "Abyssal Depths"
 }

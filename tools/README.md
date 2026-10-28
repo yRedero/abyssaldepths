@@ -6,13 +6,14 @@ the `dev` source set (`src/dev/java`), the scripts in this folder.
 ## Look at it in game without playing: `tools/autoshot.sh`
 
 ```
-tools/autoshot.sh <round> [biomes] [commands] [seed]
+tools/autoshot.sh <round> [biomes] [commands] [seed] [spot commands]
 tools/autoshot.sh r1 silt_dunes "abyssaldepths storm start 600"
+tools/autoshot.sh r2 thalan_depths "" 12345 "fill ~-1 ~-3 ~4 ~1 ~-1 ~6 abyssaldepths:numinor_ore"
 ```
 
 Starts the game (`runAutoshot`), creates a fresh world, flies to two spots per biome in spectator mode
 with night vision and takes four views plus one looking down, then quits. Commands (`;` separated) run
-as the player first. Output in `build/autoshot/<round>/`: the shots, brightened copies in `bright/` (the
+as the player first; spot commands at every spot, relative to the camera (to put a block in view). Output in `build/autoshot/<round>/`: the shots, brightened copies in `bright/` (the
 layer is dark by design), one contact sheet per spot and `game.log`. The run also measures the world
 generation; the last line of `grep "worldgen profile" game.log` is the average time per chunk and phase.
 
@@ -49,6 +50,15 @@ python tools/format_json.py         # all JSON in one format (2 spaces, LF); --c
 ```
 
 Run both before committing.
+
+## Finding ores: `tools/make_xray_pack.py`
+
+```
+python tools/make_xray_pack.py [resourcepacks dir]     # default: run/resourcepacks
+```
+
+Builds the resource pack "Numinor X-Ray": the rock turns invisible and Numinor ore is drawn through it.
+In game it must sit above "Mod Resources" in the pack list. Rebuild after adding blocks.
 
 ## Textures
 

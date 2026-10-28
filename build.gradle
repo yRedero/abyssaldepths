@@ -82,6 +82,7 @@ neoForge {
             systemProperty 'abyssaldepths.autoshot', project.findProperty('autoshot') ?: 'thermal_reaches,shale_flats,silt_dunes,thalan_depths'
             systemProperty 'abyssaldepths.autoshot.seed', project.findProperty('autoshotSeed') ?: '12345'
             systemProperty 'abyssaldepths.autoshot.commands', project.findProperty('autoshotCommands') ?: ''
+            systemProperty 'abyssaldepths.autoshot.spotCommands', project.findProperty('autoshotSpotCommands') ?: ''
         }
 
         // This run config launches GameTestServer and runs all registered gametests, then exits.

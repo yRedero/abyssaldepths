@@ -15,6 +15,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.sound.PlaySoundSourceEvent;
 import net.neoforged.neoforge.client.event.sound.PlayStreamingSourceEvent;
+import net.neoforged.neoforge.client.event.sound.SoundEngineLoadEvent;
 import net.neoforged.neoforge.client.event.sound.SoundEvent.SoundSourceEvent;
 import redero.abyssaldepths.AbyssalDepths;
 import redero.abyssaldepths.ClientConfig;
@@ -29,11 +30,25 @@ import redero.abyssaldepths.ClientConfig;
 @EventBusSubscriber(modid = AbyssalDepths.MODID, value = Dist.CLIENT)
 public final class LayerReverb {
     private static boolean failed;
-    private static int effect, slot;
+    /** OpenAL names of the reverb; they belong to the sound engine that made them (0 = not made yet). */
+    private static volatile int effect, slot;
+    private static int errors;
     private static float appliedDecay = -1.0F, appliedStorm;
     private static Field sourceField;
 
     private LayerReverb() {
+    }
+
+    /**
+     * The sound engine was (re)started (resource reload, F3+T, changed device): the old OpenAL context is
+     * gone with the reverb in it. Using its names again would make OpenAL raise errors that Minecraft then
+     * blames on its own calls, and sounds fail to play.
+     */
+    @SubscribeEvent
+    public static void onEngineLoad(SoundEngineLoadEvent event) {
+        effect = 0;
+        slot = 0;
+        appliedDecay = -1.0F;
     }
 
     @SubscribeEvent
@@ -53,14 +68,21 @@ public final class LayerReverb {
             return; // dry: outside the layer, music, menus and sounds glued to the camera
         }
         try {
-            if (slot == 0 && !init()) {
+            AL10.alGetError(); // start clean: an error raised now is ours
+            if ((slot == 0 || !EXTEfx.alIsAuxiliaryEffectSlot(slot) || !EXTEfx.alIsEffect(effect)) && !init()) {
                 return;
             }
             update(depth, LayerAmbience.openness());
             final int source = sourceField.getInt(event.getChannel());
             AL11.alSource3i(source, EXTEfx.AL_AUXILIARY_SEND_FILTER, slot, 0, EXTEfx.AL_FILTER_NULL);
+            // never leave an error behind for Minecraft's own checks; give up after a few
+            if (AL10.alGetError() != AL10.AL_NO_ERROR && ++errors >= 5) {
+                failed = true;
+                AbyssalDepths.LOGGER.warn("cave reverb switched off after repeated OpenAL errors");
+            }
         } catch (Exception | LinkageError e) {
             failed = true;
+            AL10.alGetError();
             AbyssalDepths.LOGGER.warn("cave reverb switched off", e);
         }
     }
@@ -72,13 +94,17 @@ public final class LayerReverb {
             AbyssalDepths.LOGGER.info("no OpenAL EFX: cave reverb off");
             return false;
         }
-        sourceField = Channel.class.getDeclaredField("source");
-        sourceField.setAccessible(true);
+        if (sourceField == null) {
+            sourceField = Channel.class.getDeclaredField("source");
+            sourceField.setAccessible(true);
+        }
         effect = EXTEfx.alGenEffects();
         EXTEfx.alEffecti(effect, EXTEfx.AL_EFFECT_TYPE, EXTEfx.AL_EFFECT_REVERB);
         slot = EXTEfx.alGenAuxiliaryEffectSlots();
+        appliedDecay = -1.0F; // a new effect: set all of its parameters
         if (AL10.alGetError() != AL10.AL_NO_ERROR) {
             failed = true;
+            AbyssalDepths.LOGGER.warn("cave reverb could not be created: off");
             return false;
         }
         AbyssalDepths.LOGGER.info("cave reverb on");

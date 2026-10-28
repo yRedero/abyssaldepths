@@ -40,7 +40,8 @@
       "minecraft:ore_diamond",
       "minecraft:ore_diamond_large",
       "minecraft:ore_diamond_buried",
-      "abyssaldepths:ore_shale"
+      "abyssaldepths:ore_shale",
+      "abyssaldepths:ore_numinor"
     ],
     [],
     [],
