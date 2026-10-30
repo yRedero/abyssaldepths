@@ -42,8 +42,10 @@ import redero.abyssaldepths.ClientConfig.ShadeVanishStyle;
 /**
  * How shades vanish and come back for those who see it ({@link ClientConfig#shadeVanish}): when a player
  * near this client turns hidden (stepping into the shadow, while this client stays out; or leaving it, seen
- * from inside), a copy of them plays the vanishing where they stood; when one turns visible, it plays
- * backwards on them, and they are drawn only once it is done.
+ * from inside), the vanishing plays on them, and when one turns visible, it plays backwards; either way
+ * they keep moving while it does (if they are gone meanwhile, a still copy finishes it where they were).
+ * Changes are caught the moment the server's word arrives ({@link #check}), not only every tick: a frame
+ * of the player drawn plainly in between would flicker.
  * <ul>
  * <li>PIXELS: the body darkens and fades while it falls apart into black and purple pixels flying out, which
  * go out one by one;</li>
@@ -51,7 +53,8 @@ import redero.abyssaldepths.ClientConfig.ShadeVanishStyle;
  * <li>SLIDE: the body slides sideways out of the world, thinning to a violet line;</li>
  * <li>SHADOW: the body fades into the dark and leaves a pixelated shadow on the ground, which shrinks away;</li>
  * <li>DISINTEGRATE: the skin crumbles away pixel by pixel, the top first: every pixel of it breaks off the
- * body (leaving a hole) and falls, darkening to purple, until nothing is left.</li>
+ * body (leaving a hole) and falls, darkening to purple, until nothing is left;</li>
+ * <li>DISSOLVE: the same, but the pixels just go out.</li>
  * </ul>
  * {@link #preview} plays one on a copy of the player in front of them (the command).
  */
@@ -89,6 +92,7 @@ public final class ShadeVanish {
                 case SLIDE -> 900;
                 case SHADOW -> 2600;
                 case DISINTEGRATE -> 2200;
+                case DISSOLVE -> 1600;
                 case NONE -> 0;
             };
         }
@@ -157,6 +161,17 @@ public final class ShadeVanish {
         while (!PREVIEW.isEmpty() && PREVIEW.get(0).start() <= now) { // the next part of a preview
             FADES.add(PREVIEW.remove(0));
         }
+        check();
+    }
+
+    /** Starts a fade for every player near this client whose visibility changed since the last look. */
+    public static void check() {
+        final Minecraft mc = Minecraft.getInstance();
+        final ClientLevel level = mc.level;
+        if (level == null || mc.player == null || level != lastLevel) {
+            return;
+        }
+        final long now = Util.getMillis();
         // the client's own crossing changes who it sees all at once: that is the crossing's business
         final boolean viewerChanged = ShadeView.inShadow() != wasInShadow;
         wasInShadow = ShadeView.inShadow();
@@ -234,13 +249,15 @@ public final class ShadeVanish {
         final PoseStack pose = event.getPoseStack();
         final MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         for (Fade fade : FADES) {
-            final AbstractClientPlayer subject = fade.ghost();
-            final boolean live = fade.appear() && fade.entityId() >= 0;
-            if (live && subject.isRemoved()) {
+            // the player themselves while they are there (moving on), else the still copy where they were
+            final AbstractClientPlayer player = fade.entityId() >= 0 && mc.level.getEntity(fade.entityId()) instanceof AbstractClientPlayer found
+                    && !found.isRemoved() ? found : null;
+            if (player == null && fade.appear()) {
                 continue;
             }
+            final boolean live = player != null;
+            final AbstractClientPlayer subject = live ? player : fade.ghost();
             final float p = fade.progress(now);
-            // a player appearing is drawn where they are; anything else where it was
             final Vec3 at = live ? subject.getPosition(partial) : fade.pos();
             final float subjectPartial = live ? partial : 1.0F;
             pose.pushPose();
@@ -272,14 +289,17 @@ public final class ShadeVanish {
                     body(subject, subjectPartial, pose, buffers, 1.0F - smooth(p / 0.3F), mix(0xFFFFFF, 0x000000, smooth(p / 0.25F)));
                     shadow(quads(buffers), matrix, fade, p);
                 }
-                case DISINTEGRATE -> {
-                    final Crumble crumble = p > 0.0F ? CRUMBLES.computeIfAbsent(fade, Crumble::of) : null;
+                case DISINTEGRATE, DISSOLVE -> {
+                    final Crumble crumble = p > 0.0F ? CRUMBLES.computeIfAbsent(fade, f -> Crumble.of(f, subject)) : null;
                     if (crumble == null) {
                         body(subject, subjectPartial, pose, buffers, 1.0F, 0xFFFFFF);
                     } else {
-                        crumble.show(p);
+                        final float yaw = Mth.rotLerp(subjectPartial, subject.yBodyRotO, subject.yBodyRot);
+                        crumble.show(p, at, yaw);
                         GhostRenderer.draw(subject, subject.yBodyRot, subjectPartial, pose, buffers, 1.0F, mix(0xFFFFFF, 0x9A88B0, smooth(p / 0.6F)), crumble.id);
-                        crumble.fall(quads(buffers), matrix, p, fade.duration() / 1000.0F, subject.yBodyRot, right, up);
+                        if (fade.style() == ShadeVanishStyle.DISINTEGRATE) {
+                            crumble.fall(quads(buffers), matrix, p, fade.duration() / 1000.0F, at, yaw, !fade.appear(), right, up);
+                        }
                     }
                 }
                 case NONE -> {
@@ -356,6 +376,10 @@ public final class ShadeVanish {
         /** When each pixel breaks off (as part of the vanishing). */
         private final float[] when;
         private int shown = -1;
+        /** Where each pixel broke off, in the world (a moving body leaves them behind), and which way it faced. */
+        private final double[] origin;
+        private final float[] normal;
+        private final boolean[] broken;
 
         private Crumble(ResourceLocation id, DynamicTexture texture, NativeImage skin, List<SkinPixels.Texel> texels, float[] when) {
             this.id = id;
@@ -363,10 +387,12 @@ public final class ShadeVanish {
             this.skin = skin;
             this.texels = texels;
             this.when = when;
+            this.origin = new double[texels.size() * 3];
+            this.normal = new float[texels.size() * 3];
+            this.broken = new boolean[texels.size()];
         }
 
-        static Crumble of(Fade fade) {
-            final AbstractClientPlayer subject = fade.ghost();
+        static Crumble of(Fade fade, AbstractClientPlayer subject) {
             final NativeImage skin = SkinPixels.read(subject.getSkin().texture());
             final NativeImage copy = new NativeImage(64, 64, false);
             if (skin != null) {
@@ -376,7 +402,9 @@ public final class ShadeVanish {
             final float[] when = new float[texels.size()];
             for (int i = 0; i < when.length; i++) {
                 final float top = 1.0F - Mth.clamp(texels.get(i).up() / 2.0F, 0.0F, 1.0F); // 0 at the top of the head
-                when[i] = 0.04F + 0.6F * (0.55F * noise(fade.seed() * 7 + i, 3) + 0.45F * top);
+                // falling pixels need time left to fall; going out, they can take the whole time
+                final float spread = fade.style() == ShadeVanishStyle.DISSOLVE ? 0.9F : 0.6F;
+                when[i] = 0.04F + spread * (0.55F * noise(fade.seed() * 7 + i, 3) + 0.45F * top);
             }
             final ResourceLocation id = ResourceLocation.fromNamespaceAndPath(AbyssalDepths.MODID, "crumble/" + fade.seed());
             final DynamicTexture texture = new DynamicTexture(copy);
@@ -384,11 +412,27 @@ public final class ShadeVanish {
             return new Crumble(id, texture, skin, texels, when);
         }
 
-        /** Takes out of the copy every pixel broken off by p (puts back the others: appearing runs backwards). */
-        void show(float p) {
+        /**
+         * Takes out of the copy every pixel broken off by p (puts back the others: appearing runs backwards),
+         * and notes where in the world the newly broken ones were, on the body at {@code at} turned {@code yaw}.
+         */
+        void show(float p, Vec3 at, float yaw) {
+            final float y = yaw * Mth.DEG_TO_RAD;
+            final float rx = -Mth.cos(y), rz = -Mth.sin(y), fx = -Mth.sin(y), fz = Mth.cos(y); // the body's right and forward
             int count = 0;
-            for (float w : when) {
-                count += w < p ? 1 : 0;
+            for (int i = 0; i < when.length; i++) {
+                final boolean now = when[i] < p;
+                count += now ? 1 : 0;
+                if (now && !broken[i]) {
+                    final SkinPixels.Texel t = texels.get(i);
+                    origin[i * 3] = at.x + t.right() * rx + t.forward() * fx;
+                    origin[i * 3 + 1] = at.y + t.up();
+                    origin[i * 3 + 2] = at.z + t.right() * rz + t.forward() * fz;
+                    normal[i * 3] = t.nr() * rx + t.nf() * fx;
+                    normal[i * 3 + 1] = t.nu();
+                    normal[i * 3 + 2] = t.nr() * rz + t.nf() * fz;
+                }
+                broken[i] = now;
             }
             if (count == shown || skin == null) {
                 return;
@@ -402,21 +446,40 @@ public final class ShadeVanish {
             texture.upload();
         }
 
-        /** The broken-off pixels falling: a little push outwards, then down, darkening to purple. */
-        void fall(VertexConsumer quads, Matrix4f matrix, float p, float seconds, float bodyYaw, Vector3f right, Vector3f up) {
-            final float yaw = bodyYaw * Mth.DEG_TO_RAD;
-            final float rx = -Mth.cos(yaw), rz = -Mth.sin(yaw), fx = -Mth.sin(yaw), fz = Mth.cos(yaw); // the body's right and forward
+        /**
+         * The broken-off pixels falling: a little push outwards, then down, darkening to purple. Vanishing,
+         * they fall from where they broke off; appearing, they rise to where the body is now. The matrix is
+         * at {@code at}.
+         */
+        void fall(VertexConsumer quads, Matrix4f matrix, float p, float seconds, Vec3 at, float yaw, boolean leftBehind, Vector3f right, Vector3f up) {
+            final float y0 = yaw * Mth.DEG_TO_RAD;
+            final float rx = -Mth.cos(y0), rz = -Mth.sin(y0), fx = -Mth.sin(y0), fz = Mth.cos(y0);
             for (int i = 0; i < texels.size(); i++) {
                 final float age = (p - when[i]) * seconds;
                 if (age < 0.0F || age > FALL) {
                     continue;
                 }
                 final SkinPixels.Texel t = texels.get(i);
+                final float ox, oy, oz, nx, ny, nz;
+                if (leftBehind && broken[i]) {
+                    ox = (float) (origin[i * 3] - at.x);
+                    oy = (float) (origin[i * 3 + 1] - at.y);
+                    oz = (float) (origin[i * 3 + 2] - at.z);
+                    nx = normal[i * 3];
+                    ny = normal[i * 3 + 1];
+                    nz = normal[i * 3 + 2];
+                } else {
+                    ox = t.right() * rx + t.forward() * fx;
+                    oy = t.up();
+                    oz = t.right() * rz + t.forward() * fz;
+                    nx = t.nr() * rx + t.nf() * fx;
+                    ny = t.nu();
+                    nz = t.nr() * rz + t.nf() * fz;
+                }
                 final float push = 0.3F * age;
-                final float r = t.right() + t.nr() * push, f = t.forward() + t.nf() * push;
-                final float y = t.up() + t.nu() * push + 0.2F * age - 4.5F * age * age;
+                final float y = oy + ny * push + 0.2F * age - 4.5F * age * age;
                 final int rgb = mix(SkinPixels.fromAbgr(skin.getPixelRGBA(t.x(), t.y())), DUSK, age / FALL);
-                billboard(quads, matrix, r * rx + f * fx, y, r * rz + f * fz, right, up, 0.028F, 0xFF000000 | rgb);
+                billboard(quads, matrix, ox + nx * push, y, oz + nz * push, right, up, 0.028F, 0xFF000000 | rgb);
             }
         }
 

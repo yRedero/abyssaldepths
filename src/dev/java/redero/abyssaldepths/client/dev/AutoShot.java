@@ -261,11 +261,16 @@ public final class AutoShot {
                     fake.setYRot(180.0F);
                     fake.yBodyRot = fake.yBodyRotO = fake.yHeadRot = fake.yHeadRotO = 180.0F; // facing the camera
                     mc.level.addEntity(fake);
-                } else if (t >= 20 && t < 520) {
-                    // five styles, 100 ticks each: vanish, a shot halfway, come back, a shot halfway
+                } else if (t >= 20 && t < 620) {
+                    // six styles, 100 ticks each, the fake one walking sideways: vanish, a shot halfway, come back, a shot halfway
                     final int k = (t - 20) / 100, at = (t - 20) % 100;
                     final redero.abyssaldepths.ClientConfig.ShadeVanishStyle style = redero.abyssaldepths.ClientConfig.ShadeVanishStyle.values()[k];
-                    final int half = new int[] {13, 18, 8, 23, 17}[k]; // about 45 % of each style's time, in ticks
+                    final int half = new int[] {13, 18, 8, 23, 17, 13}[k]; // about 45 % of each style's time, in ticks
+                    if (at < 90) { // walks to the side and back (as a remote player: position and walking legs)
+                        final double x = mc.player.getX() + 1.5 * Math.sin((at < 45 ? at : 90 - at) * 0.07);
+                        fake.lerpTo(x, fake.getY(), fake.getZ(), 180.0F, 0.0F, 1);
+                        fake.walkAnimation.setSpeed(0.6F);
+                    }
                     if (at == 0) {
                         redero.abyssaldepths.ClientConfig.setShadeVanish(style);
                         redero.abyssaldepths.artifact.Shades.clientShade(fake.getId(), 1_000_000, mc.level.getGameTime());
@@ -276,17 +281,17 @@ public final class AutoShot {
                     } else if (at == 60 + half) {
                         shoot(mc, "vanish_" + k + "_dir1");
                     }
-                } else if (t == 520) {
+                } else if (t == 620) {
                     // inside the shadow, the fake one a shade too: seen, in the shadow's look
                     redero.abyssaldepths.artifact.Shades.clientShade(fake.getId(), 1_000_000, mc.level.getGameTime());
                     command(server, "give @s abyssaldepths:parallax[abyssaldepths:artifact_active=true]");
-                } else if (t >= 580 && t < 700 && (t - 580) % 30 == 0) {
+                } else if (t >= 680 && t < 800 && (t - 680) % 30 == 0) {
                     // every look of shades, the fake one seen from inside the shadow
-                    final redero.abyssaldepths.ClientConfig.ShadeLook look = redero.abyssaldepths.ClientConfig.ShadeLook.values()[(t - 580) / 30];
+                    final redero.abyssaldepths.ClientConfig.ShadeLook look = redero.abyssaldepths.ClientConfig.ShadeLook.values()[(t - 680) / 30];
                     redero.abyssaldepths.ClientConfig.setShadeLook(look);
-                } else if (t >= 580 && t < 700 && (t - 580) % 30 == 25) {
-                    shoot(mc, "vanish_5_dir" + (t - 580) / 30);
-                } else if (t == 705) {
+                } else if (t >= 680 && t < 800 && (t - 680) % 30 == 25) {
+                    shoot(mc, "vanish_6_dir" + (t - 680) / 30);
+                } else if (t == 805) {
                     redero.abyssaldepths.ClientConfig.setShadeLook(redero.abyssaldepths.ClientConfig.ShadeLook.CONTRAST);
                     command(server, "clear @s abyssaldepths:parallax");
                     fake.discard();

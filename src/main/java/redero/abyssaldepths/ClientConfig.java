@@ -85,6 +85,7 @@ public final class ClientConfig {
                     "PIXELS: falls apart into black and purple pixels; ASH: darkens and rises away as ash;",
                     "SLIDE: slides sideways out of the world, thinning to a line; SHADOW: fades, leaving a shadow",
                     "on the ground for a moment; DISINTEGRATE: crumbles away, pixel by pixel of their skin;",
+                    "DISSOLVE: the pixels of their skin go out one by one;",
                     "NONE: just gone. Also: /abyssaldepths vanish style <style>, preview: /abyssaldepths vanish play.")
             .translation("abyssaldepths.config.shade_vanish")
             .defineEnum("shadeVanish", ShadeVanishStyle.PIXELS);
@@ -95,7 +96,7 @@ public final class ClientConfig {
     public enum ShadeLook { CONTRAST, PRINT, SILHOUETTE, INVERTED, NONE }
 
     /** How a shade vanishes for those outside the shadow. */
-    public enum ShadeVanishStyle { PIXELS, ASH, SLIDE, SHADOW, DISINTEGRATE, NONE }
+    public enum ShadeVanishStyle { PIXELS, ASH, SLIDE, SHADOW, DISINTEGRATE, DISSOLVE, NONE }
 
     private ClientConfig() {
     }

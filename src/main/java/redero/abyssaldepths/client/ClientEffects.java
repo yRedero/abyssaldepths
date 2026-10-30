@@ -21,6 +21,7 @@ public final class ClientEffects {
             final net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
             if (mc.level != null) {
                 Shades.clientShade(Integer.parseInt(effect.substring("shade/".length())), payload.ticks(), mc.level.getGameTime());
+                ShadeVanish.check(); // at once: until the next tick the player would be drawn as they are now
             }
         } else if (effect.startsWith("vanish_style/")) {
             ClientConfig.setShadeVanish(ClientConfig.ShadeVanishStyle.valueOf(effect.substring("vanish_style/".length())));
