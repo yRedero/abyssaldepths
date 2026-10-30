@@ -13,6 +13,10 @@ public final class ClientEffects {
             HavenFade.out(payload.ticks());
         } else if (effect.equals("haven_in")) {
             HavenFade.in(payload.ticks());
+        } else if (effect.equals("reprise_out")) {
+            RepriseCover.start();
+        } else if (effect.equals("reprise_done")) {
+            RepriseCover.done();
         } else if (effect.equals("storm")) {
             DuneStormClient.set(payload.ticks());
         } else if (effect.startsWith("hallucinate/")) {

@@ -20,6 +20,8 @@
   "abyssaldepths.config.thermal_scan_chunks": "Thermal scan radius (chunks)",
   "abyssaldepths.configuration.title": "Abyssal Depths",
   "abyssaldepths.inner_haven.no_charge": "Inner Haven needs %s charges",
+  "abyssaldepths.reprise.no_charge": "Reprise has no charge left",
+  "abyssaldepths.reprise.nothing": "Reprise remembers nothing yet",
   "biome.abyssaldepths.shale_flats": "Shale Flats",
   "biome.abyssaldepths.silt_dunes": "Silt Dunes",
   "biome.abyssaldepths.thalan_depths": "Thalan Depths",
@@ -92,6 +94,9 @@
   "item.abyssaldepths.inner_haven.epithet": "the Stillness Below",
   "item.abyssaldepths.numinor_ingot": "Numinor Ingot",
   "item.abyssaldepths.numinor_nugget": "Numinor Nugget",
+  "item.abyssaldepths.reprise": "Reprise",
+  "item.abyssaldepths.reprise.description": "While you carry it, the world keeps its last two minutes. Hold it, and everything goes back to how it was then: the stone, the beasts, every soul in it. Only Reprise remembers. One charge; it returns after thirty minutes.",
+  "item.abyssaldepths.reprise.epithet": "the Measure Played Again",
   "item.abyssaldepths.sulfur": "Sulfur",
   "itemGroup.abyssaldepths": "Abyssal Depths"
 }

@@ -52,7 +52,7 @@ public final class AutoShot {
     private static final String SPOT_COMMANDS = System.getProperty("abyssaldepths.autoshot.spotCommands", "");
     private static final int SETTLE_TICKS = 220, TURN_TICKS = 15;
 
-    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, DONE }
+    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, DONE }
 
     private static Step step = Step.TITLE;
     private static final Deque<String> BIOMES = new ArrayDeque<>();
@@ -80,7 +80,7 @@ public final class AutoShot {
     }
 
     private static void tick(Minecraft mc) throws Exception {
-        if (step.ordinal() > Step.LOADING.ordinal() && step != Step.PREVIEW && step != Step.HAVEN && mc.screen != null) {
+        if (step.ordinal() > Step.LOADING.ordinal() && step != Step.PREVIEW && step != Step.HAVEN && step != Step.REPRISE && mc.screen != null) {
             mc.setScreen(null); // a pause menu that opened anyway
         }
         switch (step) {
@@ -141,6 +141,14 @@ public final class AutoShot {
                 }
                 spotsDone++;
                 biome = BIOMES.poll();
+                if (biome != null && biome.startsWith("reprise#")) {
+                    // not a place: Reprise's rewind, checked through the log ("reprise check" lines)
+                    if (biome.endsWith("#0")) {
+                        wait = 0;
+                        step = Step.REPRISE;
+                    }
+                    return;
+                }
                 if (biome != null && biome.startsWith("haven#")) {
                     // not a place: Inner Haven's crossing, in and out, shot along the way
                     if (biome.endsWith("#0")) {
@@ -183,6 +191,45 @@ public final class AutoShot {
                     wait = 0;
                     shot = 0;
                     step = Step.SETTLING;
+                }
+            }
+            case REPRISE -> {
+                final MinecraftServer server = mc.getSingleplayerServer();
+                switch (++wait) {
+                    case 1 -> command(server, "tp @s ~ ~40 ~"); // open air, so what is built can be seen
+                    case 10 -> {
+                        command(server, "setblock ~2 ~-2 ~2 chest");
+                        command(server, "item replace block ~2 ~-2 ~2 container.0 with diamond 5");
+                    }
+                    case 20 -> command(server, "give @s abyssaldepths:reprise"); // starts the recording
+                    case 80 -> {
+                        // the world changes: the chest's contents, new blocks, a creature, the player
+                        command(server, "item replace block ~2 ~-2 ~2 container.0 with emerald 3");
+                        command(server, "fill ~-2 ~-2 ~4 ~2 ~2 ~6 gold_block");
+                        command(server, "summon pig ~ ~ ~8 {NoAI:1b,Tags:[\"reprise_test\"]}");
+                        command(server, "xp add @s 10 levels");
+                    }
+                    case 110 -> {
+                        shoot(mc, "reprise_0_dir0"); // before
+                        command(server, "data get block ~2 ~-2 ~2 Items");
+                        command(server, "xp query @s levels");
+                        command(server, "abyssaldepths reprise status");
+                    }
+                    case 120 -> command(server, "abyssaldepths reprise slow"); // late on purpose: the waiting circle shows
+                    case 140, 160, 175, 200, 229, 233 -> shoot(mc, "reprise_0_anim" + wait); // eating, middle, waiting, withdrawing
+                    case 260 -> {
+                        shoot(mc, "reprise_0_dir1"); // after
+                        command(server, "data get block ~2 ~-2 ~2 Items");
+                        command(server, "xp query @s levels");
+                        command(server, "execute if block ~ ~ ~5 gold_block run say reprise check: gold is still there");
+                        command(server, "execute unless block ~ ~ ~5 gold_block run say reprise check: gold is gone");
+                        command(server, "execute if entity @e[tag=reprise_test] run say reprise check: the pig is still there");
+                        command(server, "execute unless entity @e[tag=reprise_test] run say reprise check: the pig is gone");
+                        command(server, "abyssaldepths reprise status");
+                        step = Step.NEXT;
+                    }
+                    default -> {
+                    }
                 }
             }
             case HAVEN -> {

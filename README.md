@@ -21,7 +21,8 @@ and ambience.
 - **Blocks**: the thalan and siltstone building sets, shale, silt, thermal and vent blocks, Numinor ore.
 - **Artifacts**: ranked items (Lesser, Greater, Exalted, Primordial) with mastery and charge and their
   own tooltip. *Inner Haven* carries you into your inner self, a room of your own in the Inner Self
-  dimension, while your body waits behind.
+  dimension, while your body waits behind. *Reprise* remembers the last two minutes of the world while
+  carried, and takes everything (blocks, chests, creatures, every player) back to them.
 - **Ambience**: biome sounds, echo in the halls, dust, drips, gusts, fog tinted per biome, no game
   music in the layer.
 
@@ -38,6 +39,7 @@ Test commands for operators:
 /abyssaldepths storm start [seconds] | stop
 /abyssaldepths mastery <percent> | charge <n>     (the artifact in your main hand)
 /abyssaldepths innerhaven                       (into your inner self or back, like Inner Haven)
+/abyssaldepths reprise [status]                 (rewind now / how far back it reaches and what is kept)
 ```
 
 ## Building

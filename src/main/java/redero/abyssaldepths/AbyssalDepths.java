@@ -59,6 +59,7 @@ import redero.abyssaldepths.artifact.ArtifactFrame;
 import redero.abyssaldepths.artifact.ArtifactItem;
 import redero.abyssaldepths.artifact.ArtifactRank;
 import redero.abyssaldepths.artifact.InnerHavenItem;
+import redero.abyssaldepths.artifact.RepriseItem;
 import redero.abyssaldepths.entity.AbsentBody;
 import redero.abyssaldepths.block.QuicksiltBlock;
 import redero.abyssaldepths.block.SmoulderingRockBlock;
@@ -198,6 +199,10 @@ public class AbyssalDepths {
     /** Carries its holder into their inner self and back; 5 charges, 2 per crossing, 1 back every 10 minutes. */
     public static final DeferredItem<InnerHavenItem> INNER_HAVEN = ITEMS.register("inner_haven",
             () -> new InnerHavenItem(new Item.Properties(), ArtifactRank.PRIMORDIAL, ArtifactFrame.ZENITH, 5, 20 * 60 * 10));
+
+    /** Remembers the last 120 seconds of the world while carried, and takes everything back to them; 1 charge, 30 minutes. */
+    public static final DeferredItem<RepriseItem> REPRISE = ITEMS.register("reprise",
+            () -> new RepriseItem(new Item.Properties(), ArtifactRank.PRIMORDIAL, ArtifactFrame.ZENITH, 1, 20 * 60 * 30));
 
     /** The walls of the rooms of the inner self: pure white, can not be broken. */
     public static final DeferredBlock<Block> HAVEN_WALL = withItem(BLOCKS.registerSimpleBlock("haven_wall",

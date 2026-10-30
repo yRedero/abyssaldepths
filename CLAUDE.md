@@ -12,7 +12,9 @@ NeoForge 21.1 / Minecraft 1.21.1 mod (ModDevGradle). Adds the thalan layer below
   cost the full climate noise; that once made generation 12x slower).
 - `client/`: all visuals and sounds (fog, ambience, reverb, storms, thermal effects, deep pressure).
 - `artifact/`: artifacts (rank, frame, mastery data component); their tooltip frame is
-  `client/ArtifactTooltip`. Preview with `tools/autoshot.sh <round> artifacts`.
+  `client/ArtifactTooltip`. Preview with `tools/autoshot.sh <round> artifacts`. Inner Haven: `InnerSelf`
+  (rooms, crossing), `entity/AbsentBody`. Reprise: `artifact/reprise` (change log via the LevelChunk and
+  BlockEntity mixins, moments every 5 s, `Rewind`); check with `tools/autoshot.sh <round> reprise`.
 - `block/`, `mixin/`, `network/` (one server-to-client effect payload), config in `ClientConfig`.
 - `src/dev/java`: dev-only (AutoShot, LayerMap, TunnelLayerCheck); not in the jar.
 - `src/test/java`: JUnit regressions of the generation (`./gradlew test`).

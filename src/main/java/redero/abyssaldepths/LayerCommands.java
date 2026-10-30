@@ -16,6 +16,8 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import redero.abyssaldepths.artifact.ArtifactItem;
 import redero.abyssaldepths.artifact.InnerSelf;
+import redero.abyssaldepths.artifact.reprise.Reprise;
+import redero.abyssaldepths.artifact.reprise.RepriseRecorder;
 import redero.abyssaldepths.network.EffectPayload;
 
 /**
@@ -27,6 +29,9 @@ import redero.abyssaldepths.network.EffectPayload;
  * <li>{@code /abyssaldepths mastery <percent>}: the mastery of the artifact in the main hand.</li>
  * <li>{@code /abyssaldepths charge <charge>}: its charge.</li>
  * <li>{@code /abyssaldepths innerhaven}: into the inner self or back, as with Inner Haven (no charge).</li>
+ * <li>{@code /abyssaldepths reprise}: the world back as far as Reprise remembers (no charge);
+ * {@code reprise status}: how far that is and how much is kept; {@code reprise slow}: the rewind 5 seconds
+ * late, to see the animation wait for it.</li>
  * </ul>
  */
 @EventBusSubscriber(modid = AbyssalDepths.MODID)
@@ -61,6 +66,13 @@ public final class LayerCommands {
                         .then(Commands.argument("percent", IntegerArgumentType.integer(0, 100))
                                 .executes(c -> mastery(c, IntegerArgumentType.getInteger(c, "percent")))))
                 .then(Commands.literal("innerhaven").executes(LayerCommands::innerHaven))
+                .then(Commands.literal("reprise")
+                        .executes(c -> Reprise.activate(c.getSource().getServer()) ? 1 : 0)
+                        .then(Commands.literal("slow").executes(c -> Reprise.activate(c.getSource().getServer(), 100) ? 1 : 0))
+                        .then(Commands.literal("status").executes(c -> {
+                            c.getSource().sendSuccess(() -> Component.literal(RepriseRecorder.status(c.getSource().getServer())), false);
+                            return 1;
+                        })))
                 .then(Commands.literal("charge")
                         .then(Commands.argument("charge", IntegerArgumentType.integer(0))
                                 .executes(c -> charge(c, IntegerArgumentType.getInteger(c, "charge"))))));

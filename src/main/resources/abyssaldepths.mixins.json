@@ -4,6 +4,8 @@
   "package": "redero.abyssaldepths.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "BlockEntityMixin",
+    "LevelChunkMixin",
     "MineshaftStructureMixin",
     "OverworldBiomeBuilderMixin",
     "VanillaRegistriesMixin"
