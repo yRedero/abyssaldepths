@@ -283,7 +283,7 @@ public final class AutoShot {
                         final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
                         final redero.abyssaldepths.entity.UndertowEntity anomaly = new redero.abyssaldepths.entity.UndertowEntity(AbyssalDepths.UNDERTOW_ENTITY.get(), p.serverLevel());
                         anomaly.moveTo(p.getX(), p.getY() + 1.0, p.getZ() + 6.0);
-                        anomaly.start(p, 60, 10.0F);
+                        anomaly.start(p, 60, 10.0F, true);
                         p.serverLevel().addFreshEntity(anomaly);
                         artifactCheck(server, "undertow before", e -> e.getTags().contains("undertow_test"), p.position().add(0, 1, 6));
                     });
@@ -291,6 +291,12 @@ public final class AutoShot {
                     shoot(mc, "newartifacts_0_dir0"); // pulling
                     server.execute(() -> artifactCheck(server, "undertow pulling", e -> e.getTags().contains("undertow_test"),
                             server.getPlayerList().getPlayers().get(0).position().add(0, 1, 6)));
+                } else if (t == 77) {
+                    shoot(mc, "newartifacts_1_dir0"); // collapsing
+                } else if (t == 81) {
+                    shoot(mc, "newartifacts_1_dir1"); // the burst
+                } else if (t == 84) {
+                    shoot(mc, "newartifacts_1_dir2"); // the shockwave, the second wave starting
                 } else if (t == 85) {
                     server.execute(() -> artifactCheck(server, "undertow after the burst", e -> e.getTags().contains("undertow_test"),
                             server.getPlayerList().getPlayers().get(0).position().add(0, 1, 6)));

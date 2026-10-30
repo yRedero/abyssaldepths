@@ -72,7 +72,7 @@ public class AbsentBodyRenderer extends LivingEntityRenderer<AbsentBody, PlayerM
         public static void register(EntityRenderersEvent.RegisterRenderers event) {
             event.registerEntityRenderer(AbyssalDepths.ABSENT_BODY.get(), AbsentBodyRenderer::new);
             event.registerEntityRenderer(AbyssalDepths.SEAT.get(), net.minecraft.client.renderer.entity.NoopRenderer::new); // the mat's seat: nothing to see
-            event.registerEntityRenderer(AbyssalDepths.UNDERTOW_ENTITY.get(), net.minecraft.client.renderer.entity.NoopRenderer::new); // particles only
+            event.registerEntityRenderer(AbyssalDepths.UNDERTOW_ENTITY.get(), UndertowRenderer::new); // the event horizon
             // Mirage's decoy: the same likeness as the absent body
             event.registerEntityRenderer(AbyssalDepths.MIRAGE_DECOY.get(), context -> (net.minecraft.client.renderer.entity.EntityRenderer) new AbsentBodyRenderer(context));
         }

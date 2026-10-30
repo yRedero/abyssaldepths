@@ -19,7 +19,8 @@ import redero.abyssaldepths.entity.UndertowEntity;
 /**
  * Undertow: right click opens a gravitational anomaly where its holder looks (up to {@link #REACH} blocks):
  * it draws the creatures around it in, then bursts ({@link UndertowEntity}). The mastery makes it pull
- * longer and burst harder ({@link #SECONDS}, {@link #DAMAGE}). Three charges, one back every five minutes.
+ * longer and burst harder ({@link #SECONDS}, {@link #DAMAGE}), and at 100 % a smaller second anomaly stays
+ * behind and pulls once more. Three charges, one back every five minutes.
  */
 public class UndertowItem extends ArtifactItem {
     public static final double REACH = 20.0;
@@ -52,7 +53,7 @@ public class UndertowItem extends ArtifactItem {
             final UndertowEntity anomaly = new UndertowEntity(AbyssalDepths.UNDERTOW_ENTITY.get(), server);
             anomaly.moveTo(at.x, at.y, at.z);
             final int m = milestone(stack);
-            anomaly.start(player, SECONDS[m] * 20, DAMAGE[m]);
+            anomaly.start(player, SECONDS[m] * 20, DAMAGE[m], m >= 4); // mastered: a second wave
             server.addFreshEntity(anomaly);
             setCharge(stack, charge(stack) - 1);
             level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_SONIC_CHARGE, SoundSource.PLAYERS, 1.0F, 0.6F);
