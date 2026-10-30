@@ -48,6 +48,16 @@ public final class LayerCommands {
         for (String kind : HALLUCINATIONS) {
             hallucinate.then(Commands.literal(kind).executes(c -> send(c, "hallucinate/" + kind)));
         }
+        // how shades vanish (client config): set the style, or play one on a copy of yourself
+        final LiteralArgumentBuilder<CommandSourceStack> vanishStyle = Commands.literal("style");
+        final LiteralArgumentBuilder<CommandSourceStack> vanishPlay = Commands.literal("play").executes(c -> send(c, "vanish_play/"));
+        for (ClientConfig.ShadeVanishStyle style : ClientConfig.ShadeVanishStyle.values()) {
+            final String name = style.name().toLowerCase(java.util.Locale.ROOT);
+            vanishStyle.then(Commands.literal(name).executes(c -> send(c, "vanish_style/" + style.name())));
+            if (style != ClientConfig.ShadeVanishStyle.NONE) {
+                vanishPlay.then(Commands.literal(name).executes(c -> send(c, "vanish_play/" + style.name())));
+            }
+        }
         final LiteralArgumentBuilder<CommandSourceStack> ambience = Commands.literal("ambience");
         for (String kind : AMBIENCE) {
             ambience.then(Commands.literal(kind).executes(c -> send(c, "ambience/" + kind)));
@@ -56,6 +66,7 @@ public final class LayerCommands {
                 .requires(source -> source.hasPermission(2))
                 .then(hallucinate)
                 .then(ambience)
+                .then(Commands.literal("vanish").then(vanishStyle).then(vanishPlay))
                 .then(Commands.literal("storm")
                         .then(Commands.literal("start")
                                 .executes(c -> storm(c, 180))

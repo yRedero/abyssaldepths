@@ -12,12 +12,15 @@
     "ShadeLivingMixin",
     "ShadePlayerMixin",
     "ShadeProjectileMixin",
+    "ShadeSoundMixin",
     "VanillaRegistriesMixin"
   ],
   "injectors": {
     "defaultRequire": 1
   },
   "client": [
+    "ShadeClientSoundMixin",
+    "ShadeParticleMixin",
     "ShadeRenderMixin",
     "WorldOpenFlowsMixin"
   ]

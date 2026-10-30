@@ -45,8 +45,11 @@ import redero.abyssaldepths.ClientConfig.ShadeVanishStyle;
  * go out one by one;</li>
  * <li>ASH: the body darkens to a black silhouette, then fades while ash rises off it, from the feet up;</li>
  * <li>SLIDE: the body slides sideways out of the world, thinning to a violet line;</li>
- * <li>SHADOW: the body fades into the dark and leaves a pixelated shadow on the ground, which shrinks away.</li>
+ * <li>SHADOW: the body fades into the dark and leaves a pixelated shadow on the ground, which shrinks away;</li>
+ * <li>DISINTEGRATE: the body turns dark purple while pixels of it keep jumping off and falling away, until
+ * nothing is left.</li>
  * </ul>
+ * {@link #preview} plays one on a copy of the player in front of them (the command).
  */
 @EventBusSubscriber(modid = AbyssalDepths.MODID, value = Dist.CLIENT)
 public final class ShadeVanish {
@@ -54,23 +57,46 @@ public final class ShadeVanish {
     private static final double RANGE = 64.0;
     private static final int BLACK = 0x050307, DEEP = 0x2A0F45, VIOLET = 0x5C2A93, BRIGHT = 0x8E52D6;
     private static final int ASH = 0x1A181C, ASH_LIGHT = 0x34303A, EMBER = 0x4A2A6A, LINE = 0xB8A6FF;
+    /** The dark purple a disintegrating body turns. */
+    private static final int DUSK = 0x3A2450;
 
-    /** One vanishing (or appearing, played backwards). */
-    private record Fade(int entityId, boolean appear, long start, ShadeVanishStyle style, AbstractClientPlayer ghost, Vec3 pos, float width, float height, int seed) {
+    /** What a fade does: vanish, appear (the vanishing backwards), or just stand (in a preview). */
+    private enum Mode { VANISH, APPEAR, HOLD }
+
+    /**
+     * One fade. {@code entityId} is the player it is about (-1 for a preview); a real player appearing is
+     * drawn where they are, everything else where it was ({@code pos}).
+     */
+    private record Fade(int entityId, Mode mode, long start, long length, ShadeVanishStyle style, AbstractClientPlayer ghost, Vec3 pos,
+            float width, float height, int seed) {
+        boolean appear() {
+            return mode == Mode.APPEAR;
+        }
+
         long duration() {
+            return length;
+        }
+
+        /** How long a style takes. */
+        static long duration(ShadeVanishStyle style) {
             return switch (style) {
                 case PIXELS -> 1400;
                 case ASH -> 2000;
                 case SLIDE -> 900;
                 case SHADOW -> 2600;
+                case DISINTEGRATE -> 1900;
                 case NONE -> 0;
             };
         }
 
-        /** How far it has vanished: 0 .. 1 (backwards when appearing). */
+        /** How far it has vanished: 0 .. 1 (backwards when appearing, 0 while standing). */
         float progress(long now) {
-            final float t = Mth.clamp((now - start) / (float) duration(), 0.0F, 1.0F);
-            return appear ? 1.0F - t : t;
+            final float t = Mth.clamp((now - start) / (float) length, 0.0F, 1.0F);
+            return switch (mode) {
+                case VANISH -> t;
+                case APPEAR -> 1.0F - t;
+                case HOLD -> 0.0F;
+            };
         }
 
         boolean done(long now) {
@@ -84,6 +110,8 @@ public final class ShadeVanish {
     private static boolean wasInShadow;
     private static ClientLevel lastLevel;
     private static int seeds;
+    /** The rest of a preview: fades waiting for their turn. */
+    private static final List<Fade> PREVIEW = new ArrayList<>();
 
     private ShadeVanish() {
     }
@@ -104,12 +132,16 @@ public final class ShadeVanish {
         final ClientLevel level = mc.level;
         if (level == null || mc.player == null || level != lastLevel) {
             FADES.clear();
+            PREVIEW.clear();
             HIDDEN.clear();
             lastLevel = level;
             return;
         }
         final long now = Util.getMillis();
         FADES.removeIf(fade -> fade.done(now));
+        while (!PREVIEW.isEmpty() && PREVIEW.get(0).start() <= now) { // the next part of a preview
+            FADES.add(PREVIEW.remove(0));
+        }
         // the client's own crossing changes who it sees all at once: that is the crossing's business
         final boolean viewerChanged = ShadeView.inShadow() != wasInShadow;
         wasInShadow = ShadeView.inShadow();
@@ -125,17 +157,46 @@ public final class ShadeVanish {
             if (before != null && before != hidden && !viewerChanged && style != ShadeVanishStyle.NONE
                     && player.distanceToSqr(mc.player) < RANGE * RANGE) {
                 FADES.removeIf(fade -> fade.entityId() == player.getId());
-                FADES.add(new Fade(player.getId(), !hidden, now, style, hidden ? copy(level, other) : other, player.position(),
-                        player.getBbWidth(), player.getBbHeight(), seeds++));
+                FADES.add(new Fade(player.getId(), hidden ? Mode.VANISH : Mode.APPEAR, now, Fade.duration(style), style,
+                        hidden ? copy(level, other) : other, player.position(), player.getBbWidth(), player.getBbHeight(), seeds++));
             }
         }
         HIDDEN.keySet().retainAll(present);
+    }
+
+    /**
+     * Plays a vanishing on a copy of this client's player, three blocks in front of them and facing them;
+     * after a moment it comes back, stands for a second and vanishes again (so it ends gone, as it began).
+     */
+    public static void preview(ShadeVanishStyle style) {
+        final Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || mc.player == null || style == ShadeVanishStyle.NONE) {
+            return;
+        }
+        final Vec3 look = Vec3.directionFromRotation(0.0F, mc.player.getYRot());
+        final AbstractClientPlayer ghost = copy(mc.level, mc.player);
+        final Vec3 pos = mc.player.position().add(look.scale(3.0));
+        ghost.setPos(pos);
+        ghost.setOldPosAndRot();
+        ghost.yBodyRot = ghost.yBodyRotO = ghost.yHeadRot = ghost.yHeadRotO = mc.player.getYRot() + 180.0F;
+        ghost.setXRot(0.0F);
+        ghost.xRotO = 0.0F;
+        final long now = Util.getMillis(), length = Fade.duration(style);
+        final float w = ghost.getBbWidth(), h = ghost.getBbHeight();
+        PREVIEW.clear();
+        FADES.removeIf(fade -> fade.entityId() == -1);
+        FADES.add(new Fade(-1, Mode.VANISH, now, length, style, ghost, pos, w, h, seeds++));
+        final long back = now + length + 700;
+        PREVIEW.add(new Fade(-1, Mode.APPEAR, back, length, style, ghost, pos, w, h, seeds++));
+        PREVIEW.add(new Fade(-1, Mode.HOLD, back + length, 1000, style, ghost, pos, w, h, seeds));
+        PREVIEW.add(new Fade(-1, Mode.VANISH, back + length + 1000, length, style, ghost, pos, w, h, seeds++));
     }
 
     /** A still copy of the player as they are now, to vanish in their place. */
     private static AbstractClientPlayer copy(ClientLevel level, AbstractClientPlayer player) {
         final RemotePlayer ghost = new RemotePlayer(level, player.getGameProfile());
         ghost.setPos(player.position());
+        ghost.setOldPosAndRot(); // or it is drawn between the world's origin and here
         ghost.yBodyRot = ghost.yBodyRotO = player.yBodyRot;
         ghost.yHeadRot = ghost.yHeadRotO = player.yHeadRot;
         ghost.setXRot(player.getXRot());
@@ -159,13 +220,14 @@ public final class ShadeVanish {
         final MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         for (Fade fade : FADES) {
             final AbstractClientPlayer subject = fade.ghost();
-            if (subject.isRemoved() && fade.appear()) {
+            final boolean live = fade.appear() && fade.entityId() >= 0;
+            if (live && subject.isRemoved()) {
                 continue;
             }
             final float p = fade.progress(now);
-            // appearing follows the player; vanishing stays where they were
-            final Vec3 at = fade.appear() ? subject.getPosition(partial) : fade.pos();
-            final float subjectPartial = fade.appear() ? partial : 1.0F;
+            // a player appearing is drawn where they are; anything else where it was
+            final Vec3 at = live ? subject.getPosition(partial) : fade.pos();
+            final float subjectPartial = live ? partial : 1.0F;
             pose.pushPose();
             pose.translate(at.x - cam.x, at.y - cam.y, at.z - cam.z);
             final Matrix4f matrix = pose.last().pose();
@@ -194,6 +256,11 @@ public final class ShadeVanish {
                 case SHADOW -> {
                     body(subject, subjectPartial, pose, buffers, 1.0F - smooth(p / 0.3F), mix(0xFFFFFF, 0x000000, smooth(p / 0.25F)));
                     shadow(quads(buffers), matrix, fade, p);
+                }
+                case DISINTEGRATE -> {
+                    final float alpha = 1.0F - smooth((p - 0.55F) / 0.4F);
+                    body(subject, subjectPartial, pose, buffers, alpha, mix(0xFFFFFF, DUSK, smooth(p / 0.4F)));
+                    disintegrate(quads(buffers), matrix, fade, p, right, up);
                 }
                 case NONE -> {
                 }
@@ -251,6 +318,32 @@ public final class ShadeVanish {
             final int rgb = r < 0.6F ? ASH : r < 0.95F ? ASH_LIGHT : EMBER;
             final int alpha = (int) ((1.0F - life * life) * 255);
             billboard(quads, matrix, sx + sway, height * fade.height() + rise, sz + sway * 0.5F, right, up, size, alpha << 24 | rgb);
+        }
+    }
+
+    /**
+     * Pixels jumping off the body all the while it darkens: each one leaps out and up from where it sat,
+     * falls away and goes out, the leaps coming thicker as it fades.
+     */
+    private static void disintegrate(VertexConsumer quads, Matrix4f matrix, Fade fade, float p, Vector3f right, Vector3f up) {
+        final float seconds = fade.duration() / 1000.0F;
+        for (int i = 0; i < 260; i++) {
+            final int n = fade.seed() * 1000 + i;
+            final float release = 0.05F + 0.8F * (float) Math.sqrt(noise(n, 1)); // fewer at first, thicker later
+            final float life = (p - release) / 0.35F;
+            if (life < 0.0F || life > 0.55F + 0.45F * noise(n, 2)) {
+                continue;
+            }
+            final float t = life * 0.35F * seconds; // seconds since it jumped
+            final float sx = (noise(n, 3) - 0.5F) * fade.width(), sy = noise(n, 4) * fade.height(), sz = (noise(n, 5) - 0.5F) * fade.width();
+            final float out = 0.5F + 0.7F * noise(n, 6), jump = 0.8F + 1.0F * noise(n, 7);
+            final float length = Math.max(0.05F, (float) Math.sqrt(sx * sx + sz * sz));
+            final float x = sx + sx / length * out * t, z = sz + sz / length * out * t;
+            final float y = sy + jump * t - 3.0F * t * t;
+            final float size = 0.055F * (0.7F + 0.6F * noise(n, 8)) * (1.0F - 0.4F * life);
+            final float r = noise(n, 9);
+            final int rgb = r < 0.35F ? BLACK : r < 0.65F ? DUSK : r < 0.9F ? VIOLET : BRIGHT;
+            billboard(quads, matrix, x, y, z, right, up, size, 0xFF000000 | rgb);
         }
     }
 

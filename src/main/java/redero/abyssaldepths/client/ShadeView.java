@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.PostChain;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.neoforged.api.distmarker.Dist;
@@ -15,6 +16,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderFrameEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.neoforged.neoforge.client.event.sound.PlaySoundEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import redero.abyssaldepths.AbyssalDepths;
@@ -29,7 +31,8 @@ import redero.abyssaldepths.artifact.Shades;
  * all over the screen black spots open and grow into each other until it is black; then from the same
  * spots wave after wave runs outwards, each one taking the black a step further towards transparent, until
  * only translucent purple pixels are left, which stay while in the shadow
- * (denser at the edges, some of them lighting up now and then). Leaving runs the same backwards.
+ * (denser at the edges, some of them lighting up now and then). Leaving runs the same backwards. How many
+ * spots there are is in the client config. In the shadow only the shadow's sounds are heard ({@link #onSound}).
  * <p>
  * Behind the black the view changes: the shadow's own look, a post effect ({@code shaders/program/shade.fsh})
  * with purple outlines, drained and darkened colours and more; and other entities are hidden (but other
@@ -42,8 +45,6 @@ public final class ShadeView {
     private static final String DEPTH_TARGET = "world_depth";
     /** One pixel of the crossing (GUI pixels, as in Reprise's cover). */
     private static final int CELL = 10;
-    /** On average one spot per this many pixels. */
-    private static final int CELLS_PER_SPOT = 70;
     /** The black and the rim of the growing spots. */
     private static final int BLACK = 0x050307, RIM = 0x1C0B2B;
     /**
@@ -59,7 +60,9 @@ public final class ShadeView {
     private static boolean seesWorld;
     /** Per pixel: when the black reaches it (0 .. 1), for the current screen and crossing. */
     private static float[] reach = new float[0];
-    private static int reachCols, reachRows, reachSeed = -1, seed;
+    private static int reachCols, reachRows, reachSeed = -1, reachSpots, seed;
+    /** Set while a sound that may play in the shadow is started (the server's and the player's own). */
+    public static boolean allowSounds;
 
     private ShadeView() {
     }
@@ -104,12 +107,26 @@ public final class ShadeView {
             crossing = Mth.clamp(crossing + (shade ? step : -step), 0.0F, 1.0F);
         }
         seesWorld = mc.player != null && ParallaxItem.seesWorld(mc.player);
+        if (inShadow() && previous < 0.5F) {
+            mc.getSoundManager().stop(); // what plays in the world stops at the crossing
+        }
 
         final boolean wanted = crossing > 0.0F;
         if (wanted && ours() == null) {
             mc.gameRenderer.loadEffect(EFFECT);
         } else if (!wanted && ours() != null) {
             mc.gameRenderer.shutdownEffect();
+        }
+    }
+
+    /**
+     * In the shadow only the sounds of the shadow are heard: those the server sends (it keeps them to their
+     * side: other shades), the player's own, and the menus'. No ambience, music, weather or blocks.
+     */
+    @SubscribeEvent
+    public static void onSound(PlaySoundEvent event) {
+        if (inShadow() && !allowSounds && event.getSound() != null && event.getSound().getSource() != SoundSource.MASTER) {
+            event.setSound(null);
         }
     }
 
@@ -136,7 +153,7 @@ public final class ShadeView {
             return;
         }
         final int cols = (g.guiWidth() + CELL - 1) / CELL, rows = (g.guiHeight() + CELL - 1) / CELL;
-        if (cols != reachCols || rows != reachRows || seed != reachSeed) {
+        if (cols != reachCols || rows != reachRows || seed != reachSeed || ClientConfig.parallaxSpots() != reachSpots) {
             spots(cols, rows);
         }
         final float time = Util.getMillis() / 1000.0F;
@@ -170,7 +187,8 @@ public final class ShadeView {
         reachCols = cols;
         reachRows = rows;
         reachSeed = seed;
-        final int count = Math.max(4, cols * rows / CELLS_PER_SPOT);
+        reachSpots = ClientConfig.parallaxSpots();
+        final int count = reachSpots;
         final float[] sx = new float[count], sy = new float[count];
         for (int i = 0; i < count; i++) {
             sx[i] = noise(seed * 7919 + i, 1) * cols;

@@ -1,5 +1,6 @@
 package redero.abyssaldepths.client;
 
+import redero.abyssaldepths.ClientConfig;
 import redero.abyssaldepths.artifact.InterludeField;
 import redero.abyssaldepths.artifact.Shades;
 import redero.abyssaldepths.network.EffectPayload;
@@ -21,6 +22,11 @@ public final class ClientEffects {
             if (mc.level != null) {
                 Shades.clientShade(Integer.parseInt(effect.substring("shade/".length())), payload.ticks(), mc.level.getGameTime());
             }
+        } else if (effect.startsWith("vanish_style/")) {
+            ClientConfig.setShadeVanish(ClientConfig.ShadeVanishStyle.valueOf(effect.substring("vanish_style/".length())));
+        } else if (effect.startsWith("vanish_play/")) {
+            final String style = effect.substring("vanish_play/".length());
+            ShadeVanish.preview(style.isEmpty() ? ClientConfig.shadeVanish() : ClientConfig.ShadeVanishStyle.valueOf(style));
         } else if (effect.equals("haven_out")) {
             HavenFade.out(payload.ticks());
         } else if (effect.equals("haven_in")) {

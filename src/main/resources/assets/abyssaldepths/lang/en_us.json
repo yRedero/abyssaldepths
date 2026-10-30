@@ -17,6 +17,7 @@
   "abyssaldepths.config.dune_storms": "Dune storms",
   "abyssaldepths.config.fog_distance": "Fog distance",
   "abyssaldepths.config.heat_vignette": "Heat glow",
+  "abyssaldepths.config.parallax_spots": "Parallax crossing spots",
   "abyssaldepths.config.parallax_transition": "Parallax crossing time (ms)",
   "abyssaldepths.config.particles": "Ambient particles",
   "abyssaldepths.config.reverb": "Cave echo",

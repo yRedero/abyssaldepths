@@ -70,18 +70,23 @@ public final class ClientConfig {
             .translation("abyssaldepths.config.parallax_transition")
             .defineInRange("parallaxTransition", 1600, 200, 6000);
 
+    private static final ModConfigSpec.IntValue PARALLAX_SPOTS = BUILDER
+            .comment("How many black spots open on the screen when crossing into the shadow (Parallax).")
+            .translation("abyssaldepths.config.parallax_spots")
+            .defineInRange("parallaxSpots", 33, 1, 300);
     private static final ModConfigSpec.EnumValue<ShadeVanishStyle> SHADE_VANISH = BUILDER
             .comment("How a player stepping into the shadow (Parallax) vanishes for those who stay, and comes back:",
                     "PIXELS: falls apart into black and purple pixels; ASH: darkens and rises away as ash;",
                     "SLIDE: slides sideways out of the world, thinning to a line; SHADOW: fades, leaving a shadow",
-                    "on the ground for a moment; NONE: just gone.")
+                    "on the ground for a moment; DISINTEGRATE: turns dark purple while pixels of them jump off;",
+                    "NONE: just gone. Also: /abyssaldepths vanish style <style>, preview: /abyssaldepths vanish play.")
             .translation("abyssaldepths.config.shade_vanish")
             .defineEnum("shadeVanish", ShadeVanishStyle.PIXELS);
 
     public static final ModConfigSpec SPEC = BUILDER.build();
 
     /** How a shade vanishes for those outside the shadow. */
-    public enum ShadeVanishStyle { PIXELS, ASH, SLIDE, SHADOW, NONE }
+    public enum ShadeVanishStyle { PIXELS, ASH, SLIDE, SHADOW, DISINTEGRATE, NONE }
 
     private ClientConfig() {
     }
@@ -140,6 +145,18 @@ public final class ClientConfig {
 
     public static ShadeVanishStyle shadeVanish() {
         return SPEC.isLoaded() ? SHADE_VANISH.get() : ShadeVanishStyle.PIXELS;
+    }
+
+    /** Sets the vanishing style and saves it (the command). */
+    public static void setShadeVanish(ShadeVanishStyle style) {
+        if (SPEC.isLoaded()) {
+            SHADE_VANISH.set(style);
+            SHADE_VANISH.save();
+        }
+    }
+
+    public static int parallaxSpots() {
+        return SPEC.isLoaded() ? PARALLAX_SPOTS.get() : 33;
     }
 
     public static int thermalScanChunks() {

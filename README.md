@@ -44,6 +44,8 @@ Test commands for operators:
 /abyssaldepths mastery <percent> | charge <n>     (the artifact in your main hand)
 /abyssaldepths innerhaven                       (into your inner self or back, like Inner Haven)
 /abyssaldepths reprise [status]                 (rewind now / how far back it reaches and what is kept)
+/abyssaldepths vanish style <style>             (how shades vanish: pixels, ash, slide, shadow, disintegrate, none)
+/abyssaldepths vanish play [style]              (plays it on a copy of you, three blocks ahead)
 ```
 
 ## Building

@@ -261,13 +261,13 @@ public final class AutoShot {
                     fake.setYRot(180.0F);
                     fake.yBodyRot = fake.yBodyRotO = fake.yHeadRot = fake.yHeadRotO = 180.0F; // facing the camera
                     mc.level.addEntity(fake);
-                } else if (t >= 20 && t < 420) {
-                    // four styles, 100 ticks each: vanish, a shot halfway, come back, a shot halfway
+                } else if (t >= 20 && t < 520) {
+                    // five styles, 100 ticks each: vanish, a shot halfway, come back, a shot halfway
                     final int k = (t - 20) / 100, at = (t - 20) % 100;
                     final redero.abyssaldepths.ClientConfig.ShadeVanishStyle style = redero.abyssaldepths.ClientConfig.ShadeVanishStyle.values()[k];
-                    final int half = new int[] {13, 18, 8, 23}[k]; // about 45 % of each style's time, in ticks
+                    final int half = new int[] {13, 18, 8, 23, 17}[k]; // about 45 % of each style's time, in ticks
                     if (at == 0) {
-                        setVanishStyle(style);
+                        redero.abyssaldepths.ClientConfig.setShadeVanish(style);
                         redero.abyssaldepths.artifact.Shades.clientShade(fake.getId(), 1_000_000, mc.level.getGameTime());
                     } else if (at == half) {
                         shoot(mc, "vanish_" + k + "_dir0");
@@ -276,16 +276,16 @@ public final class AutoShot {
                     } else if (at == 60 + half) {
                         shoot(mc, "vanish_" + k + "_dir1");
                     }
-                } else if (t == 420) {
+                } else if (t == 520) {
                     // inside the shadow, the fake one a shade too: seen, in the shadow's look
                     redero.abyssaldepths.artifact.Shades.clientShade(fake.getId(), 1_000_000, mc.level.getGameTime());
                     command(server, "give @s abyssaldepths:parallax[abyssaldepths:artifact_active=true]");
-                } else if (t == 480) {
-                    shoot(mc, "vanish_4_dir0");
-                } else if (t == 485) {
+                } else if (t == 580) {
+                    shoot(mc, "vanish_5_dir0");
+                } else if (t == 585) {
                     command(server, "clear @s abyssaldepths:parallax");
                     fake.discard();
-                    setVanishStyle(redero.abyssaldepths.ClientConfig.ShadeVanishStyle.PIXELS);
+                    redero.abyssaldepths.ClientConfig.setShadeVanish(redero.abyssaldepths.ClientConfig.ShadeVanishStyle.PIXELS);
                     step = Step.NEXT;
                 }
             }
@@ -464,18 +464,6 @@ public final class AutoShot {
 
     /** The fake player of the vanishing test. */
     private static net.minecraft.client.player.RemotePlayer fake;
-
-    /** Sets the client config's vanishing style (for this run only, not saved). */
-    @SuppressWarnings("unchecked")
-    private static void setVanishStyle(redero.abyssaldepths.ClientConfig.ShadeVanishStyle style) {
-        try {
-            final java.lang.reflect.Field field = redero.abyssaldepths.ClientConfig.class.getDeclaredField("SHADE_VANISH");
-            field.setAccessible(true);
-            ((net.neoforged.neoforge.common.ModConfigSpec.EnumValue<redero.abyssaldepths.ClientConfig.ShadeVanishStyle>) field.get(null)).set(style);
-        } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException(e);
-        }
-    }
 
     private static void shoot(Minecraft mc, String name) {
         Screenshot.grab(mc.gameDirectory, "autoshot_" + name + ".png", mc.getMainRenderTarget(), msg -> { });
