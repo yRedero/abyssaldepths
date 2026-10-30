@@ -33,7 +33,7 @@ public final class SkinPixels {
     private SkinPixels() {
     }
 
-    /** The skin's pixels (ABGR), or null if its texture is not there (yet). Render thread only. */
+    /** A texture's pixels (ABGR), or null if it is not there (yet). Render thread only. */
     static NativeImage read(ResourceLocation skin) {
         final NativeImage known = READ.get(skin);
         if (known != null) {
@@ -46,8 +46,8 @@ public final class SkinPixels {
         RenderSystem.bindTexture(texture.getId());
         final int w = GlStateManager._getTexLevelParameter(GL11.GL_TEXTURE_2D, 0, GL11.GL_TEXTURE_WIDTH);
         final int h = GlStateManager._getTexLevelParameter(GL11.GL_TEXTURE_2D, 0, GL11.GL_TEXTURE_HEIGHT);
-        if (w != 64 || h != 64) {
-            return null; // not a skin as we know them
+        if (w <= 0 || h <= 0 || w > 1024 || h > 1024) {
+            return null;
         }
         final NativeImage image = new NativeImage(w, h, false);
         image.downloadTexture(0, false);
@@ -65,8 +65,8 @@ public final class SkinPixels {
             return known;
         }
         final NativeImage source = read(skin);
-        if (source == null) {
-            return skin;
+        if (source == null || source.getWidth() != 64 || source.getHeight() != 64) {
+            return skin; // not a skin as we know them
         }
         final NativeImage image = new NativeImage(64, 64, false);
         image.copyFrom(source);

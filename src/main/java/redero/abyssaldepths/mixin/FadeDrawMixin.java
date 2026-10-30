@@ -16,7 +16,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import redero.abyssaldepths.client.FadeDraw;
 
-/** While {@link FadeDraw} draws a player: their colour in its alpha and tint, no layers, no name. */
+/** While {@link FadeDraw} draws an entity: its texture, colour in its alpha and tint, no layers, no name. */
 @Mixin(LivingEntityRenderer.class)
 public abstract class FadeDrawMixin {
     @ModifyArg(method = "render(Lnet/minecraft/world/entity/LivingEntity;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V",
@@ -33,6 +33,13 @@ public abstract class FadeDrawMixin {
         if (!FadeDraw.active) {
             layer.render(pose, buffers, light, (LivingEntity) entity, a, b, c, d, e, f);
         }
+    }
+
+    /** The fade's texture in place of the entity's own (any renderer: players, creatures). */
+    @Redirect(method = "getRenderType", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/renderer/entity/LivingEntityRenderer;getTextureLocation(Lnet/minecraft/world/entity/Entity;)Lnet/minecraft/resources/ResourceLocation;"))
+    private net.minecraft.resources.ResourceLocation abyssaldepths$fadeTexture(LivingEntityRenderer<?, ?> renderer, Entity entity) {
+        return FadeDraw.active && FadeDraw.texture != null ? FadeDraw.texture : ((net.minecraft.client.renderer.entity.EntityRenderer<Entity>) (Object) renderer).getTextureLocation(entity);
     }
 
     @Inject(method = "shouldShowName(Lnet/minecraft/world/entity/LivingEntity;)Z", at = @At("HEAD"), cancellable = true)

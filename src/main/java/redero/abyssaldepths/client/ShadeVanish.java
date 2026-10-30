@@ -28,6 +28,7 @@ import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
@@ -56,7 +57,8 @@ import redero.abyssaldepths.ClientConfig.ShadeVanishStyle;
  * body (leaving a hole) and falls, darkening to purple, until nothing is left;</li>
  * <li>DISSOLVE: the same, but the pixels just go out.</li>
  * </ul>
- * {@link #preview} plays one on a copy of the player in front of them (the command).
+ * {@link #preview} plays one on a copy of the player in front of them (the command). Creatures sent away
+ * (Oblivion) dissolve and come back pixel by pixel of their own texture ({@link #creature}).
  */
 @EventBusSubscriber(modid = AbyssalDepths.MODID, value = Dist.CLIENT)
 public final class ShadeVanish {
@@ -158,7 +160,150 @@ public final class ShadeVanish {
                 return true;
             }
         }
+        for (CreatureFade fade : CREATURES) {
+            if (fade.appear() && fade.entityId() == entity.getId()) {
+                return true;
+            }
+        }
         return false;
+    }
+
+    // ---- creatures: dissolving ------------------------------------------------------------
+
+    /** A creature dissolving (or coming back, backwards), pixel by pixel of its own texture. */
+    private record CreatureFade(int entityId, boolean appear, long start, int seed) {
+        static final long DURATION = 1600;
+
+        float progress(long now) {
+            final float t = Mth.clamp((now - start) / (float) DURATION, 0.0F, 1.0F);
+            return appear ? 1.0F - t : t;
+        }
+    }
+
+    private static final List<CreatureFade> CREATURES = new ArrayList<>();
+    private static final Map<CreatureFade, CreatureCrumble> CREATURE_CRUMBLES = new HashMap<>();
+    /** Creatures given the "no culling" flag while they fade, with what they had before. */
+    private static final Map<Integer, Boolean> CREATURE_CULLING = new HashMap<>();
+
+    /** A creature turned hidden or visible for this client (Oblivion): it dissolves, or comes back. */
+    public static void creature(LivingEntity entity, boolean appearing) {
+        final Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || entity.distanceToSqr(mc.player) > RANGE * RANGE || ClientConfig.shadeVanish() == ShadeVanishStyle.NONE) {
+            return;
+        }
+        CREATURES.removeIf(fade -> fade.entityId() == entity.getId());
+        CREATURES.add(new CreatureFade(entity.getId(), appearing, Util.getMillis(), seeds++));
+        CREATURE_CULLING.putIfAbsent(entity.getId(), entity.noCulling);
+        entity.noCulling = true; // kept updated meanwhile (culling mods), as players are
+    }
+
+    /** The copy of a creature's texture its pixels are taken out of. */
+    private static final class CreatureCrumble {
+        final ResourceLocation id;
+        private final DynamicTexture texture;
+        private final NativeImage source;
+        private final int[] pixels;
+        private final float[] when;
+        private int shown = -1;
+
+        private CreatureCrumble(ResourceLocation id, DynamicTexture texture, NativeImage source, int[] pixels, float[] when) {
+            this.id = id;
+            this.texture = texture;
+            this.source = source;
+            this.pixels = pixels;
+            this.when = when;
+        }
+
+        /** For the creature's texture as its renderer has it; null if it cannot be read. */
+        static CreatureCrumble of(LivingEntity entity, int seed) {
+            final ResourceLocation original = Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(entity).getTextureLocation(entity);
+            final NativeImage source = SkinPixels.read(original);
+            if (source == null) {
+                return null;
+            }
+            final NativeImage copy = new NativeImage(source.getWidth(), source.getHeight(), false);
+            copy.copyFrom(source);
+            final List<Integer> opaque = new ArrayList<>();
+            for (int y = 0; y < source.getHeight(); y++) {
+                for (int x = 0; x < source.getWidth(); x++) {
+                    if ((source.getPixelRGBA(x, y) >>> 24) != 0) {
+                        opaque.add(y << 16 | x);
+                    }
+                }
+            }
+            final int[] pixels = opaque.stream().mapToInt(Integer::intValue).toArray();
+            final float[] when = new float[pixels.length];
+            for (int i = 0; i < when.length; i++) {
+                when[i] = 0.04F + 0.9F * noise(seed * 7 + i, 5); // in no order: a creature has no "top" we know of
+            }
+            final ResourceLocation id = ResourceLocation.fromNamespaceAndPath(AbyssalDepths.MODID, "crumble/creature_" + seed);
+            final DynamicTexture texture = new DynamicTexture(copy);
+            Minecraft.getInstance().getTextureManager().register(id, texture);
+            return new CreatureCrumble(id, texture, source, pixels, when);
+        }
+
+        void show(float p) {
+            int count = 0;
+            for (float w : when) {
+                count += w < p ? 1 : 0;
+            }
+            if (count == shown) {
+                return;
+            }
+            shown = count;
+            final NativeImage image = texture.getPixels();
+            for (int i = 0; i < pixels.length; i++) {
+                final int x = pixels[i] & 0xFFFF, y = pixels[i] >>> 16;
+                image.setPixelRGBA(x, y, when[i] < p ? 0 : source.getPixelRGBA(x, y));
+            }
+            texture.upload();
+        }
+
+        void close() {
+            Minecraft.getInstance().getTextureManager().release(id);
+        }
+    }
+
+    /** Draws the creatures' fades (in the level render, with the players'). */
+    private static void drawCreatures(Minecraft mc, long now, float partial, Vec3 cam, PoseStack pose, MultiBufferSource.BufferSource buffers) {
+        for (CreatureFade fade : CREATURES) {
+            if (!(mc.level.getEntity(fade.entityId()) instanceof LivingEntity entity) || entity.isRemoved()) {
+                continue;
+            }
+            final CreatureCrumble crumble = CREATURE_CRUMBLES.computeIfAbsent(fade, f -> CreatureCrumble.of(entity, f.seed()));
+            if (crumble == null) {
+                continue;
+            }
+            crumble.show(fade.progress(now));
+            final Vec3 at = entity.getPosition(partial);
+            pose.pushPose();
+            pose.translate(at.x - cam.x, at.y - cam.y, at.z - cam.z);
+            FadeDraw.draw(entity, partial, pose, buffers, 1.0F, 0xFFFFFF, crumble.id);
+            pose.popPose();
+        }
+    }
+
+    /** Forgets the finished creature fades (their textures, the flag they were given). */
+    private static void tickCreatures(ClientLevel level, long now) {
+        CREATURES.removeIf(fade -> {
+            if (now - fade.start() < CreatureFade.DURATION) {
+                return false;
+            }
+            final Boolean culling = CREATURE_CULLING.remove(fade.entityId());
+            if (culling != null && level.getEntity(fade.entityId()) instanceof Entity entity) {
+                entity.noCulling = culling;
+            }
+            return true;
+        });
+        CREATURE_CRUMBLES.entrySet().removeIf(entry -> {
+            if (CREATURES.contains(entry.getKey())) {
+                return false;
+            }
+            if (entry.getValue() != null) {
+                entry.getValue().close();
+            }
+            return true;
+        });
     }
 
     @SubscribeEvent
@@ -170,12 +315,17 @@ public final class ShadeVanish {
             PREVIEW.clear();
             CRUMBLES.values().forEach(Crumble::close);
             CRUMBLES.clear();
+            CREATURE_CRUMBLES.values().stream().filter(java.util.Objects::nonNull).forEach(CreatureCrumble::close);
+            CREATURE_CRUMBLES.clear();
+            CREATURES.clear();
+            CREATURE_CULLING.clear();
             HIDDEN.clear();
             lastLevel = level;
             return;
         }
         final long now = Util.getMillis();
         FADES.removeIf(fade -> fade.done(now));
+        tickCreatures(level, now);
         CRUMBLES.entrySet().removeIf(entry -> {
             if (FADES.contains(entry.getKey())) {
                 return false;
@@ -295,7 +445,7 @@ public final class ShadeVanish {
     @SubscribeEvent
     public static void onRender(RenderLevelStageEvent event) {
         final Minecraft mc = Minecraft.getInstance();
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_ENTITIES || FADES.isEmpty() || mc.level == null) {
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_ENTITIES || FADES.isEmpty() && CREATURES.isEmpty() || mc.level == null) {
             return;
         }
         final long now = Util.getMillis();
@@ -305,6 +455,7 @@ public final class ShadeVanish {
         final Vector3f right = new Vector3f(camera.getLeftVector()).negate(), up = new Vector3f(camera.getUpVector());
         final PoseStack pose = event.getPoseStack();
         final MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        drawCreatures(mc, now, partial, cam, pose, buffers);
         for (Fade fade : FADES) {
             // the player themselves while they are there (moving on), else the still copy where they were
             final AbstractClientPlayer player = fade.entityId() >= 0 && mc.level.getEntity(fade.entityId()) instanceof AbstractClientPlayer found
@@ -467,7 +618,8 @@ public final class ShadeVanish {
 
         /** For the fade, from the subject's skin (or the look it wears, if not null). */
         static Crumble of(Fade fade, AbstractClientPlayer subject, ResourceLocation worn) {
-            final NativeImage skin = SkinPixels.read(worn != null ? worn : subject.getSkin().texture());
+            final NativeImage read = SkinPixels.read(worn != null ? worn : subject.getSkin().texture());
+            final NativeImage skin = read != null && read.getWidth() == 64 && read.getHeight() == 64 ? read : null;
             final NativeImage copy = new NativeImage(64, 64, false);
             if (skin != null) {
                 copy.copyFrom(skin);

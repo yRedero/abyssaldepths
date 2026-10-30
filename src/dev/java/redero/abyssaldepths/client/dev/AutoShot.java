@@ -273,7 +273,11 @@ public final class AutoShot {
                     shoot(mc, "oblivion_0_dir0"); // before
                 } else if (t == cast) {
                     command(server, "abyssaldepths oblivion");
-                } else if (t == cast + 10) {
+                } else if (t == cast + 8) {
+                    shoot(mc, "oblivion_1_dir0"); // dissolving
+                } else if (t == cast + 20 * 15 + 12) {
+                    shoot(mc, "oblivion_1_dir1"); // the wither coming back, pixel by pixel
+                } else if (t == cast + 40) {
                     shoot(mc, "oblivion_0_dir1"); // gone
                     oblivionCheck(server, "just after");
                 } else if (t == cast + 20 * 16) {

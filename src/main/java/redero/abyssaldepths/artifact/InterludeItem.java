@@ -18,8 +18,8 @@ public class InterludeItem extends ToggleArtifactItem {
     }
 
     /** Pace of the field and seconds a full charge lasts, per milestone (0 .. 4). */
-    static final float[] PACE = {0.5F, 0.45F, 0.4F, 0.35F, 0.3F};
-    static final int[] SECONDS = {20, 25, 30, 35, 40};
+    static final float[] PACE = {0.7F, 0.58F, 0.45F, 0.33F, 0.2F};
+    static final int[] SECONDS = {10, 18, 25, 32, 40};
 
     @Override
     protected void whileActive(ServerPlayer player, ItemStack stack) {
@@ -34,7 +34,7 @@ public class InterludeItem extends ToggleArtifactItem {
     @Override
     public net.minecraft.network.chat.Component powerLine(ItemStack stack) {
         final int m = milestone(stack);
-        return net.minecraft.network.chat.Component.translatable("item.abyssaldepths.interlude.power", Math.round(PACE[m] * 100), SECONDS[m]);
+        return net.minecraft.network.chat.Component.translatable("item.abyssaldepths.interlude.power", Math.round((1.0F - PACE[m]) * 100), SECONDS[m]);
     }
 
     @Override

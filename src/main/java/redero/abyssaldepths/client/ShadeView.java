@@ -74,6 +74,27 @@ public final class ShadeView {
     /** Per pixel: when the black reaches it (0 .. 1), for the current screen and crossing. */
     private static float[] reach = new float[0];
     private static int reachCols, reachRows, reachSeed = -1, reachSpots, seed;
+    /**
+     * Set while what this client does not see is updated or handles an event: the particles it makes then
+     * (smoke, sparks, a death poof) are not shown, as its sounds are not heard.
+     */
+    public static boolean quietParticles;
+
+    /** Client: an entity's update starts; quiet if it is hidden from this client. */
+    @SubscribeEvent
+    public static void onEntityTick(net.neoforged.neoforge.event.tick.EntityTickEvent.Pre event) {
+        if (event.getEntity().level().isClientSide) {
+            quietParticles = hidden(event.getEntity());
+        }
+    }
+
+    @SubscribeEvent
+    public static void onEntityTicked(net.neoforged.neoforge.event.tick.EntityTickEvent.Post event) {
+        if (event.getEntity().level().isClientSide) {
+            quietParticles = false;
+        }
+    }
+
     /** Set while a sound that may play in the shadow is started (the server's and the player's own). */
     public static boolean allowSounds;
 
@@ -143,7 +164,12 @@ public final class ShadeView {
         seesWorld = mc.player != null && ParallaxItem.seesWorld(mc.player);
         Shades.clientViewInShadow = inShadow();
         if (inShadow() && previous < 0.5F) {
-            mc.getSoundManager().stop(); // what plays in the world stops at the crossing
+            // what plays in the world stops at the crossing (not the players' sounds: Parallax's own switch)
+            for (SoundSource source : SoundSource.values()) {
+                if (source != SoundSource.PLAYERS && source != SoundSource.MASTER && source != SoundSource.VOICE) {
+                    mc.getSoundManager().stop(null, source);
+                }
+            }
         }
 
         final net.minecraft.world.level.GameType mode = mc.gameMode == null ? null : mc.gameMode.getPlayerMode();

@@ -9,7 +9,7 @@ import net.minecraft.world.level.Level;
 /**
  * Parallax: right click switches it on and off. While it is on, its holder is a shade in the shadow of
  * this world ({@link Shades}): there, unseen and untouchable, unable to touch anything but able to walk,
- * and to meet everyone else in the shadow. It uses up its charge (a full one lasts 60 s, up to 120 s with
+ * and to meet everyone else in the shadow. It uses up its charge (a full one lasts 60 s, up to 200 s with
  * the mastery milestones, {@link #SECONDS}); when empty it switches off. While off, the charge comes back
  * (one a minute). A shade sees nothing of the world's creatures and players (only other shades) until its
  * Parallax is at full mastery.
@@ -35,7 +35,7 @@ public class ParallaxItem extends ToggleArtifactItem {
     }
 
     /** Seconds a full charge lasts, per milestone (0 .. 4). */
-    static final int[] SECONDS = {60, 75, 90, 105, 120};
+    static final int[] SECONDS = {60, 95, 130, 165, 200};
 
     @Override
     protected void whileActive(ServerPlayer player, ItemStack stack) {

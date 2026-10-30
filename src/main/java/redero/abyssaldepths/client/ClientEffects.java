@@ -26,8 +26,9 @@ public final class ClientEffects {
                 final net.minecraft.world.entity.Entity entity = mc.level.getEntity(id);
                 final boolean wasHidden = entity != null && ShadeView.seenHidden(entity);
                 Shades.clientShade(id, payload.ticks(), mc.level.getGameTime());
-                if (entity != null && !(entity instanceof net.minecraft.world.entity.player.Player) && wasHidden != ShadeView.seenHidden(entity)) {
-                    ShadeVanish.puff(entity); // creatures: no fade like players', a puff of the shadow's pixels
+                if (entity instanceof net.minecraft.world.entity.LivingEntity living && !(entity instanceof net.minecraft.world.entity.player.Player)
+                        && wasHidden != ShadeView.seenHidden(entity)) {
+                    ShadeVanish.creature(living, wasHidden); // creatures dissolve (and come back) pixel by pixel
                 }
                 ShadeVanish.check(); // at once: until the next tick the player would be drawn as they are now
             }

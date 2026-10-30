@@ -99,6 +99,7 @@ public final class InnerSelf {
         });
         if (now % 10 == 0) {
             rescueFallen(server);
+            flight(server);
         }
         if (PENDING.isEmpty()) {
             return;
@@ -266,6 +267,38 @@ public final class InnerSelf {
             final Vec3 arrival = arrival(index, form);
             player.teleportTo(inner, arrival.x, arrival.y, arrival.z, player.getYRot(), 0.0F);
         }
+    }
+
+    /** Players this gave flight to (taken again when they leave, or lose the mastery). */
+    private static final java.util.Set<UUID> FLYING = new java.util.HashSet<>();
+
+    /**
+     * In their inner self, survival players fly if their Inner Haven has the mastery for it (75 %); the
+     * flight is taken again outside it.
+     */
+    private static void flight(MinecraftServer server) {
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            final boolean may = player.level().dimension() == DIMENSION && !player.isCreative() && !player.isSpectator() && hasFlight(player);
+            if (may && !player.getAbilities().mayfly) {
+                player.getAbilities().mayfly = true;
+                player.onUpdateAbilities();
+                FLYING.add(player.getUUID());
+            } else if (!may && FLYING.remove(player.getUUID()) && !player.isCreative() && !player.isSpectator()) {
+                player.getAbilities().mayfly = false;
+                player.getAbilities().flying = false;
+                player.onUpdateAbilities();
+            }
+        }
+    }
+
+    private static boolean hasFlight(ServerPlayer player) {
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            final net.minecraft.world.item.ItemStack stack = player.getInventory().getItem(i);
+            if (stack.getItem() instanceof InnerHavenItem && ArtifactItem.milestone(stack) >= InnerHavenItem.FLIGHT_MILESTONE) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Who fell off their islands comes back to where they arrive. */

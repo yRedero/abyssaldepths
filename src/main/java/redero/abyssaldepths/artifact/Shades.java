@@ -118,6 +118,23 @@ public final class Shades {
     /** Server: set while a shade creature makes a sound (the sound is then kept to the shadow). */
     public static final ThreadLocal<Boolean> SOUND_BY_SHADE = ThreadLocal.withInitial(() -> false);
 
+    /** Server: set while a shade creature is updated: the particles it sends then reach only shades. */
+    public static final ThreadLocal<Boolean> PARTICLES_BY_SHADE = ThreadLocal.withInitial(() -> false);
+
+    @SubscribeEvent
+    public static void onEntityTick(net.neoforged.neoforge.event.tick.EntityTickEvent.Pre event) {
+        if (!event.getEntity().level().isClientSide && !SENT.isEmpty() && isShade(event.getEntity())) {
+            PARTICLES_BY_SHADE.set(true);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onEntityTicked(net.neoforged.neoforge.event.tick.EntityTickEvent.Post event) {
+        if (!event.getEntity().level().isClientSide) {
+            PARTICLES_BY_SHADE.set(false);
+        }
+    }
+
     /** Client: whether this client's view is in the shadow (set by the client every tick). */
     public static volatile boolean clientViewInShadow;
 

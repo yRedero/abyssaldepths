@@ -23,8 +23,8 @@ import net.minecraft.world.level.Level;
  * {@link #RADIUS} blocks of its user (players and creatures, not the user) is sent into the shadow of this
  * world for {@link #TICKS}: gone for everyone outside, among themselves still alive, fighting what else is
  * there ({@link Shades}). The strong stay less long: creatures with more than {@link #STRONG_HEALTH} health
- * for that much less (a 300 health boss half the time), never under {@link #MIN_TICKS}. One charge, back
- * after 30 minutes.
+ * for that much less (a 300 health boss half the time), never under {@link #MIN_TICKS}. Three charges, one
+ * back every 30 minutes.
  */
 public class OblivionItem extends ArtifactItem {
     public static final double RADIUS = 24.0;
