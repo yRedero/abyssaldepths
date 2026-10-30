@@ -72,6 +72,7 @@ public final class LayerCommands {
                 .then(ambience)
                 .then(Commands.literal("vanish").then(vanishStyle).then(vanishPlay))
                 .then(shadeLook)
+                .then(Commands.literal("showcase").executes(c -> send(c, "showcase")))
                 .then(Commands.literal("oblivion").executes(c -> {
                     final java.util.List<String> sent = redero.abyssaldepths.artifact.OblivionItem.cast(c.getSource().getPlayerOrException());
                     c.getSource().sendSuccess(() -> Component.literal("Oblivion: sent " + sent.size() + " into the shadow " + sent), false);

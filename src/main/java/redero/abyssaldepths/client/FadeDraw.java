@@ -25,6 +25,17 @@ public final class FadeDraw {
     private FadeDraw() {
     }
 
+    /** As {@link #draw}, where the pose already is the entity's place with its render offset (in its renderer). */
+    static void drawHere(net.minecraft.world.entity.LivingEntity entity, float partialTick, PoseStack pose, MultiBufferSource buffers, float alpha, int tint, ResourceLocation texture) {
+        final Minecraft mc = Minecraft.getInstance();
+        final EntityRenderer<? super net.minecraft.world.entity.LivingEntity> renderer = mc.getEntityRenderDispatcher().getRenderer(entity);
+        final Vec3 offset = renderer.getRenderOffset(entity, partialTick);
+        pose.pushPose();
+        pose.translate(-offset.x, -offset.y, -offset.z); // draw() adds it again
+        draw(entity, partialTick, pose, buffers, alpha, tint, texture);
+        pose.popPose();
+    }
+
     /** Draws the player at the origin of the pose (their feet), as the game would at partialTick. */
     static void draw(net.minecraft.world.entity.LivingEntity player, float partialTick, PoseStack pose, MultiBufferSource buffers, float alpha, int tint, ResourceLocation texture) {
         final Minecraft mc = Minecraft.getInstance();

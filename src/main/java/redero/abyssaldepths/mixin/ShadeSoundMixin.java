@@ -24,7 +24,8 @@ import redero.abyssaldepths.artifact.Shades;
  * Sounds keep to their side of the shadow ({@link Shades}): a shade hears only what other shades make, and
  * what a shade makes only other shades hear. Applies to the sounds (and level events, mostly sounds) the
  * server sends to the players around a place; who made one is the player it is not sent to, the entity a
- * sound is on, or a shade creature that marked it ({@code ShadeCreatureSoundMixin}).
+ * sound is on, or a shade creature that marked it ({@code ShadeCreatureSoundMixin}) or is being updated (a
+ * Wither's skull shots are a world event sent from its update).
  */
 @Mixin(PlayerList.class)
 public abstract class ShadeSoundMixin {
@@ -41,7 +42,7 @@ public abstract class ShadeSoundMixin {
         if (!(packet instanceof ClientboundSoundPacket || packet instanceof ClientboundSoundEntityPacket || packet instanceof ClientboundLevelEventPacket)) {
             return;
         }
-        final boolean byShade = except != null && Shades.isShade(except) || Shades.SOUND_BY_SHADE.get()
+        final boolean byShade = except != null && Shades.isShade(except) || Shades.SOUND_BY_SHADE.get() || Shades.PARTICLES_BY_SHADE.get()
                 || packet instanceof ClientboundSoundEntityPacket sound && server.getLevel(dimension) != null
                         && Shades.isShade(server.getLevel(dimension).getEntity(sound.getId()));
         for (ServerPlayer player : players) {

@@ -12,16 +12,21 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.level.Level;
+import net.neoforged.neoforge.network.PacketDistributor;
+import redero.abyssaldepths.network.EffectPayload;
 
 /**
  * Inner Haven: hold right click for three seconds and the holder fades away into their inner self (their
  * own room in the Inner Self dimension), leaving their body behind; using it there brings them back to
  * it. A crossing costs charges, fewer with the mastery ({@link #cost}: 2 at first, 1 from 50 %, and coming
- * back is free at 100 %); from 75 % the holder flies in their inner self ({@link InnerSelf}).
+ * back is free at 100 %); from 75 % the holder flies in their inner self ({@link InnerSelf}); at 100 % coming
+ * back can go to any of the last {@link InnerSelf#WAYPOINTS} places left from (a screen to choose).
  */
 public class InnerHavenItem extends ArtifactItem {
     /** Charges a crossing costs going in, and coming back, per milestone (0 .. 4). */
     private static final int[] COST_IN = {2, 2, 1, 1, 1}, COST_BACK = {2, 2, 1, 1, 0};
+    /** The milestone from which coming back can go to any of the last places left from. */
+    public static final int WAYPOINT_MILESTONE = 4;
     /** The milestone from which the holder flies in their inner self. */
     public static final int FLIGHT_MILESTONE = 3;
 
@@ -85,6 +90,11 @@ public class InnerHavenItem extends ArtifactItem {
     @Override
     public ItemStack finishUsingItem(ItemStack stack, Level level, LivingEntity entity) {
         if (!level.isClientSide && entity instanceof ServerPlayer player && charge(stack) >= cost(stack, player) && !InnerSelf.travelling(player)) {
+            if (player.level().dimension() == InnerSelf.DIMENSION && milestone(stack) >= WAYPOINT_MILESTONE) {
+                // mastered: where to? (the choice comes back as a WaypointChoicePayload)
+                PacketDistributor.sendToPlayer(player, new EffectPayload("waypoints/" + InnerSelf.waypoints(player), 0));
+                return stack;
+            }
             setCharge(stack, charge(stack) - cost(stack, player));
             level.playSound(null, player.blockPosition(), SoundEvents.BEACON_POWER_SELECT, SoundSource.PLAYERS, 0.8F, 1.6F);
             InnerSelf.travel(player);

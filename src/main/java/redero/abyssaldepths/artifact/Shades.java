@@ -84,6 +84,72 @@ public final class Shades {
         SENT.put(entity.getUUID(), new Sent(level.dimension(), entity.getId(), until));
         send(entity.getId(), ticks);
         loseTargets(level, entity);
+        hideBossBars(entity);
+    }
+
+    // ---- boss bars: a boss in the shadow shows its bar only to shades -----------------------
+
+    /** Per entity class: its fields holding a boss bar (the Wither's, any modded boss's). */
+    private static final Map<Class<?>, java.util.List<java.lang.reflect.Field>> BOSS_BAR_FIELDS = new HashMap<>();
+    /** Players taken off a sent boss's bar, to put back when it returns. */
+    private static final Map<UUID, java.util.Set<UUID>> OFF_BAR = new HashMap<>();
+
+    private static java.util.List<net.minecraft.server.level.ServerBossEvent> bossBars(Entity entity) {
+        final java.util.List<java.lang.reflect.Field> fields = BOSS_BAR_FIELDS.computeIfAbsent(entity.getClass(), type -> {
+            final java.util.List<java.lang.reflect.Field> found = new java.util.ArrayList<>();
+            for (Class<?> c = type; c != null && c != Object.class; c = c.getSuperclass()) {
+                for (java.lang.reflect.Field field : c.getDeclaredFields()) {
+                    if (net.minecraft.server.level.ServerBossEvent.class.isAssignableFrom(field.getType()) && !java.lang.reflect.Modifier.isStatic(field.getModifiers())) {
+                        try {
+                            field.setAccessible(true);
+                            found.add(field);
+                        } catch (RuntimeException e) {
+                            // a field we may not read: that boss keeps its bar
+                        }
+                    }
+                }
+            }
+            return found;
+        });
+        final java.util.List<net.minecraft.server.level.ServerBossEvent> bars = new java.util.ArrayList<>();
+        for (java.lang.reflect.Field field : fields) {
+            try {
+                if (field.get(entity) instanceof net.minecraft.server.level.ServerBossEvent bar) {
+                    bars.add(bar);
+                }
+            } catch (IllegalAccessException e) {
+                // as above
+            }
+        }
+        return bars;
+    }
+
+    /** Takes the players outside the shadow off a sent boss's bar (noting them to put back). */
+    private static void hideBossBars(Entity entity) {
+        for (net.minecraft.server.level.ServerBossEvent bar : bossBars(entity)) {
+            for (ServerPlayer player : java.util.List.copyOf(bar.getPlayers())) {
+                if (!isShade(player)) {
+                    bar.removePlayer(player);
+                    OFF_BAR.computeIfAbsent(entity.getUUID(), k -> new java.util.HashSet<>()).add(player.getUUID());
+                }
+            }
+        }
+    }
+
+    /** A boss back from the shadow: the players taken off its bar (still near) get it again. */
+    private static void showBossBars(Entity entity) {
+        final java.util.Set<UUID> off = OFF_BAR.remove(entity.getUUID());
+        if (off == null) {
+            return;
+        }
+        for (net.minecraft.server.level.ServerBossEvent bar : bossBars(entity)) {
+            for (UUID id : off) {
+                final ServerPlayer player = entity.getServer().getPlayerList().getPlayer(id);
+                if (player != null && player.level() == entity.level() && player.distanceToSqr(entity) < 128 * 128) {
+                    bar.addPlayer(player);
+                }
+            }
+        }
     }
 
     /** Ends the targeting across the sides around an entity that just changed sides. */
@@ -187,6 +253,16 @@ public final class Shades {
         });
         for (Entity entity : back) { // now back on the world's side: they and those after them let go
             loseTargets((net.minecraft.server.level.ServerLevel) entity.level(), entity);
+            showBossBars(entity);
+        }
+        if (now % 5 == 0) { // players coming near a sent boss: its bar is for shades only
+            for (Map.Entry<UUID, Sent> entry : SENT.entrySet()) {
+                final net.minecraft.server.level.ServerLevel level = server.getLevel(entry.getValue().dimension());
+                final Entity entity = level == null ? null : level.getEntity(entry.getKey());
+                if (entity instanceof net.minecraft.world.entity.LivingEntity) {
+                    hideBossBars(entity);
+                }
+            }
         }
         if (now % 20 == 0) {
             for (UUID id : SERVER.keySet()) {

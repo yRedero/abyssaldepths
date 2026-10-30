@@ -60,6 +60,42 @@ public final class InnerSelf {
     /** Below this height under the floor, someone who fell off the islands is brought back. */
     private static final int FALL_LIMIT = 40;
 
+    /** How many places left from are remembered. */
+    public static final int WAYPOINTS = 5;
+    /** Players coming back to a remembered place instead of their body, with it. */
+    private static final Map<UUID, CompoundTag> CHOSEN = new HashMap<>();
+
+    /**
+     * The places a player last left from into their inner self, newest first, for the choosing screen:
+     * "dimension|x|y|z|seconds ago" each, joined by ';'.
+     */
+    public static String waypoints(ServerPlayer player) {
+        final net.minecraft.nbt.ListTag places = Rooms.get(player.getServer()).waypoints.get(player.getUUID());
+        final StringBuilder out = new StringBuilder();
+        final long now = player.getServer().overworld().getGameTime();
+        for (int i = 0; places != null && i < places.size(); i++) {
+            final CompoundTag place = places.getCompound(i);
+            if (i > 0) {
+                out.append(';');
+            }
+            out.append(place.getString("dim")).append('|').append((int) Math.floor(place.getDouble("x"))).append('|')
+                    .append((int) Math.floor(place.getDouble("y"))).append('|').append((int) Math.floor(place.getDouble("z"))).append('|')
+                    .append(Math.max(0, (now - place.getLong("time")) / 20));
+        }
+        return out.toString();
+    }
+
+    /** Leaves the inner self for a remembered place (index into {@link #waypoints}), or the body (-1). */
+    public static void returnTo(ServerPlayer player, int index) {
+        final net.minecraft.nbt.ListTag places = Rooms.get(player.getServer()).waypoints.get(player.getUUID());
+        if (index >= 0 && places != null && index < places.size()) {
+            CHOSEN.put(player.getUUID(), places.getCompound(index));
+        } else {
+            CHOSEN.remove(player.getUUID());
+        }
+        travel(player);
+    }
+
     /** Players waiting for their move, with the game time it happens. */
     private static final Map<UUID, Long> PENDING = new HashMap<>();
     /** Back from the inner self: how long they sink down softly, from how high above the body's spot. */
@@ -120,20 +156,30 @@ public final class InnerSelf {
     private static void move(MinecraftServer server, ServerPlayer player) {
         final Rooms rooms = Rooms.get(server);
         if (player.level().dimension() == DIMENSION) {
-            // back to where the body waits (or the world spawn if that is gone)
+            // back to where the body waits (or a remembered place chosen, or the world spawn if that is gone)
             final CompoundTag back = rooms.returns.get(player.getUUID());
+            final CompoundTag chosen = CHOSEN.remove(player.getUUID());
+            final CompoundTag place = chosen != null ? chosen : back;
             ServerLevel level = server.overworld();
             double x = level.getSharedSpawnPos().getX() + 0.5, y = level.getSharedSpawnPos().getY(), z = level.getSharedSpawnPos().getZ() + 0.5;
             float yaw = player.getYRot(), pitch = player.getXRot();
-            if (back != null) {
-                final ServerLevel stored = server.getLevel(ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(back.getString("dim"))));
+            if (place != null) {
+                final ServerLevel stored = server.getLevel(ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(place.getString("dim"))));
                 if (stored != null) {
                     level = stored;
-                    x = back.getDouble("x");
-                    y = back.getDouble("y");
-                    z = back.getDouble("z");
-                    yaw = back.getFloat("yaw"); // the way the body faces, looking straight ahead like it
+                    x = place.getDouble("x");
+                    y = place.getDouble("y");
+                    z = place.getDouble("z");
+                    yaw = place.getFloat("yaw"); // the way the body faces, looking straight ahead like it
                     pitch = 0.0F;
+                }
+            }
+            if (chosen != null && back != null) { // the body is not needed where it waits: it goes
+                final ServerLevel bodyLevel = server.getLevel(ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(back.getString("dim"))));
+                if (bodyLevel != null) {
+                    for (AbsentBody body : bodyLevel.getEntities(AbyssalDepths.ABSENT_BODY.get(), b -> b.owner().filter(player.getUUID()::equals).isPresent())) {
+                        body.discard();
+                    }
                 }
             }
             // taking the body's place as it is seen: turned like it (head and body), a little above it
@@ -179,6 +225,15 @@ public final class InnerSelf {
             back.put("effects", effects);
             player.removeAllEffects();
             rooms.returns.put(player.getUUID(), back);
+            // remembered as one of the last places left from (Inner Haven at full mastery returns to any of them)
+            final net.minecraft.nbt.ListTag places = rooms.waypoints.computeIfAbsent(player.getUUID(), k -> new net.minecraft.nbt.ListTag());
+            final CompoundTag here = back.copy();
+            here.remove("effects");
+            here.putLong("time", server.overworld().getGameTime());
+            places.add(0, here);
+            while (places.size() > WAYPOINTS) {
+                places.remove(places.size() - 1);
+            }
             rooms.setDirty();
             AbsentBody.leave(player);
 
@@ -341,6 +396,7 @@ public final class InnerSelf {
         final java.util.Set<Integer> built = new java.util.HashSet<>();
         final Map<UUID, CompoundTag> returns = new HashMap<>();
         final Map<UUID, Form> forms = new HashMap<>();
+        final Map<UUID, net.minecraft.nbt.ListTag> waypoints = new HashMap<>();
 
         Form form(UUID player) {
             return forms.getOrDefault(player, Form.ROOM);
@@ -368,6 +424,8 @@ public final class InnerSelf {
             returns.getAllKeys().forEach(k -> rooms.returns.put(UUID.fromString(k), returns.getCompound(k)));
             final CompoundTag forms = tag.getCompound("forms");
             forms.getAllKeys().forEach(k -> rooms.forms.put(UUID.fromString(k), Form.valueOf(forms.getString(k))));
+            final CompoundTag waypoints = tag.getCompound("waypoints");
+            waypoints.getAllKeys().forEach(k -> rooms.waypoints.put(UUID.fromString(k), waypoints.getList(k, Tag.TAG_COMPOUND)));
             return rooms;
         }
 
@@ -383,6 +441,9 @@ public final class InnerSelf {
             final CompoundTag forms = new CompoundTag();
             this.forms.forEach((k, v) -> forms.putString(k.toString(), v.name()));
             tag.put("forms", forms);
+            final CompoundTag waypoints = new CompoundTag();
+            this.waypoints.forEach((k, v) -> waypoints.put(k.toString(), v));
+            tag.put("waypoints", waypoints);
             return tag;
         }
     }

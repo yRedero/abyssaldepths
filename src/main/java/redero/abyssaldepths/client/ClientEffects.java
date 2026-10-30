@@ -32,6 +32,12 @@ public final class ClientEffects {
                 }
                 ShadeVanish.check(); // at once: until the next tick the player would be drawn as they are now
             }
+        } else if (effect.startsWith("waypoints/")) {
+            net.minecraft.client.Minecraft.getInstance().setScreen(new WaypointScreen(effect.substring("waypoints/".length())));
+        } else if (effect.equals("showcase")) {
+            net.minecraft.client.Minecraft.getInstance().setScreen(new ArtifactShowcaseScreen());
+        } else if (effect.startsWith("mirage/")) {
+            MirageClient.set(Integer.parseInt(effect.substring("mirage/".length())), payload.ticks());
         } else if (effect.startsWith("vanish_style/")) {
             ClientConfig.setShadeVanish(ClientConfig.ShadeVanishStyle.valueOf(effect.substring("vanish_style/".length())));
         } else if (effect.startsWith("shade_look/")) {

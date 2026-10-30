@@ -80,15 +80,22 @@ public class ArtifactItem extends Item {
      */
     public long ticksToNextCharge(ItemStack stack, long gameTime) {
         final Long since = stack.get(AbyssalDepths.CHARGE_TIME.get());
+        final int regenTicks = regenTicks(stack);
         if (regenTicks <= 0 || charge(stack) >= maxCharge || since == null) {
             return -1;
         }
         return Math.max(0, regenTicks - (gameTime - since));
     }
 
-    /** Regenerates the charge: one per {@link #regenTicks()} since the charge was last below its maximum. */
+    /** Ticks for one charge to come back, for this stack (an artifact's mastery may shorten it). */
+    public int regenTicks(ItemStack stack) {
+        return regenTicks;
+    }
+
+    /** Regenerates the charge: one per {@link #regenTicks(ItemStack)} since the charge was last below its maximum. */
     @Override
     public void inventoryTick(ItemStack stack, Level level, Entity entity, int slot, boolean selected) {
+        final int regenTicks = regenTicks(stack);
         if (level.isClientSide || regenTicks <= 0 || maxCharge <= 0) {
             return;
         }

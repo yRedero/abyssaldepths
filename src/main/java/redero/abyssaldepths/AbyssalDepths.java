@@ -60,7 +60,13 @@ import redero.abyssaldepths.artifact.ArtifactItem;
 import redero.abyssaldepths.artifact.ArtifactRank;
 import redero.abyssaldepths.artifact.InnerHavenItem;
 import redero.abyssaldepths.artifact.InterludeItem;
+import redero.abyssaldepths.artifact.CounterweightItem;
+import redero.abyssaldepths.artifact.MirageItem;
 import redero.abyssaldepths.artifact.OblivionItem;
+import redero.abyssaldepths.artifact.SeveranceItem;
+import redero.abyssaldepths.artifact.UndertowItem;
+import redero.abyssaldepths.entity.MirageDecoy;
+import redero.abyssaldepths.entity.UndertowEntity;
 import redero.abyssaldepths.artifact.ParallaxItem;
 import redero.abyssaldepths.artifact.RepriseItem;
 import redero.abyssaldepths.entity.AbsentBody;
@@ -220,6 +226,22 @@ public class AbyssalDepths {
     public static final DeferredItem<OblivionItem> OBLIVION = ITEMS.register("oblivion",
             () -> new OblivionItem(new Item.Properties(), ArtifactRank.PRIMORDIAL, ArtifactFrame.HOLLOW, 3, 20 * 60 * 30));
 
+    /** Opens a gravitational anomaly that draws creatures in, then bursts; 3 charges, 1 back every 5 minutes. */
+    public static final DeferredItem<UndertowItem> UNDERTOW = ITEMS.register("undertow",
+            () -> new UndertowItem(new Item.Properties(), ArtifactRank.EXALTED, ArtifactFrame.HOLLOW, 3, 20 * 60 * 5));
+
+    /** Lightens its holder while switched on (lower gravity, less fall damage); 10 charges, 1 back every 30 s. */
+    public static final DeferredItem<CounterweightItem> COUNTERWEIGHT = ITEMS.register("counterweight",
+            () -> new CounterweightItem(new Item.Properties(), ArtifactRank.GREATER, ArtifactFrame.ZENITH, 10, 20 * 30));
+
+    /** Cuts away every harmful effect; 3 charges, 1 back every 5 minutes (sooner with mastery). */
+    public static final DeferredItem<SeveranceItem> SEVERANCE = ITEMS.register("severance",
+            () -> new SeveranceItem(new Item.Properties(), ArtifactRank.LESSER, ArtifactFrame.ZENITH, 3, 20 * 60 * 5));
+
+    /** Leaves a decoy likeness that draws the creatures; 2 charges, 1 back every 3 minutes. */
+    public static final DeferredItem<MirageItem> MIRAGE = ITEMS.register("mirage",
+            () -> new MirageItem(new Item.Properties(), ArtifactRank.EXALTED, ArtifactFrame.HOLLOW, 2, 20 * 60 * 3));
+
     /** Makes its holder a shade in the shadow of this world while switched on; 10 charges, 1 used every 6 s, 1 back every minute. */
     public static final DeferredItem<ParallaxItem> PARALLAX = ITEMS.register("parallax",
             () -> new ParallaxItem(new Item.Properties(), ArtifactRank.EXALTED, ArtifactFrame.HOLLOW, 10, 20 * 60));
@@ -239,6 +261,14 @@ public class AbyssalDepths {
     public static final DeferredHolder<EntityType<?>, EntityType<AbsentBody>> ABSENT_BODY = ENTITY_TYPES.register("absent_body",
             () -> EntityType.Builder.<AbsentBody>of(AbsentBody::new, MobCategory.MISC).sized(0.6F, 1.8F).clientTrackingRange(10)
                     .build("absent_body"));
+    /** Undertow's anomaly (particles only). */
+    public static final DeferredHolder<EntityType<?>, EntityType<UndertowEntity>> UNDERTOW_ENTITY = ENTITY_TYPES.register("undertow",
+            () -> EntityType.Builder.<UndertowEntity>of(UndertowEntity::new, MobCategory.MISC).sized(0.5F, 0.5F).noSummon().clientTrackingRange(8)
+                    .build("undertow"));
+    /** Mirage's decoy: a likeness of its player. */
+    public static final DeferredHolder<EntityType<?>, EntityType<MirageDecoy>> MIRAGE_DECOY = ENTITY_TYPES.register("mirage_decoy",
+            () -> EntityType.Builder.<MirageDecoy>of(MirageDecoy::new, MobCategory.MISC).sized(0.6F, 1.8F).noSummon().clientTrackingRange(10)
+                    .build("mirage_decoy"));
     /** What a player sits on on a meditation mat (invisible). */
     public static final DeferredHolder<EntityType<?>, EntityType<Seat>> SEAT = ENTITY_TYPES.register("seat",
             () -> EntityType.Builder.<Seat>of(Seat::new, MobCategory.MISC).sized(0.01F, 0.01F).noSummon().clientTrackingRange(10)
@@ -328,7 +358,17 @@ public class AbyssalDepths {
             () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup.abyssaldepths"))
                     .icon(() -> THALAN_ITEM.get().getDefaultInstance())
-                    .displayItems((params, output) -> ITEMS.getEntries().forEach(item -> output.accept(item.get())))
+                    .displayItems((params, output) -> ITEMS.getEntries().stream().filter(item -> !(item.get() instanceof ArtifactItem))
+                            .forEach(item -> output.accept(item.get())))
+                    .build());
+    /** The artifacts, in a tab of their own (all of them carry the item tag abyssaldepths:artifacts too). */
+    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> ARTIFACTS_TAB = CREATIVE_TABS.register("artifacts",
+            () -> CreativeModeTab.builder()
+                    .title(Component.translatable("itemGroup.abyssaldepths.artifacts"))
+                    .icon(() -> INNER_HAVEN.get().getDefaultInstance())
+                    .withTabsBefore(ResourceLocation.fromNamespaceAndPath(MODID, "abyssaldepths"))
+                    .displayItems((params, output) -> ITEMS.getEntries().stream().filter(item -> item.get() instanceof ArtifactItem)
+                            .forEach(item -> output.accept(item.get())))
                     .build());
 
     private static ResourceKey<Biome> biome(String name) {
@@ -379,7 +419,10 @@ public class AbyssalDepths {
         DATA_COMPONENTS.register(modEventBus);
         ENTITY_TYPES.register(modEventBus);
         modEventBus.addListener((net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent event) ->
-                event.put(ABSENT_BODY.get(), net.minecraft.world.entity.LivingEntity.createLivingAttributes().build()));
+                {
+                    event.put(ABSENT_BODY.get(), net.minecraft.world.entity.LivingEntity.createLivingAttributes().build());
+                    event.put(MIRAGE_DECOY.get(), net.minecraft.world.entity.LivingEntity.createLivingAttributes().build());
+                });
         FEATURES.register(modEventBus);
         CREATIVE_TABS.register(modEventBus);
         MOB_EFFECTS.register(modEventBus);

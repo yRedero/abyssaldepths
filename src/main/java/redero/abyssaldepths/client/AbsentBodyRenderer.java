@@ -49,7 +49,9 @@ public class AbsentBodyRenderer extends LivingEntityRenderer<AbsentBody, PlayerM
     public void render(AbsentBody body, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
         model = skin(body).model() == PlayerSkin.Model.SLIM ? slim : wide;
         pose.pushPose();
-        pose.translate(0.0, 0.04 * Mth.sin((body.tickCount + partialTick) * 0.05F), 0.0); // a slow, faint bob
+        if (body.bobs()) {
+            pose.translate(0.0, 0.04 * Mth.sin((body.tickCount + partialTick) * 0.05F), 0.0); // a slow, faint bob
+        }
         super.render(body, yaw, partialTick, pose, buffers, light);
         pose.popPose();
     }
@@ -70,6 +72,9 @@ public class AbsentBodyRenderer extends LivingEntityRenderer<AbsentBody, PlayerM
         public static void register(EntityRenderersEvent.RegisterRenderers event) {
             event.registerEntityRenderer(AbyssalDepths.ABSENT_BODY.get(), AbsentBodyRenderer::new);
             event.registerEntityRenderer(AbyssalDepths.SEAT.get(), net.minecraft.client.renderer.entity.NoopRenderer::new); // the mat's seat: nothing to see
+            event.registerEntityRenderer(AbyssalDepths.UNDERTOW_ENTITY.get(), net.minecraft.client.renderer.entity.NoopRenderer::new); // particles only
+            // Mirage's decoy: the same likeness as the absent body
+            event.registerEntityRenderer(AbyssalDepths.MIRAGE_DECOY.get(), context -> (net.minecraft.client.renderer.entity.EntityRenderer) new AbsentBodyRenderer(context));
         }
     }
 }

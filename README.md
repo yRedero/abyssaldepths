@@ -50,6 +50,7 @@ Test commands for operators:
 /abyssaldepths vanish style <style>             (how shades vanish: pixels, ash, slide, shadow, disintegrate, dissolve, none)
 /abyssaldepths vanish play [style]              (plays it on a copy of you, three blocks ahead)
 /abyssaldepths oblivion                         (casts Oblivion around you, without charge)
+/abyssaldepths showcase                         (every artifact's tooltip, at any mastery, and Reprise's waiting signs)
 /abyssaldepths shadelook <look>                 (how shades look in the shadow: contrast, print, silhouette, inverted, none)
 ```
 

@@ -54,17 +54,11 @@ public class AbsentBody extends LivingEntity {
      */
     public static void leave(ServerPlayer player, net.minecraft.server.level.ServerLevel level, double x, double y, double z, float yaw, float pitch, float headYaw) {
         final AbsentBody body = new AbsentBody(AbyssalDepths.ABSENT_BODY.get(), level);
-        body.entityData.set(OWNER, Optional.of(player.getUUID()));
+        body.dressAs(player);
         // facing where the player's body faced, the head still where they looked: it turns straight in tick()
         body.moveTo(x, y + HOVER, z, yaw, pitch);
         body.setYHeadRot(headYaw);
         body.yBodyRot = body.yBodyRotO = yaw;
-        for (EquipmentSlot slot : EquipmentSlot.values()) {
-            if (slot.getType() != EquipmentSlot.Type.ANIMAL_ARMOR) {
-                body.setItemSlot(slot, player.getItemBySlot(slot).copy());
-            }
-        }
-        body.setCustomName(player.getName());
         level.addFreshEntity(body);
     }
 
@@ -95,7 +89,7 @@ public class AbsentBody extends LivingEntity {
             // the owner is back in this world, logged out, or gone for good: the body is no longer needed (it
             // is left again when they go into the inner self anew)
             final Player owner = owner().map(id -> level().getServer().getPlayerList().getPlayer(id)).orElse(null);
-            if (owner == null || owner.level() == level()) {
+            if (shouldVanish(owner)) {
                 discard();
             }
         }
@@ -114,7 +108,33 @@ public class AbsentBody extends LivingEntity {
 
     @Override
     public boolean hurt(DamageSource source, float amount) {
-        return source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_INVULNERABILITY) && super.hurt(source, amount); // only /kill and the void
+        return vulnerableTo(source) && super.hurt(source, amount);
+    }
+
+    /** What can hurt it: only /kill and the void. */
+    protected boolean vulnerableTo(DamageSource source) {
+        return source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_INVULNERABILITY);
+    }
+
+    /** Whether it is no longer needed, with its owner online (or null): back in its world, or gone. */
+    protected boolean shouldVanish(Player owner) {
+        return owner == null || owner.level() == level();
+    }
+
+    /** Whether it floats with a faint bob (drawn so). */
+    public boolean bobs() {
+        return true;
+    }
+
+    /** Makes it look like the player: their equipment (copies, for show), name and owner. */
+    protected void dressAs(Player player) {
+        entityData.set(OWNER, Optional.of(player.getUUID()));
+        for (EquipmentSlot slot : EquipmentSlot.values()) {
+            if (slot.getType() != EquipmentSlot.Type.ANIMAL_ARMOR) {
+                setItemSlot(slot, player.getItemBySlot(slot).copy());
+            }
+        }
+        setCustomName(player.getName());
     }
 
     @Override

@@ -52,7 +52,7 @@ public final class AutoShot {
     private static final String SPOT_COMMANDS = System.getProperty("abyssaldepths.autoshot.spotCommands", "");
     private static final int SETTLE_TICKS = 220, TURN_TICKS = 15;
 
-    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, VANISH, OBLIVION, DONE }
+    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, VANISH, OBLIVION, NEWARTIFACTS, DONE }
 
     private static Step step = Step.TITLE;
     private static final Deque<String> BIOMES = new ArrayDeque<>();
@@ -142,6 +142,14 @@ public final class AutoShot {
                 }
                 spotsDone++;
                 biome = BIOMES.poll();
+                if (biome != null && biome.startsWith("newartifacts#")) {
+                    // not a place: Undertow, Counterweight, Severance, Mirage used and checked ("artifact check" lines)
+                    if (biome.endsWith("#0")) {
+                        wait = 0;
+                        step = Step.NEWARTIFACTS;
+                    }
+                    return;
+                }
                 if (biome != null && biome.startsWith("oblivion#")) {
                     // not a place: Oblivion sends creatures away, the strong for less ("oblivion check" lines)
                     if (biome.endsWith("#0")) {
@@ -255,6 +263,87 @@ public final class AutoShot {
                 }
                 if (wait > 70 && wait < 120) {
                     command(server, "tp @s ~-0.3 ~ ~"); // walk sideways: the afterimages trail behind
+                }
+            }
+            case NEWARTIFACTS -> {
+                final MinecraftServer server = mc.getSingleplayerServer();
+                final int t = ++wait;
+                if (t == 1) {
+                    command(server, "tp @s ~ ~40 ~ 0 20");
+                    command(server, "gamemode survival");
+                    command(server, "effect give @s resistance 600 4 true");
+                } else if (t == 8) {
+                    command(server, "fill ~-8 ~-1 ~-2 ~8 ~-1 ~16 stone");
+                } else if (t == 12) {
+                    for (int i = 0; i < 3; i++) {
+                        command(server, "summon zombie ~" + (i * 3 - 3) + " ~ ~10 {PersistenceRequired:1b,Tags:[\"undertow_test\"],ArmorItems:[{},{},{},{id:\"leather_helmet\",count:1}]}");
+                    }
+                } else if (t == 20) {
+                    server.execute(() -> {
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        final redero.abyssaldepths.entity.UndertowEntity anomaly = new redero.abyssaldepths.entity.UndertowEntity(AbyssalDepths.UNDERTOW_ENTITY.get(), p.serverLevel());
+                        anomaly.moveTo(p.getX(), p.getY() + 1.0, p.getZ() + 6.0);
+                        anomaly.start(p, 60, 10.0F);
+                        p.serverLevel().addFreshEntity(anomaly);
+                        artifactCheck(server, "undertow before", e -> e.getTags().contains("undertow_test"), p.position().add(0, 1, 6));
+                    });
+                } else if (t == 50) {
+                    shoot(mc, "newartifacts_0_dir0"); // pulling
+                    server.execute(() -> artifactCheck(server, "undertow pulling", e -> e.getTags().contains("undertow_test"),
+                            server.getPlayerList().getPlayers().get(0).position().add(0, 1, 6)));
+                } else if (t == 85) {
+                    server.execute(() -> artifactCheck(server, "undertow after the burst", e -> e.getTags().contains("undertow_test"),
+                            server.getPlayerList().getPlayers().get(0).position().add(0, 1, 6)));
+                    command(server, "kill @e[tag=undertow_test]");
+                } else if (t == 90) {
+                    command(server, "give @s abyssaldepths:counterweight[abyssaldepths:artifact_active=true]");
+                } else if (t == 100) {
+                    server.execute(() -> AbyssalDepths.LOGGER.info("artifact check counterweight: gravity {}",
+                            server.getPlayerList().getPlayers().get(0).getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.GRAVITY)));
+                    command(server, "clear @s abyssaldepths:counterweight");
+                } else if (t == 105) {
+                    command(server, "effect give @s poison 60 1");
+                    command(server, "effect give @s speed 60 1");
+                } else if (t == 110) {
+                    server.execute(() -> {
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        final net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(AbyssalDepths.SEVERANCE.get());
+                        redero.abyssaldepths.artifact.ArtifactItem.setMastery(stack, 100);
+                        AbyssalDepths.SEVERANCE.get().setCharge(stack, 3);
+                        p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, stack);
+                        stack.use(p.serverLevel(), p, net.minecraft.world.InteractionHand.MAIN_HAND);
+                        p.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.WEAKNESS, 600)); // immune now
+                        AbyssalDepths.LOGGER.info("artifact check severance: effects after {}", p.getActiveEffects().stream()
+                                .map(e -> e.getEffect().getRegisteredName()).toList());
+                        p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.item.ItemStack.EMPTY);
+                    });
+                } else if (t == 120) {
+                    command(server, "summon zombie ~2 ~ ~10 {PersistenceRequired:1b,Tags:[\"mirage_test\"]}");
+                } else if (t == 160) {
+                    server.execute(() -> {
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        final net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(AbyssalDepths.MIRAGE.get());
+                        AbyssalDepths.MIRAGE.get().setCharge(stack, 2);
+                        p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, stack);
+                        stack.use(p.serverLevel(), p, net.minecraft.world.InteractionHand.MAIN_HAND);
+                        p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.item.ItemStack.EMPTY);
+                    });
+                    command(server, "tp @s ~4 ~ ~");
+                    mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+                } else if (t == 190) {
+                    shoot(mc, "newartifacts_0_dir1"); // the decoy, the purple player
+                    server.execute(() -> {
+                        for (net.minecraft.world.entity.Entity e : server.getPlayerList().getPlayers().get(0).serverLevel().getAllEntities()) {
+                            if (e.getTags().contains("mirage_test") && e instanceof net.minecraft.world.entity.Mob mob) {
+                                AbyssalDepths.LOGGER.info("artifact check mirage: zombie targets {}", mob.getTarget() == null ? "nothing" : mob.getTarget().getType().toShortString());
+                            }
+                        }
+                    });
+                } else if (t == 200) {
+                    mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+                    command(server, "kill @e[tag=mirage_test]");
+                    command(server, "gamemode spectator");
+                    step = Step.NEXT;
                 }
             }
             case OBLIVION -> {
@@ -477,7 +566,17 @@ public final class AutoShot {
                 // three shots a quarter second apart: animations (the title shimmer) show in the difference
                 if (++wait == 20 || wait == 25 || wait == 30) {
                     Screenshot.grab(mc.gameDirectory, "autoshot_artifacts_0_dir" + (wait - 20) / 5 + ".png", mc.getMainRenderTarget(), msg -> { });
-                } else if (wait > 35) {
+                } else if (wait >= 32 && wait < 72 && (wait - 32) % 10 == 0) {
+                    // the showcase, the new artifacts at full mastery
+                    final String id = new String[] {"undertow", "counterweight", "severance", "mirage"}[(wait - 32) / 10];
+                    mc.setScreen(new redero.abyssaldepths.client.ArtifactShowcaseScreen().show(id, 100));
+                } else if (wait >= 32 && wait < 72 && (wait - 32) % 10 == 6) {
+                    Screenshot.grab(mc.gameDirectory, "autoshot_showcase_0_dir" + (wait - 32) / 10 + ".png", mc.getMainRenderTarget(), msg -> { });
+                } else if (wait == 75) {
+                    mc.setScreen(new redero.abyssaldepths.client.WaypointScreen("minecraft:overworld|120|64|-35|42;minecraft:the_nether|8|70|-2|900;abyssaldepths:inner_self|0|64|0|7300"));
+                } else if (wait == 81) {
+                    Screenshot.grab(mc.gameDirectory, "autoshot_showcase_1_dir0.png", mc.getMainRenderTarget(), msg -> { });
+                } else if (wait > 85) {
                     mc.setScreen(null);
                     step = Step.NEXT;
                 }
@@ -522,6 +621,18 @@ public final class AutoShot {
     private static void command(MinecraftServer server, String command) {
         server.execute(() -> server.getCommands().performPrefixedCommand(
                 server.getPlayerList().getPlayers().get(0).createCommandSourceStack().withPermission(4), command));
+    }
+
+    /** Logs distance to a point and health of the test's creatures. */
+    private static void artifactCheck(MinecraftServer server, String when, java.util.function.Predicate<net.minecraft.world.entity.Entity> which,
+            net.minecraft.world.phys.Vec3 centre) {
+        final StringBuilder out = new StringBuilder();
+        for (net.minecraft.world.entity.Entity e : server.getPlayerList().getPlayers().get(0).serverLevel().getAllEntities()) {
+            if (which.test(e) && e instanceof net.minecraft.world.entity.LivingEntity living) {
+                out.append(String.format("%.1f blocks, %.0f hp; ", living.position().distanceTo(centre), living.getHealth()));
+            }
+        }
+        AbyssalDepths.LOGGER.info("artifact check {}: {}", when, out);
     }
 
     /** Logs which of the Oblivion test's creatures are in the shadow. */
