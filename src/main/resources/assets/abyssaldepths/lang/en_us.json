@@ -29,6 +29,8 @@
   "abyssaldepths.config.shade_vanish": "Shade vanishing",
   "abyssaldepths.config.silence_music": "No music in the layer",
   "abyssaldepths.config.thermal_scan_chunks": "Thermal scan radius (chunks)",
+  "abyssaldepths.config.undertow_burst": "Undertow burst",
+  "abyssaldepths.config.waypoint_mark": "Inner Haven place marks",
   "abyssaldepths.configuration.title": "Abyssal Depths",
   "abyssaldepths.counterweight.no_charge": "Counterweight has no charge left",
   "abyssaldepths.inner_haven.no_charge": "Inner Haven needs %s charges",

@@ -52,7 +52,7 @@ public final class UndertowClient {
     private static final float CELL = 0.25F;
     private static final int FLASH_BLOCK = 12;
 
-    private record Burst(Vec3 pos, float size, long start, int seed) {
+    private record Burst(Vec3 pos, float size, long start, int seed, redero.abyssaldepths.ClientConfig.UndertowBurst style) {
     }
 
     private static final List<Burst> BURSTS = new ArrayList<>();
@@ -74,7 +74,7 @@ public final class UndertowClient {
     /** The burst: its look, and a flash for those close by. */
     public static void burst(Vec3 pos, float size) {
         silentUntil = 0; // the burst itself is heard
-        BURSTS.add(new Burst(pos, size, Util.getMillis(), seeds++));
+        BURSTS.add(new Burst(pos, size, Util.getMillis(), seeds++, redero.abyssaldepths.ClientConfig.undertowBurst()));
         final Minecraft mc = Minecraft.getInstance();
         if (mc.player != null) {
             final double d = mc.player.getEyePosition().distanceTo(pos);
@@ -151,14 +151,32 @@ public final class UndertowClient {
             pose.translate(burst.pos().x - cam.x, burst.pos().y - cam.y, burst.pos().z - cam.z);
             final Matrix4f m = pose.last().pose();
             final float s = burst.size();
-            if (t < 0.45F) { // the flash: a ball of pixels swelling, breaking up as it goes
-                flashBall(quads, m, burst, t / 0.45F, right, up);
+            switch (burst.style()) {
+                case PIXELS -> {
+                    if (t < 0.45F) { // the flash: a ball of pixels swelling, breaking up as it goes
+                        flashBall(quads, m, burst, t / 0.45F, right, up);
+                    }
+                    if (t < 1.0F) { // the shockwave: a ring of grid cells racing out along the ground
+                        final float r = s * 9.0F * (1.0F - (1.0F - t) * (1.0F - t));
+                        shockwave(quads, m, burst, r, Math.max(CELL, 1.0F * (1.0F - t)), t);
+                    }
+                    debris(quads, m, burst, t * BURST_MILLIS / 1000.0F, right, up);
+                }
+                case SHATTER -> shatter(quads, m, burst, t * BURST_MILLIS / 1000.0F, right, up);
+                case RINGS -> {
+                    for (int k = 0; k < 3; k++) { // three shockwaves, one after another
+                        final float tk = t - k * 0.18F;
+                        if (tk > 0.0F && tk < 1.0F) {
+                            shockwave(quads, m, burst, s * (5.0F + 2.5F * k) * (1.0F - (1.0F - tk) * (1.0F - tk)), CELL * (2 - k * 0.5F), tk);
+                        }
+                    }
+                    if (t < 0.6F) { // and a ring standing up, facing the camera
+                        standingRing(quads, m, burst, s * 4.0F * t / 0.6F, t / 0.6F, right, up);
+                    }
+                }
+                case STARBURST -> starburst(quads, m, burst, t, right, up);
+                case VOID -> voidBall(quads, m, burst, t, right, up);
             }
-            if (t < 1.0F) { // the shockwave: a ring of grid cells racing out along the ground
-                final float r = s * 9.0F * (1.0F - (1.0F - t) * (1.0F - t));
-                shockwave(quads, m, burst, r, Math.max(CELL, 1.0F * (1.0F - t)), t);
-            }
-            debris(quads, m, burst, t * BURST_MILLIS / 1000.0F, right, up);
             pose.popPose();
         }
         buffers.endBatch(RenderType.debugQuads());
@@ -180,6 +198,100 @@ public final class UndertowClient {
                 final float depth = (r - d) / Math.max(CELL, width); // 0 at the front .. 1 behind
                 final int rgb = UndertowRenderer.STEPS[depth < 0.34F ? 3 : depth < 0.67F ? 2 : 1];
                 cell(quads, m, x, z, CELL / 2, 0xFF000000 | rgb);
+            }
+        }
+    }
+
+    /** Big square shards flung out, tumbling (turning about their own axes), falling. */
+    private static void shatter(VertexConsumer quads, Matrix4f m, Burst burst, float seconds, Vector3f right, Vector3f up) {
+        final java.util.Random random = new java.util.Random(burst.seed() * 31L);
+        for (int i = 0; i < 28; i++) {
+            final double yawAngle = random.nextDouble() * Math.PI * 2, pitch = random.nextDouble() * Math.PI * 0.4;
+            final float speed = (3.0F + random.nextFloat() * 5.0F) * burst.size(), life = 0.8F + random.nextFloat() * 0.8F;
+            final float size = (0.15F + random.nextFloat() * 0.18F) * burst.size(), spin = 4.0F + random.nextFloat() * 8.0F;
+            final int rgb = DEBRIS[1 + random.nextInt(DEBRIS.length - 1)];
+            if (seconds > life) {
+                continue;
+            }
+            final float x = (float) (Math.cos(yawAngle) * Math.cos(pitch)) * speed * seconds;
+            final float z = (float) (Math.sin(yawAngle) * Math.cos(pitch)) * speed * seconds;
+            final float y = 0.3F + (float) Math.sin(pitch) * speed * seconds - 5.0F * seconds * seconds;
+            final float turn = spin * seconds; // tumbling: the square's corners turn round its centre
+            final float c = Mth.cos(turn) * size, sn = Mth.sin(turn) * size;
+            final Vector3f a = new Vector3f(right).mul(c).add(new Vector3f(up).mul(sn)), b = new Vector3f(up).mul(c).sub(new Vector3f(right).mul(sn));
+            final int argb = 0xFF000000 | rgb;
+            quads.addVertex(m, x - a.x - b.x, y - a.y - b.y, z - a.z - b.z).setColor(argb);
+            quads.addVertex(m, x + a.x - b.x, y + a.y - b.y, z + a.z - b.z).setColor(argb);
+            quads.addVertex(m, x + a.x + b.x, y + a.y + b.y, z + a.z + b.z).setColor(argb);
+            quads.addVertex(m, x - a.x + b.x, y - a.y + b.y, z - a.z + b.z).setColor(argb);
+        }
+        if (seconds < 0.15F) { // a short white cross of pixels at the heart
+            for (int k = -3; k <= 3; k++) {
+                billboard(quads, m, right.x() * k * 0.2F, 0.3F + right.y() * k * 0.2F, right.z() * k * 0.2F, right, up, 0.1F, 0xFFFFF0FF);
+                billboard(quads, m, up.x() * k * 0.2F, 0.3F + up.y() * k * 0.2F, up.z() * k * 0.2F, right, up, 0.1F, 0xFFFFF0FF);
+            }
+        }
+    }
+
+    /** A ring of pixels standing up, facing the camera, widening and breaking up. */
+    private static void standingRing(VertexConsumer quads, Matrix4f m, Burst burst, float r, float t, Vector3f right, Vector3f up) {
+        final int count = Math.max(12, (int) (r * Mth.TWO_PI / 0.2F));
+        for (int i = 0; i < count; i++) {
+            if (UndertowRenderer.noise(i * 11 + burst.seed(), (int) (t * 10)) < t * 0.8F) {
+                continue;
+            }
+            final float a = i * Mth.TWO_PI / count, c = Mth.cos(a) * r, sn = Mth.sin(a) * r;
+            billboard(quads, m, right.x() * c + up.x() * sn, 0.3F + right.y() * c + up.y() * sn, right.z() * c + up.z() * sn, right, up, 0.09F,
+                    0xFF000000 | UndertowRenderer.STEPS[3 - (int) (t * 3.5F)]);
+        }
+    }
+
+    /** Rays of pixels shooting out in every direction, blinking off along their length. */
+    private static void starburst(VertexConsumer quads, Matrix4f m, Burst burst, float t, Vector3f right, Vector3f up) {
+        if (t > 1.0F) {
+            return;
+        }
+        final java.util.Random random = new java.util.Random(burst.seed() * 131L);
+        final float reach = burst.size() * 7.0F * (1.0F - (1.0F - t) * (1.0F - t));
+        for (int ray = 0; ray < 18; ray++) {
+            final double yawAngle = random.nextDouble() * Math.PI * 2, pitch = (random.nextDouble() - 0.3) * Math.PI * 0.8;
+            final float dx = (float) (Math.cos(yawAngle) * Math.cos(pitch)), dy = (float) Math.sin(pitch), dz = (float) (Math.sin(yawAngle) * Math.cos(pitch));
+            for (float d = 0.2F; d < reach; d += 0.22F) {
+                if (UndertowRenderer.noise(ray * 97 + (int) (d * 10), (int) (t * 14)) < t * (d / reach) * 1.4F) {
+                    continue; // going out from the tip back
+                }
+                final int rgb = UndertowRenderer.STEPS[d > reach - 0.5F ? 3 : d > reach * 0.5F ? 2 : 1];
+                billboard(quads, m, dx * d, 0.3F + dy * d, dz * d, right, up, 0.07F, 0xFF000000 | rgb);
+            }
+        }
+    }
+
+    /** A black ball of pixels with a white rim swelling, then falling back into nothing, debris drawn in. */
+    private static void voidBall(VertexConsumer quads, Matrix4f m, Burst burst, float t, Vector3f right, Vector3f up) {
+        if (t > 1.2F) {
+            return;
+        }
+        final float swell = t < 0.5F ? (1.0F - (1.0F - t / 0.5F) * (1.0F - t / 0.5F)) : Math.max(0.0F, 1.0F - (t - 0.5F) / 0.7F);
+        final float radius = burst.size() * 3.0F * swell, px = 0.18F * burst.size();
+        final int n = (int) Math.ceil(radius / px);
+        for (int j = -n; j <= n; j++) {
+            for (int i = -n; i <= n; i++) {
+                final float a = (i + 0.5F) * px, b = (j + 0.5F) * px, d = Mth.sqrt(a * a + b * b);
+                if (d > radius) {
+                    continue;
+                }
+                final int rgb = d > radius - px * 1.2F ? UndertowRenderer.STEPS[3] : d > radius - px * 2.2F ? UndertowRenderer.STEPS[1] : 0x000000;
+                billboard(quads, m, right.x() * a + up.x() * b, 0.3F + right.y() * a + up.y() * b, right.z() * a + up.z() * b, right, up, px / 2,
+                        0xFF000000 | rgb);
+            }
+        }
+        if (t > 0.5F) { // the dark falling back in, pulling pixels with it
+            final java.util.Random random = new java.util.Random(burst.seed() * 17L);
+            for (int i = 0; i < 40; i++) {
+                final double yawAngle = random.nextDouble() * Math.PI * 2, pitch = (random.nextDouble() - 0.5) * Math.PI;
+                final float from = burst.size() * (3.5F + random.nextFloat() * 3.0F), d = from * Math.max(0.0F, 1.0F - (t - 0.5F) / 0.6F);
+                billboard(quads, m, (float) (Math.cos(yawAngle) * Math.cos(pitch)) * d, 0.3F + (float) Math.sin(pitch) * d,
+                        (float) (Math.sin(yawAngle) * Math.cos(pitch)) * d, right, up, 0.06F, 0xFF000000 | DEBRIS[1 + random.nextInt(DEBRIS.length - 1)]);
             }
         }
     }

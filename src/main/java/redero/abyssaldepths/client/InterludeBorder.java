@@ -44,11 +44,14 @@ public final class InterludeBorder {
         if (s <= 0.01F || ClientConfig.interludeOverlay() == ClientConfig.InterludeOverlay.NONE) {
             return;
         }
-        if (ClientConfig.interludeOverlay() == ClientConfig.InterludeOverlay.TINT) {
-            // a soft violet over everything, breathing a little
+        final ClientConfig.InterludeOverlay overlay = ClientConfig.interludeOverlay();
+        if (overlay == ClientConfig.InterludeOverlay.TINT || overlay == ClientConfig.InterludeOverlay.BOTH) {
+            // a violet over everything, breathing a little
             final float breath = 0.85F + 0.15F * Mth.sin(Util.getMillis() / 1600.0F * Mth.TWO_PI);
-            g.fill(0, 0, g.guiWidth(), g.guiHeight(), (int) (s * breath * 0x30) << 24 | 0x5A2A9A);
-            return;
+            g.fill(0, 0, g.guiWidth(), g.guiHeight(), (int) (s * breath * 0x58) << 24 | 0x5A2A9A);
+            if (overlay == ClientConfig.InterludeOverlay.TINT) {
+                return;
+            }
         }
         final float time = Util.getMillis() / 1000.0F;
         final int cols = (g.guiWidth() + CELL - 1) / CELL, rows = (g.guiHeight() + CELL - 1) / CELL;

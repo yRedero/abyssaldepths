@@ -73,6 +73,7 @@ public final class LayerCommands {
                 .then(Commands.literal("vanish").then(vanishStyle).then(vanishPlay))
                 .then(shadeLook)
                 .then(Commands.literal("showcase").executes(c -> send(c, "showcase")))
+                .then(styles())
                 .then(Commands.literal("oblivion").executes(c -> {
                     final java.util.List<String> sent = redero.abyssaldepths.artifact.OblivionItem.cast(c.getSource().getPlayerOrException());
                     c.getSource().sendSuccess(() -> Component.literal("Oblivion: sent " + sent.size() + " into the shadow " + sent), false);
@@ -124,6 +125,19 @@ public final class LayerCommands {
     }
 
     /** Crosses into the inner self or back, as if Inner Haven had been used (no charge needed). */
+    /** {@code /abyssaldepths style mark|burst <name>}: sets that client option of the one using it. */
+    private static LiteralArgumentBuilder<CommandSourceStack> styles() {
+        final LiteralArgumentBuilder<CommandSourceStack> style = Commands.literal("style");
+        final LiteralArgumentBuilder<CommandSourceStack> mark = Commands.literal("mark"), burst = Commands.literal("burst");
+        for (ClientConfig.WaypointMark value : ClientConfig.WaypointMark.values()) {
+            mark.then(Commands.literal(value.name().toLowerCase(java.util.Locale.ROOT)).executes(c -> send(c, "style/mark/" + value.name())));
+        }
+        for (ClientConfig.UndertowBurst value : ClientConfig.UndertowBurst.values()) {
+            burst.then(Commands.literal(value.name().toLowerCase(java.util.Locale.ROOT)).executes(c -> send(c, "style/burst/" + value.name())));
+        }
+        return style.then(mark).then(burst);
+    }
+
     private static int form(CommandContext<CommandSourceStack> context, InnerSelf.Form form) throws CommandSyntaxException {
         InnerSelf.setForm(context.getSource().getPlayerOrException(), form);
         context.getSource().sendSuccess(() -> Component.literal("Inner self: " + form.name().toLowerCase(java.util.Locale.ROOT)), false);

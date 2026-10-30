@@ -36,6 +36,11 @@ public final class ClientEffects {
             net.minecraft.client.Minecraft.getInstance().setScreen(new WaypointScreen(effect.substring("waypoints/".length())));
         } else if (effect.equals("showcase")) {
             net.minecraft.client.Minecraft.getInstance().setScreen(new ArtifactShowcaseScreen());
+        } else if (effect.startsWith("style/")) {
+            final String[] parts = effect.split("/");
+            if (parts.length == 3) {
+                ClientConfig.setStyle(parts[1], parts[2]);
+            }
         } else if (effect.startsWith("mirage/")) {
             MirageClient.set(Integer.parseInt(effect.substring("mirage/".length())), payload.ticks());
         } else if (effect.startsWith("vanish_style/")) {

@@ -165,18 +165,24 @@ public final class RepriseCover {
     }
 
     /**
-     * A square border of crimson pixels with a snake running round it: it grows until its head meets its
-     * tail and the border is whole for a moment (lit up), then lets go of its tail and shrinks again.
+     * A square border of crimson pixels with a snake running round it, clockwise: its head races ahead until
+     * it meets its tail and the border is whole for a moment (lit up), then the tail races after the head
+     * until the snake is short again. Head and tail only ever go forward: it goes round and round.
      */
     private static void square(GuiGraphics g, int x, int y, float time) {
         final int side = 7, size = 5, gap = 1, cells = 4 * (side - 1);
-        final float head = time * 0.45F % cells;
-        final float wave = 0.5F - 0.5F * Mth.cos(time * 0.09F); // 0 .. 1 .. 0, about every 3.5 seconds
-        final float length = 3.0F + (cells - 3.0F) * Math.min(1.0F, wave * 1.15F); // whole for a moment at the top
+        final float period = 80.0F, base = 0.25F; // ticks per cycle; the steady crawl of both ends
+        final int cycle = (int) Math.floor(time / period);
+        final float c = time / period - cycle;
+        // the head grows the snake in the first 40 % of a cycle, the tail shrinks it in 50 % .. 90 %
+        final float grown = cycle + smooth(Mth.clamp(c / 0.4F, 0.0F, 1.0F)), shrunk = cycle + smooth(Mth.clamp((c - 0.5F) / 0.4F, 0.0F, 1.0F));
+        final float stretch = cells - 3.0F;
+        final float head = time * base + 3.0F + stretch * grown, tail = time * base + stretch * shrunk;
+        final float length = head - tail;
         final boolean closed = length >= cells - 0.01F;
         final int origin = -(side * (size + gap) - gap) / 2;
         for (int i = 0; i < cells; i++) {
-            final float behind = (head - i + cells) % cells; // 0 = the head
+            final float behind = ((head - i) % cells + cells) % cells; // 0 = the head
             if (!closed && behind > length) {
                 continue;
             }
@@ -185,6 +191,10 @@ public final class RepriseCover {
             final int px = x + origin + at[0] * (size + gap), py = y + origin + at[1] * (size + gap);
             g.fill(px, py, px + size, py + size, (int) (light * 255) << 24 | (CRIMSON & 0xFFFFFF));
         }
+    }
+
+    private static float smooth(float t) {
+        return t * t * (3 - 2 * t);
     }
 
     /** The cell of the border at a place along it (clockwise from the top left corner). */

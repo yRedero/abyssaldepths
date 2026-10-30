@@ -52,7 +52,7 @@ public final class AutoShot {
     private static final String SPOT_COMMANDS = System.getProperty("abyssaldepths.autoshot.spotCommands", "");
     private static final int SETTLE_TICKS = 220, TURN_TICKS = 15;
 
-    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, VANISH, OBLIVION, NEWARTIFACTS, DONE }
+    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, VANISH, OBLIVION, NEWARTIFACTS, VARIANTS, DONE }
 
     private static Step step = Step.TITLE;
     private static final Deque<String> BIOMES = new ArrayDeque<>();
@@ -142,6 +142,14 @@ public final class AutoShot {
                 }
                 spotsDone++;
                 biome = BIOMES.poll();
+                if (biome != null && biome.startsWith("variants#")) {
+                    // not a place: every style of Inner Haven's place marks, then of Undertow's burst
+                    if (biome.endsWith("#0")) {
+                        wait = 0;
+                        step = Step.VARIANTS;
+                    }
+                    return;
+                }
                 if (biome != null && biome.startsWith("newartifacts#")) {
                     // not a place: Undertow, Counterweight, Severance, Mirage used and checked ("artifact check" lines)
                     if (biome.endsWith("#0")) {
@@ -263,6 +271,38 @@ public final class AutoShot {
                 }
                 if (wait > 70 && wait < 120) {
                     command(server, "tp @s ~-0.3 ~ ~"); // walk sideways: the afterimages trail behind
+                }
+            }
+            case VARIANTS -> {
+                final MinecraftServer server = mc.getSingleplayerServer();
+                final int t = ++wait;
+                final net.minecraft.world.phys.Vec3 ahead = mc.player.position().add(0, 0, 4);
+                if (t == 1) {
+                    command(server, "tp @s ~ ~40 ~ 0 35");
+                    command(server, "give @s abyssaldepths:inner_haven[abyssaldepths:mastery=100]");
+                } else if (t == 8) {
+                    command(server, "fill ~-6 ~-1 ~-2 ~6 ~-1 ~12 stone");
+                } else if (t == 14) {
+                    redero.abyssaldepths.client.WaypointMarks.set(mc.level.dimension().location() + "|" + ahead.x + "|" + ahead.y + "|" + ahead.z);
+                } else if (t >= 20 && t < 60 && (t - 20) % 10 == 0) {
+                    redero.abyssaldepths.ClientConfig.setStyle("mark", redero.abyssaldepths.ClientConfig.WaypointMark.values()[(t - 20) / 10].name());
+                } else if (t >= 20 && t < 60 && (t - 20) % 10 == 8) {
+                    shoot(mc, "variants_0_dir" + (t - 20) / 10);
+                } else if (t == 62) {
+                    redero.abyssaldepths.client.WaypointMarks.set("");
+                    mc.player.setXRot(15.0F);
+                } else if (t >= 70 && t < 170 && (t - 70) % 20 == 0) {
+                    redero.abyssaldepths.ClientConfig.setStyle("burst", redero.abyssaldepths.ClientConfig.UndertowBurst.values()[(t - 70) / 20].name());
+                } else if (t >= 70 && t < 170 && (t - 70) % 20 == 2) {
+                    redero.abyssaldepths.client.UndertowClient.burst(ahead.add(0, 1, 2), 1.0F);
+                } else if (t >= 70 && t < 170 && (t - 70) % 20 == 7) {
+                    shoot(mc, "variants_" + (1 + (t - 70) / 20) + "_dir0");
+                } else if (t >= 70 && t < 170 && (t - 70) % 20 == 13) {
+                    shoot(mc, "variants_" + (1 + (t - 70) / 20) + "_dir1");
+                } else if (t == 175) {
+                    redero.abyssaldepths.ClientConfig.setStyle("burst", "PIXELS");
+                    redero.abyssaldepths.ClientConfig.setStyle("mark", "SIGIL");
+                    step = Step.NEXT;
                 }
             }
             case NEWARTIFACTS -> {

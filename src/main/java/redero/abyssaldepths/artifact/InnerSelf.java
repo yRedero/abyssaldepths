@@ -444,7 +444,7 @@ public final class InnerSelf {
         final Map<UUID, Integer> islands = new HashMap<>();
 
         Form form(UUID player) {
-            return forms.getOrDefault(player, Form.ROOM);
+            return forms.getOrDefault(player, Form.ISLANDS);
         }
 
         static Rooms get(MinecraftServer server) {

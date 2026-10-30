@@ -38,25 +38,29 @@ public final class UndertowRenderer extends EntityRenderer<UndertowEntity> {
         final float age = anomaly.tickCount + partialTick, life = anomaly.lifetime();
         final float grow = Mth.clamp(age / (life * 0.6F), 0.0F, 1.0F);
         final float collapse = Mth.clamp((life - age) / UndertowEntity.COLLAPSE_TICKS, 0.0F, 1.0F); // 1 until the collapse, then to 0
-        final float scale = anomaly.size() * collapse * collapse;
-        final float sphere = (0.25F + 0.95F * grow) * scale;
+        final float shrink = collapse * collapse; // the collapse shrinks it whole (no pixels popping)
+        final float sphere = (0.25F + 0.95F * grow) * anomaly.size();
         final int frame = (int) (age / 2); // the pixels change every other tick, not smoothly
         final VertexConsumer quads = buffers.getBuffer(RenderType.debugQuads());
         pose.pushPose();
         pose.translate(0, 0.25, 0);
-        if (sphere > PX * 0.5F) {
-            // the accretion ring, lying tilted, turning in steps
+        if (shrink > 0.01F) {
+            // the accretion ring, lying tilted, turning
             pose.pushPose();
+            pose.scale(shrink, shrink, shrink);
             pose.mulPose(Axis.XP.rotationDegrees(68.0F));
-            pose.mulPose(Axis.ZP.rotationDegrees((frame * 9) % 360));
+            pose.mulPose(Axis.ZP.rotationDegrees(age * 4.5F % 360));
             ring(quads, pose.last().pose(), sphere * 1.4F, sphere * 2.6F, frame);
             pose.popPose();
         }
         // the sphere: a round grid facing the eye
         pose.pushPose();
         pose.mulPose(entityRenderDispatcher.cameraOrientation());
-        if (sphere > PX * 0.5F) {
+        if (shrink > 0.01F) {
+            pose.pushPose();
+            pose.scale(shrink, shrink, shrink);
             disc(quads, pose.last().pose(), sphere, frame);
+            pose.popPose();
         }
         if (collapse < 1.0F) { // a plus of white pixels blazing as all falls into it
             final int arm = 1 + (int) ((1.0F - collapse) * 3);

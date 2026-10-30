@@ -57,9 +57,9 @@ public final class ClientConfig {
             .translation("abyssaldepths.config.afterimages")
             .define("afterimages", true);
     private static final ModConfigSpec.EnumValue<InterludeOverlay> INTERLUDE_OVERLAY = BUILDER
-            .comment("What its holder sees while Interlude runs: TINT (a soft violet tint), BORDER (a ragged pixel frame), NONE.")
+            .comment("What its holder sees while Interlude runs: BOTH (a violet tint and a ragged pixel frame), TINT, BORDER, NONE.")
             .translation("abyssaldepths.config.interlude_overlay")
-            .defineEnum("interludeOverlay", InterludeOverlay.TINT);
+            .defineEnum("interludeOverlay", InterludeOverlay.BOTH);
     private static final ModConfigSpec.BooleanValue INTERLUDE_PARTICLES = BUILDER
             .comment("Particles in an Interlude field slow down too.")
             .translation("abyssaldepths.config.interlude_particles")
@@ -83,6 +83,16 @@ public final class ClientConfig {
                     "square that closes on itself), CLOCK (sweeping backwards), CLOCK_TICKING (jumping back mark by mark).")
             .translation("abyssaldepths.config.reprise_wait")
             .defineEnum("repriseWait", RepriseWait.CIRCLE);
+    private static final ModConfigSpec.EnumValue<WaypointMark> WAYPOINT_MARK = BUILDER
+            .comment("How Inner Haven's remembered places are marked on the ground: SIGIL (turning rings), BEACON (a column of",
+                    "rising pixels), RUNES (a ring of glyphs lighting up in turn), RIFT (a dark tear with pixels spiralling in).")
+            .translation("abyssaldepths.config.waypoint_mark")
+            .defineEnum("waypointMark", WaypointMark.SIGIL);
+    private static final ModConfigSpec.EnumValue<UndertowBurst> UNDERTOW_BURST = BUILDER
+            .comment("Undertow's burst: PIXELS (a pixel ball, a shockwave, debris), SHATTER (big shards tumbling out), RINGS",
+                    "(shockwaves one after another), STARBURST (rays of pixels), VOID (a black ball swelling and falling back).")
+            .translation("abyssaldepths.config.undertow_burst")
+            .defineEnum("undertowBurst", UndertowBurst.PIXELS);
     private static final ModConfigSpec.IntValue PARALLAX_SPOTS = BUILDER
             .comment("How many black spots open on the screen when crossing into the shadow (Parallax).")
             .translation("abyssaldepths.config.parallax_spots")
@@ -111,7 +121,13 @@ public final class ClientConfig {
     public static final ModConfigSpec SPEC = BUILDER.build();
 
     /** Interlude's screen effect. */
-    public enum InterludeOverlay { TINT, BORDER, NONE }
+    public enum InterludeOverlay { BOTH, TINT, BORDER, NONE }
+
+    /** The marks of Inner Haven's remembered places. */
+    public enum WaypointMark { SIGIL, BEACON, RUNES, RIFT }
+
+    /** Undertow's burst. */
+    public enum UndertowBurst { PIXELS, SHATTER, RINGS, STARBURST, VOID }
 
     /** The waiting sign of Reprise. */
     public enum RepriseWait { CIRCLE, SQUARE, CLOCK, CLOCK_TICKING }
@@ -166,7 +182,7 @@ public final class ClientConfig {
     }
 
     public static InterludeOverlay interludeOverlay() {
-        return SPEC.isLoaded() ? INTERLUDE_OVERLAY.get() : InterludeOverlay.TINT;
+        return SPEC.isLoaded() ? INTERLUDE_OVERLAY.get() : InterludeOverlay.BOTH;
     }
 
     public static boolean interludeParticles() {
@@ -215,6 +231,34 @@ public final class ClientConfig {
 
     public static boolean shadeFullColour() {
         return SPEC.isLoaded() && SHADE_FULL_COLOUR.get();
+    }
+
+    public static WaypointMark waypointMark() {
+        return SPEC.isLoaded() ? WAYPOINT_MARK.get() : WaypointMark.SIGIL;
+    }
+
+    public static UndertowBurst undertowBurst() {
+        return SPEC.isLoaded() ? UNDERTOW_BURST.get() : UndertowBurst.PIXELS;
+    }
+
+    /** Sets a style option by its config name (the style command) and saves it; false if unknown. */
+    public static boolean setStyle(String option, String value) {
+        if (!SPEC.isLoaded()) {
+            return false;
+        }
+        try {
+            switch (option) {
+                case "mark" -> WAYPOINT_MARK.set(WaypointMark.valueOf(value));
+                case "burst" -> UNDERTOW_BURST.set(UndertowBurst.valueOf(value));
+                default -> {
+                    return false;
+                }
+            }
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+        SPEC.save();
+        return true;
     }
 
     public static int parallaxSpots() {
