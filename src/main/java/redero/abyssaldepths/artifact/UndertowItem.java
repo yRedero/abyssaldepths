@@ -26,7 +26,7 @@ public class UndertowItem extends ArtifactItem {
     public static final double REACH = 20.0;
     /** Seconds it pulls, and the burst's damage, per milestone (0 .. 4). */
     static final int[] SECONDS = {5, 6, 7, 8, 9};
-    static final float[] DAMAGE = {10, 15, 20, 25, 30};
+    static final float[] DAMAGE = {16, 24, 32, 40, 50};
 
     public UndertowItem(Properties properties, ArtifactRank rank, ArtifactFrame frame, int maxCharge, int regenTicks) {
         super(properties, rank, frame, maxCharge, regenTicks);

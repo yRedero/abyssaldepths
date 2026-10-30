@@ -16,8 +16,11 @@ import redero.abyssaldepths.block.MeditationMatBlock;
  * is gone as soon as they get up, or the mat is gone.
  */
 public class Seat extends Entity {
-    /** How far above the mat the seat is: the sitting player ends up cross-legged on it. */
-    private static final double HEIGHT = -0.35;
+    /**
+     * How far above the mat's block bottom the seat is: a rider hangs 0.6 below their seat (the game's
+     * player vehicle attachment) with the hips at the seat, so this puts the hips just on the mat.
+     */
+    private static final double HEIGHT = 0.1;
 
     public Seat(EntityType<? extends Seat> type, Level level) {
         super(type, level);

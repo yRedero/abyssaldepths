@@ -18,7 +18,7 @@ import redero.abyssaldepths.entity.UndertowEntity;
 /**
  * Undertow's anomaly as a pixelated event horizon (square pixels of an eighth of a block, colours in steps,
  * edges dithered, no gradients): a round black grid facing the eye, its edge breaking into dark violet,
- * growing as it pulls; round it a tilted accretion ring of flat pixels turning, in four steps from dark
+ * growing as it pulls; round it a flat, horizontal accretion ring of pixels turning, in four steps from dark
  * violet to white (brighter on one side, flickering a step up and down). In the collapse both shrink to
  * a plus of white pixels.
  */
@@ -48,7 +48,7 @@ public final class UndertowRenderer extends EntityRenderer<UndertowEntity> {
             // the accretion ring, lying tilted, turning
             pose.pushPose();
             pose.scale(shrink, shrink, shrink);
-            pose.mulPose(Axis.XP.rotationDegrees(68.0F));
+            pose.mulPose(Axis.XP.rotationDegrees(90.0F)); // lying flat
             pose.mulPose(Axis.ZP.rotationDegrees(age * 4.5F % 360));
             ring(quads, pose.last().pose(), sphere * 1.4F, sphere * 2.6F, frame);
             pose.popPose();
@@ -102,7 +102,7 @@ public final class UndertowRenderer extends EntityRenderer<UndertowEntity> {
                 if (noise(i * 13 + (int) (r * 100), frame / 3) < fade * 0.8F) {
                     continue; // thinning out towards the outside
                 }
-                final float bright = 0.5F + 0.5F * Mth.cos(a); // the side coming towards you
+                final float bright = 0.5F + 0.5F * Mth.cos(a); // one side brighter, turning with it
                 int step = (int) (bright * 3.0F + (1.0F - fade) * 1.2F - 0.6F);
                 if (noise(i * 7 + (int) (r * 50), frame) > 0.85F) {
                     step += noise(i, frame * 3) > 0.5F ? 1 : -1; // flickering a step

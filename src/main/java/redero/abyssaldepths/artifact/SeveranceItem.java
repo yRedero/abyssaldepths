@@ -45,6 +45,16 @@ public class SeveranceItem extends ArtifactItem {
             net.minecraft.world.effect.MobEffects.LEVITATION, net.minecraft.world.effect.MobEffects.SLOW_FALLING,
             net.minecraft.world.effect.MobEffects.UNLUCK, net.minecraft.world.effect.MobEffects.LUCK);
     static final int OPPOSITE_TICKS = 8 * 20;
+
+    /** The opposite of an effect, matched by its name (holders of the same effect need not be the same object). */
+    private static net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect> opposite(net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect> effect) {
+        for (Map.Entry<net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect>, net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect>> entry : OPPOSITES.entrySet()) {
+            if (entry.getKey().is(effect)) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
     /** Server: players immune to harmful effects, until the game time. */
     private static final Map<UUID, Long> IMMUNE = new HashMap<>();
 
@@ -79,7 +89,7 @@ public class SeveranceItem extends ArtifactItem {
         harmful.forEach(effect -> player.removeEffect(effect.getEffect()));
         if (milestone(stack) >= 4) { // mastered: each one cut away turns into its opposite for a while
             for (MobEffectInstance effect : harmful) {
-                final net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect> opposite = OPPOSITES.get(effect.getEffect());
+                final net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect> opposite = opposite(effect.getEffect());
                 if (opposite != null) {
                     player.addEffect(new MobEffectInstance(opposite, OPPOSITE_TICKS, effect.getAmplifier()));
                 }

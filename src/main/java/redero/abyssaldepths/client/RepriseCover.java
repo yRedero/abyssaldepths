@@ -171,13 +171,14 @@ public final class RepriseCover {
      */
     private static void square(GuiGraphics g, int x, int y, float time) {
         final int side = 7, size = 5, gap = 1, cells = 4 * (side - 1);
-        final float period = 80.0F, base = 0.25F; // ticks per cycle; the steady crawl of both ends
+        // steady speeds: both ends always crawl on (0.15 a tick); in the first 45 % of a cycle the head is
+        // faster (it catches up with the tail all round), then the border is whole for a moment, then the tail
+        // is faster for 45 % (the snake short again)
+        final float period = 120.0F, crawl = 0.15F, shortest = 5.0F, stretch = cells - shortest;
         final int cycle = (int) Math.floor(time / period);
         final float c = time / period - cycle;
-        // the head grows the snake in the first 40 % of a cycle, the tail shrinks it in 50 % .. 90 %
-        final float grown = cycle + smooth(Mth.clamp(c / 0.4F, 0.0F, 1.0F)), shrunk = cycle + smooth(Mth.clamp((c - 0.5F) / 0.4F, 0.0F, 1.0F));
-        final float stretch = cells - 3.0F;
-        final float head = time * base + 3.0F + stretch * grown, tail = time * base + stretch * shrunk;
+        final float grown = cycle + Mth.clamp(c / 0.45F, 0.0F, 1.0F), shrunk = cycle + Mth.clamp((c - 0.55F) / 0.45F, 0.0F, 1.0F);
+        final float head = time * crawl + shortest + stretch * grown, tail = time * crawl + stretch * shrunk;
         final float length = head - tail;
         final boolean closed = length >= cells - 0.01F;
         final int origin = -(side * (size + gap) - gap) / 2;
@@ -186,7 +187,8 @@ public final class RepriseCover {
             if (!closed && behind > length) {
                 continue;
             }
-            final float light = closed ? 0.9F + 0.1F * Mth.sin(time * 0.6F + i) : Math.max(0.15F, 1.0F - behind / length);
+            // in steps, like pixels: the head bright, the body even, only the last pixel dim (whole: all bright)
+            final float light = closed || behind < 1.0F ? 1.0F : length - behind < 1.0F ? 0.45F : 0.75F;
             final int[] at = squareCell(i, side);
             final int px = x + origin + at[0] * (size + gap), py = y + origin + at[1] * (size + gap);
             g.fill(px, py, px + size, py + size, (int) (light * 255) << 24 | (CRIMSON & 0xFFFFFF));

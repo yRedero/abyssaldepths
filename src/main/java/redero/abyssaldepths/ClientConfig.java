@@ -85,14 +85,16 @@ public final class ClientConfig {
             .defineEnum("repriseWait", RepriseWait.CIRCLE);
     private static final ModConfigSpec.EnumValue<WaypointMark> WAYPOINT_MARK = BUILDER
             .comment("How Inner Haven's remembered places are marked on the ground: SIGIL (turning rings), BEACON (a column of",
-                    "rising pixels), RUNES (a ring of glyphs lighting up in turn), RIFT (a dark tear with pixels spiralling in).")
+                    "rising pixels), RUNES (a ring of glyphs lighting up in turn), RIFT (a dark tear with pixels spiralling in), HALO (a",
+                    "ring floating above the ground, bobbing), SPIRAL (arms of pixels turning out from the middle), EMBERS (a small",
+                    "glow with embers drifting up), CROWN (a ring of pixel spikes rising and falling in a wave).")
             .translation("abyssaldepths.config.waypoint_mark")
             .defineEnum("waypointMark", WaypointMark.SIGIL);
     private static final ModConfigSpec.EnumValue<UndertowBurst> UNDERTOW_BURST = BUILDER
-            .comment("Undertow's burst: PIXELS (a pixel ball, a shockwave, debris), SHATTER (big shards tumbling out), RINGS",
-                    "(shockwaves one after another), STARBURST (rays of pixels), VOID (a black ball swelling and falling back).")
+            .comment("Undertow's burst: VOID (a black ball swelling and falling back), PIXELS (a pixel ball, a shockwave, debris),",
+                    "SHATTER (big shards tumbling out), RINGS (shockwaves one after another), STARBURST (rays of pixels).")
             .translation("abyssaldepths.config.undertow_burst")
-            .defineEnum("undertowBurst", UndertowBurst.PIXELS);
+            .defineEnum("undertowBurst", UndertowBurst.VOID);
     private static final ModConfigSpec.IntValue PARALLAX_SPOTS = BUILDER
             .comment("How many black spots open on the screen when crossing into the shadow (Parallax).")
             .translation("abyssaldepths.config.parallax_spots")
@@ -124,7 +126,7 @@ public final class ClientConfig {
     public enum InterludeOverlay { BOTH, TINT, BORDER, NONE }
 
     /** The marks of Inner Haven's remembered places. */
-    public enum WaypointMark { SIGIL, BEACON, RUNES, RIFT }
+    public enum WaypointMark { SIGIL, BEACON, RUNES, RIFT, HALO, SPIRAL, EMBERS, CROWN }
 
     /** Undertow's burst. */
     public enum UndertowBurst { PIXELS, SHATTER, RINGS, STARBURST, VOID }
@@ -238,7 +240,7 @@ public final class ClientConfig {
     }
 
     public static UndertowBurst undertowBurst() {
-        return SPEC.isLoaded() ? UNDERTOW_BURST.get() : UndertowBurst.PIXELS;
+        return SPEC.isLoaded() ? UNDERTOW_BURST.get() : UndertowBurst.VOID;
     }
 
     /** Sets a style option by its config name (the style command) and saves it; false if unknown. */

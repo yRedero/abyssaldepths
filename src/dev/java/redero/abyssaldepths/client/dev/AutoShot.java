@@ -277,6 +277,8 @@ public final class AutoShot {
                 final MinecraftServer server = mc.getSingleplayerServer();
                 final int t = ++wait;
                 final net.minecraft.world.phys.Vec3 ahead = mc.player.position().add(0, 0, 4);
+                final int marks = redero.abyssaldepths.ClientConfig.WaypointMark.values().length, bursts = redero.abyssaldepths.ClientConfig.UndertowBurst.values().length;
+                final int burstStart = 30 + marks * 25, end = burstStart + bursts * 20;
                 if (t == 1) {
                     command(server, "tp @s ~ ~40 ~ 0 35");
                     command(server, "give @s abyssaldepths:inner_haven[abyssaldepths:mastery=100]");
@@ -284,24 +286,55 @@ public final class AutoShot {
                     command(server, "fill ~-6 ~-1 ~-2 ~6 ~-1 ~12 stone");
                 } else if (t == 14) {
                     redero.abyssaldepths.client.WaypointMarks.set(mc.level.dimension().location() + "|" + ahead.x + "|" + ahead.y + "|" + ahead.z);
-                } else if (t >= 20 && t < 60 && (t - 20) % 10 == 0) {
-                    redero.abyssaldepths.ClientConfig.setStyle("mark", redero.abyssaldepths.ClientConfig.WaypointMark.values()[(t - 20) / 10].name());
-                } else if (t >= 20 && t < 60 && (t - 20) % 10 == 8) {
-                    shoot(mc, "variants_0_dir" + (t - 20) / 10);
-                } else if (t == 62) {
+                } else if (t >= 20 && t < 20 + marks * 25 && (t - 20) % 25 == 0) {
+                    redero.abyssaldepths.ClientConfig.setStyle("mark", redero.abyssaldepths.ClientConfig.WaypointMark.values()[(t - 20) / 25].name());
+                } else if (t >= 20 && t < 20 + marks * 25 && (t - 20) % 25 == 22) {
+                    shoot(mc, "variants_0_dir" + (t - 20) / 25);
+                } else if (t == 22 + marks * 25) {
                     redero.abyssaldepths.client.WaypointMarks.set("");
                     mc.player.setXRot(15.0F);
-                } else if (t >= 70 && t < 170 && (t - 70) % 20 == 0) {
-                    redero.abyssaldepths.ClientConfig.setStyle("burst", redero.abyssaldepths.ClientConfig.UndertowBurst.values()[(t - 70) / 20].name());
-                } else if (t >= 70 && t < 170 && (t - 70) % 20 == 2) {
+                } else if (t >= burstStart && t < end && (t - burstStart) % 20 == 0) {
+                    redero.abyssaldepths.ClientConfig.setStyle("burst", redero.abyssaldepths.ClientConfig.UndertowBurst.values()[(t - burstStart) / 20].name());
+                } else if (t >= burstStart && t < end && (t - burstStart) % 20 == 2) {
                     redero.abyssaldepths.client.UndertowClient.burst(ahead.add(0, 1, 2), 1.0F);
-                } else if (t >= 70 && t < 170 && (t - 70) % 20 == 7) {
-                    shoot(mc, "variants_" + (1 + (t - 70) / 20) + "_dir0");
-                } else if (t >= 70 && t < 170 && (t - 70) % 20 == 13) {
-                    shoot(mc, "variants_" + (1 + (t - 70) / 20) + "_dir1");
-                } else if (t == 175) {
-                    redero.abyssaldepths.ClientConfig.setStyle("burst", "PIXELS");
+                } else if (t >= burstStart && t < end && (t - burstStart) % 20 == 7) {
+                    shoot(mc, "variants_" + (1 + (t - burstStart) / 20) + "_dir0");
+                } else if (t >= burstStart && t < end && (t - burstStart) % 20 == 13) {
+                    shoot(mc, "variants_" + (1 + (t - burstStart) / 20) + "_dir1");
+                } else if (t == end) {
+                    // Severance at full mastery against hunger: saturation in its place
+                    command(server, "gamemode survival");
+                    command(server, "effect give @s hunger 30 40");
+                } else if (t == end + 30) {
+                    server.execute(() -> {
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        AbyssalDepths.LOGGER.info("artifact check severance hunger: food before {}", p.getFoodData().getFoodLevel());
+                        final net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(AbyssalDepths.SEVERANCE.get());
+                        redero.abyssaldepths.artifact.ArtifactItem.setMastery(stack, 100);
+                        AbyssalDepths.SEVERANCE.get().setCharge(stack, 3);
+                        p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, stack);
+                        stack.use(p.serverLevel(), p, net.minecraft.world.InteractionHand.MAIN_HAND);
+                        p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.item.ItemStack.EMPTY);
+                        AbyssalDepths.LOGGER.info("artifact check severance hunger: effects {}", p.getActiveEffects().stream().map(e -> e.getEffect().getRegisteredName()).toList());
+                    });
+                } else if (t == end + 50) {
+                    server.execute(() -> AbyssalDepths.LOGGER.info("artifact check severance hunger: food after {}",
+                            server.getPlayerList().getPlayers().get(0).getFoodData().getFoodLevel()));
+                    // the mat: sitting on it
+                    command(server, "setblock ~ ~ ~2 abyssaldepths:meditation_mat");
+                } else if (t == end + 55) {
+                    server.execute(() -> {
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        redero.abyssaldepths.entity.Seat.sit(p.serverLevel(), p.blockPosition().offset(0, 0, 2), p);
+                    });
+                    mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_FRONT);
+                } else if (t == end + 75) {
+                    shoot(mc, "variants_6_dir0"); // sitting on the mat
+                } else if (t == end + 80) {
+                    mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+                    redero.abyssaldepths.ClientConfig.setStyle("burst", "VOID");
                     redero.abyssaldepths.ClientConfig.setStyle("mark", "SIGIL");
+                    command(server, "gamemode spectator");
                     step = Step.NEXT;
                 }
             }

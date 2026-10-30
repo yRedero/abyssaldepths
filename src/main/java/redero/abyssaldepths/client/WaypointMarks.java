@@ -86,6 +86,10 @@ public final class WaypointMarks {
                 case BEACON -> beacon(quads, m, time, event.getCamera());
                 case RUNES -> runes(quads, m, time);
                 case RIFT -> rift(quads, m, time, mark.pos());
+                case HALO -> halo(quads, m, time, event.getCamera());
+                case SPIRAL -> spiral(quads, m, time);
+                case EMBERS -> embers(quads, m, time, event.getCamera());
+                case CROWN -> crown(quads, m, time, event.getCamera());
             }
             pose.popPose();
         }
@@ -165,6 +169,60 @@ public final class WaypointMarks {
             final float t = (time * 0.4F + noise(i, 5)) % 1.0F;
             final float a = noise(i, 6) * Mth.TWO_PI + t * 4.0F, r = 1.6F * (1.0F - t);
             flat(quads, m, Mth.cos(a) * r * 1.5F, Mth.sin(a) * r, px / 2, t > 0.7F ? CRIMSON : WARM, (int) (220 * (1.0F - t * 0.5F)));
+        }
+    }
+
+    /** A ring of pixels floating at chest height, bobbing and turning, its shadow a fainter ring below. */
+    private static void halo(VertexConsumer quads, Matrix4f m, float time, net.minecraft.client.Camera camera) {
+        final float bob = 1.2F + 0.12F * Mth.sin(time * 1.4F);
+        for (int i = 0; i < 20; i++) {
+            final float a = time * 0.5F + i * Mth.TWO_PI / 20;
+            final boolean lit = (i + (int) (time * 4)) % 5 == 0;
+            mote(quads, m, Mth.cos(a) * 0.55F, bob, Mth.sin(a) * 0.55F, 0.05F, lit ? WARM : CRIMSON, 235, camera);
+            if (i % 2 == 0) {
+                flat(quads, m, Mth.cos(a) * 0.55F, Mth.sin(a) * 0.55F, 0.04F, CRIMSON, 90);
+            }
+        }
+    }
+
+    /** Four arms of pixels curling out from the middle, turning, brighter towards the centre. */
+    private static void spiral(VertexConsumer quads, Matrix4f m, float time) {
+        for (int arm = 0; arm < 4; arm++) {
+            for (int k = 0; k < 12; k++) {
+                final float r = 0.15F + k * 0.1F, a = time * 0.8F + arm * Mth.HALF_PI + r * 2.4F;
+                if (noise(arm * 31 + k, (int) (time * 5)) < k / 16.0F) {
+                    continue; // the tips flickering out
+                }
+                flat(quads, m, Mth.cos(a) * r, Mth.sin(a) * r, 0.05F, k < 4 ? WARM : CRIMSON, 230 - k * 10);
+            }
+        }
+    }
+
+    /** A small crimson glow on the ground, embers drifting up from it and going out. */
+    private static void embers(VertexConsumer quads, Matrix4f m, float time, net.minecraft.client.Camera camera) {
+        for (int j = -2; j <= 2; j++) {
+            for (int i = -2; i <= 2; i++) {
+                if (i * i + j * j <= 5 && noise(i * 5 + (int) (time * 3), j) > 0.25F) {
+                    flat(quads, m, i * 0.125F, j * 0.125F, 0.06F, Math.abs(i) + Math.abs(j) < 2 ? WARM : CRIMSON, 200);
+                }
+            }
+        }
+        for (int i = 0; i < 14; i++) {
+            final float t = (time * 0.3F + noise(i, 9)) % 1.0F;
+            final float sway = 0.15F * Mth.sin(time * 2.0F + i);
+            mote(quads, m, (noise(i, 2) - 0.5F) * 0.5F + sway * t, t * 1.8F, (noise(i, 3) - 0.5F) * 0.5F, 0.035F * (1.0F - t * 0.6F),
+                    t < 0.4F ? WARM : CRIMSON, (int) (230 * (1.0F - t)), camera);
+        }
+    }
+
+    /** A ring of upright spikes of pixels, rising and falling in a wave running round. */
+    private static void crown(VertexConsumer quads, Matrix4f m, float time, net.minecraft.client.Camera camera) {
+        for (int i = 0; i < 12; i++) {
+            final float a = i * Mth.TWO_PI / 12;
+            final int height = 1 + (int) (3.5F * (0.5F + 0.5F * Mth.sin(time * 3.0F - i * 0.9F)));
+            for (int k = 0; k < height; k++) {
+                mote(quads, m, Mth.cos(a) * 0.8F, 0.06F + k * 0.13F, Mth.sin(a) * 0.8F, 0.055F, k == height - 1 ? WARM : CRIMSON, 230, camera);
+            }
         }
     }
 
