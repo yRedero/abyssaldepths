@@ -40,7 +40,7 @@ import redero.abyssaldepths.artifact.Shades;
  * <p>
  * Behind the black the view changes: the shadow's own look, a post effect ({@code shaders/program/shade.fsh})
  * with purple outlines, drained and darkened colours and more (the shades are drawn again over it, in their
- * full colours: {@link #afterPost}); and other entities are hidden (but other
+ * full colours, if the client config wants it: {@link #afterPost}); and other entities are hidden (but other
  * shades, and everything for a Parallax at full mastery, see {@link ParallaxItem#seesWorld}).
  */
 @EventBusSubscriber(modid = AbyssalDepths.MODID, value = Dist.CLIENT)
@@ -238,14 +238,14 @@ public final class ShadeView {
 
     /**
      * After the post effect, the shades are drawn once more over the drained picture, so they keep the full
-     * colour of their look (the drain is for the world, not for them). The world's depth is put back first
+     * colour of their look (client config, off by default: then they are drained with the rest). The world's depth is put back first
      * (the copy the effect keeps), so the world still hides them where it is in front.
      */
     public static void afterPost() {
         final Minecraft mc = Minecraft.getInstance();
         final PostChain effect = ours();
         final RenderTarget depth = effect == null ? null : effect.getTempTarget(DEPTH_TARGET);
-        if (depth == null || !inShadow() || mc.level == null || mc.player == null || levelProjection == null) {
+        if (depth == null || !ClientConfig.shadeFullColour() || !inShadow() || mc.level == null || mc.player == null || levelProjection == null) {
             return;
         }
         final java.util.List<AbstractClientPlayer> shades = new java.util.ArrayList<>();

@@ -89,6 +89,11 @@ public final class ClientConfig {
                     "SILHOUETTE: near black with glowing eyes; INVERTED: the colours turned, purple; NONE: their skin.")
             .translation("abyssaldepths.config.shade_look")
             .defineEnum("shadeLook", ShadeLook.SILHOUETTE);
+    private static final ModConfigSpec.BooleanValue SHADE_FULL_COLOUR = BUILDER
+            .comment("Shades keep the full colours of their look in the shadow (drawn over its drained picture);",
+                    "off: they are drained and darkened with the rest of the shadow.")
+            .translation("abyssaldepths.config.shade_full_colour")
+            .define("shadeFullColour", false);
     private static final ModConfigSpec.EnumValue<ShadeVanishStyle> SHADE_VANISH = BUILDER
             .comment("How a player stepping into the shadow (Parallax) vanishes for those who stay, and comes back:",
                     "PIXELS: falls apart into black and purple pixels; ASH: darkens and rises away as ash;",
@@ -195,6 +200,10 @@ public final class ClientConfig {
 
     public static RepriseWait repriseWait() {
         return SPEC.isLoaded() ? REPRISE_WAIT.get() : RepriseWait.CIRCLE;
+    }
+
+    public static boolean shadeFullColour() {
+        return SPEC.isLoaded() && SHADE_FULL_COLOUR.get();
     }
 
     public static int parallaxSpots() {

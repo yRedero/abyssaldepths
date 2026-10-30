@@ -23,6 +23,7 @@
   "abyssaldepths.config.particles": "Ambient particles",
   "abyssaldepths.config.reprise_wait": "Reprise waiting sign",
   "abyssaldepths.config.reverb": "Cave echo",
+  "abyssaldepths.config.shade_full_colour": "Shades in full colour",
   "abyssaldepths.config.shade_look": "Look of shades",
   "abyssaldepths.config.shade_vanish": "Shade vanishing",
   "abyssaldepths.config.silence_music": "No music in the layer",
