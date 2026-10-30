@@ -140,12 +140,23 @@ public final class ShadeView {
 
     /**
      * In the shadow only the sounds of the shadow are heard: those the server sends (it keeps them to their
-     * side: other shades), the player's own, and the menus'. No ambience, music, weather or blocks.
+     * side: other shades), the player's own (also what is in their head, {@link #ownSound}), and the menus'.
+     * No ambience, music, weather or blocks.
      */
     @SubscribeEvent
     public static void onSound(PlaySoundEvent event) {
         if (inShadow() && !allowSounds && event.getSound() != null && event.getSound().getSource() != SoundSource.MASTER) {
             event.setSound(null);
+        }
+    }
+
+    /** Plays a sound that is in the player's own head (the deep pressure): heard in the shadow too. */
+    public static void ownSound(net.minecraft.client.resources.sounds.SoundInstance sound) {
+        allowSounds = true;
+        try {
+            Minecraft.getInstance().getSoundManager().play(sound);
+        } finally {
+            allowSounds = false;
         }
     }
 

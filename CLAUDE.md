@@ -13,7 +13,7 @@ NeoForge 21.1 / Minecraft 1.21.1 mod (ModDevGradle). Adds the thalan layer below
 - `client/`: all visuals and sounds (fog, ambience, reverb, storms, thermal effects, deep pressure).
 - `artifact/`: artifacts (rank, frame, mastery data component); their tooltip frame is
   `client/ArtifactTooltip`. Preview with `tools/autoshot.sh <round> artifacts`. Inner Haven: `InnerSelf`
-  (rooms, crossing), `entity/AbsentBody`. Reprise: `artifact/reprise` (change log via the LevelChunk and
+  (rooms or `InnerIslands`, crossing), `entity/AbsentBody`, the mat's `entity/Seat`. Reprise: `artifact/reprise` (change log via the LevelChunk and
   BlockEntity mixins, moments every 5 s, `Rewind`); check with `tools/autoshot.sh <round> reprise`.
   Toggled artifacts (Interlude, Parallax) extend `ToggleArtifactItem`. The shadow of this world (Parallax):
   `Shades` (rules as events, the rest in the `Shade*Mixin`s), `client/ShadeView` (who sees whom, the

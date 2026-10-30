@@ -43,6 +43,11 @@ import redero.abyssaldepths.network.EffectPayload;
  * </ul>
  * The holder is never slowed. Blocks (fluids, crops, redstone) keep their pace. The active players are
  * sent to the clients every second ({@code interlude/<entity id>}), which also draw their afterimages.
+ * <p>
+ * A field keeps to its side of the shadow ({@link Shades}): a shade's field slows only other shades, the
+ * others' fields only what is not a shade. Two holders weaken each other: a holder is slowed only by as much
+ * as the other's field is stronger than their own ({@link #strength}; for now all are equal, so they cancel).
+ * Players slowed also turn their view slower (client); particles in a field slow down too (client config).
  */
 @EventBusSubscriber(modid = AbyssalDepths.MODID)
 public final class InterludeField {
@@ -50,13 +55,14 @@ public final class InterludeField {
     /** Pace of everything in the field; later from the mastery. */
     public static final float SPEED = 0.5F;
     private static final ResourceLocation SLOW = ResourceLocation.fromNamespaceAndPath(AbyssalDepths.MODID, "interlude_slow");
-    private static final Map<Holder<Attribute>, Double> PLAYER_SLOW = Map.of(
-            Attributes.MOVEMENT_SPEED, SPEED - 1.0, Attributes.ATTACK_SPEED, SPEED - 1.0, Attributes.BLOCK_BREAK_SPEED, SPEED - 1.0,
-            Attributes.GRAVITY, SPEED * SPEED - 1.0, Attributes.JUMP_STRENGTH, SPEED - 1.0);
+    /** What is slowed on players in a field. */
+    private static final java.util.List<Holder<Attribute>> SLOWED = java.util.List.of(
+            Attributes.MOVEMENT_SPEED, Attributes.ATTACK_SPEED, Attributes.BLOCK_BREAK_SPEED, Attributes.GRAVITY, Attributes.JUMP_STRENGTH);
 
     /** Server: holders seen this tick (by their Interlude ticking in their inventory), with the tick. */
     private static final Map<UUID, Long> ACTIVE = new HashMap<>();
-    private static final Set<UUID> SLOWED_PLAYERS = new HashSet<>();
+    /** Players slowed, with their pace. */
+    private static final Map<UUID, Float> SLOWED_PLAYERS = new HashMap<>();
     /** Client: a step being spread out per entity id: where it ends, and the part taken per tick. */
     private static final it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap<Vec3[]> SPREAD = new it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap<>();
     /** Client: entity ids of active holders, with the client tick until which they count. */
@@ -92,29 +98,71 @@ public final class InterludeField {
         return CLIENT.get(entityId) >= clientTick;
     }
 
-    /** Whether an entity of the level stands in someone else's field. */
-    private static boolean inField(Entity entity, Level level) {
+    /**
+     * How strongly a holder's field slows (0 .. 1: the share of the pace taken away). The same for all for
+     * now; it will grow with the mastery.
+     */
+    static float strength(Player holder) {
+        return 1.0F - SPEED;
+    }
+
+    /** Whether the player is an active holder (on the side of the level). */
+    private static boolean isHolder(Entity entity, Level level) {
+        return entity instanceof Player && (level.isClientSide ? clientIsActive(entity.getId(), level.getGameTime()) : ACTIVE.containsKey(entity.getUUID()));
+    }
+
+    /**
+     * The pace an entity of the level runs at (1: untouched): the strongest field of another holder on its
+     * side of the shadow, less the strength of its own field if it is a holder too.
+     */
+    private static float pace(Entity entity, Level level) {
+        final boolean shade = Shades.isShade(entity);
+        final float own = isHolder(entity, level) ? strength((Player) entity) : 0.0F;
+        float strongest = 0.0F;
         if (level.isClientSide) {
             final long now = level.getGameTime();
             for (Int2LongOpenHashMap.Entry e : CLIENT.int2LongEntrySet()) {
-                if (e.getLongValue() >= now && e.getIntKey() != entity.getId()) {
-                    final Entity holder = level.getEntity(e.getIntKey());
-                    if (holder != null && holder.distanceToSqr(entity) < RADIUS * RADIUS) {
-                        return true;
-                    }
+                if (e.getLongValue() >= now && e.getIntKey() != entity.getId()
+                        && level.getEntity(e.getIntKey()) instanceof Player holder && reaches(holder, entity, shade)) {
+                    strongest = Math.max(strongest, strength(holder));
                 }
             }
-            return false;
-        }
-        for (UUID id : ACTIVE.keySet()) {
-            if (!id.equals(entity.getUUID())) {
-                final Player holder = level.getPlayerByUUID(id);
-                if (holder != null && holder.distanceToSqr(entity) < RADIUS * RADIUS) {
-                    return true;
+        } else {
+            for (UUID id : ACTIVE.keySet()) {
+                if (!id.equals(entity.getUUID()) && level.getPlayerByUUID(id) instanceof Player holder && reaches(holder, entity, shade)) {
+                    strongest = Math.max(strongest, strength(holder));
                 }
             }
         }
-        return false;
+        return 1.0F - Math.max(0.0F, strongest - own);
+    }
+
+    private static boolean reaches(Player holder, Entity entity, boolean shade) {
+        return Shades.isShade(holder) == shade && holder.distanceToSqr(entity) < RADIUS * RADIUS;
+    }
+
+    /** Whether an entity of the level stands in someone else's field. */
+    private static boolean inField(Entity entity, Level level) {
+        return pace(entity, level) < 1.0F;
+    }
+
+    /**
+     * Client: the pace at a place for what belongs to no one (particles): the strongest field of a holder
+     * outside the shadow reaching it, 1 if none.
+     */
+    public static float clientPaceAt(Level level, double x, double y, double z) {
+        if (CLIENT.isEmpty()) {
+            return 1.0F;
+        }
+        final long now = level.getGameTime();
+        float strongest = 0.0F;
+        for (Int2LongOpenHashMap.Entry e : CLIENT.int2LongEntrySet()) {
+            if (e.getLongValue() >= now && level.getEntity(e.getIntKey()) instanceof Player holder && !Shades.isShade(holder)
+                    && holder.distanceToSqr(x, y, z) < RADIUS * RADIUS) {
+                strongest = Math.max(strongest, strength(holder));
+            }
+        }
+        return 1.0F - strongest;
     }
 
     /**
@@ -136,9 +184,13 @@ public final class InterludeField {
         if (level.isClientSide && entity instanceof LivingEntity) {
             return;
         }
+        final float pace = pace(entity, level);
+        if (pace >= 1.0F) {
+            return;
+        }
         final long t = level.getGameTime();
-        final boolean ticksNow = Math.floor((t + 1) * SPEED) > Math.floor(t * SPEED);
-        if (!ticksNow && inField(entity, level)) {
+        final boolean ticksNow = Math.floor((t + 1) * pace) > Math.floor(t * pace);
+        if (!ticksNow) {
             event.setCanceled(true);
             if (level.isClientSide) {
                 final Vec3[] spread = SPREAD.get(entity.getId());
@@ -162,7 +214,7 @@ public final class InterludeField {
             return;
         }
         final Vec3 from = new Vec3(entity.xo, entity.yo, entity.zo), to = entity.position();
-        final Vec3 step = to.subtract(from).scale(SPEED);
+        final Vec3 step = to.subtract(from).scale(pace(entity, level));
         if (step.lengthSqr() < 1.0E-9) {
             SPREAD.remove(entity.getId());
             return;
@@ -190,41 +242,59 @@ public final class InterludeField {
         }
     }
 
-    /** Players in someone else's field get the slowed attributes; those who left lose them. */
+    /**
+     * Players in someone else's field get slowed attributes for their pace (updated as it changes); those
+     * who left lose them.
+     */
     private static void slowPlayers(MinecraftServer server) {
-        final Set<UUID> now = new HashSet<>();
+        final Map<UUID, Float> now = new HashMap<>();
         for (ServerLevel level : server.getAllLevels()) {
             for (ServerPlayer player : level.players()) {
-                if (inField(player, level)) {
-                    now.add(player.getUUID());
+                final float pace = pace(player, level);
+                if (pace < 1.0F) {
+                    now.put(player.getUUID(), pace);
                 }
             }
         }
-        for (Iterator<UUID> it = SLOWED_PLAYERS.iterator(); it.hasNext();) {
-            final UUID id = it.next();
-            if (!now.contains(id)) {
+        for (Iterator<Map.Entry<UUID, Float>> it = SLOWED_PLAYERS.entrySet().iterator(); it.hasNext();) {
+            final UUID id = it.next().getKey();
+            if (!now.containsKey(id)) {
                 final ServerPlayer player = server.getPlayerList().getPlayer(id);
                 if (player != null) {
-                    PLAYER_SLOW.keySet().forEach(attribute -> {
+                    for (Holder<Attribute> attribute : SLOWED) {
                         final AttributeInstance instance = player.getAttribute(attribute);
                         if (instance != null) {
                             instance.removeModifier(SLOW);
                         }
-                    });
+                    }
                 }
                 it.remove();
             }
         }
-        for (UUID id : now) {
-            if (SLOWED_PLAYERS.add(id)) {
-                final ServerPlayer player = server.getPlayerList().getPlayer(id);
-                PLAYER_SLOW.forEach((attribute, amount) -> {
-                    final AttributeInstance instance = player.getAttribute(attribute);
-                    if (instance != null) {
-                        instance.addOrUpdateTransientModifier(new AttributeModifier(SLOW, amount, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
-                    }
-                });
+        now.forEach((id, pace) -> {
+            final Float before = SLOWED_PLAYERS.put(id, pace);
+            if (before != null && before.floatValue() == pace) {
+                return;
             }
-        }
+            final ServerPlayer player = server.getPlayerList().getPlayer(id);
+            for (Holder<Attribute> attribute : SLOWED) {
+                final AttributeInstance instance = player.getAttribute(attribute);
+                if (instance != null) {
+                    // gravity by the square: falls and jumps play out at the pace; the rest by the pace
+                    final double amount = attribute == Attributes.GRAVITY ? pace * pace - 1.0 : pace - 1.0;
+                    instance.addOrUpdateTransientModifier(new AttributeModifier(SLOW, amount, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
+                }
+            }
+        });
+    }
+
+    /**
+     * Client: the pace the local player is slowed to (from the modifier the server gave them), 1 if not.
+     * Their view turns slower by it ({@code InterludeClient}).
+     */
+    public static float clientOwnPace(Player player) {
+        final AttributeInstance speed = player.getAttribute(Attributes.MOVEMENT_SPEED);
+        final AttributeModifier modifier = speed == null ? null : speed.getModifier(SLOW);
+        return modifier == null ? 1.0F : (float) (1.0 + modifier.amount());
     }
 }

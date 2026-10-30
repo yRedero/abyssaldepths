@@ -63,6 +63,8 @@ import redero.abyssaldepths.artifact.InterludeItem;
 import redero.abyssaldepths.artifact.ParallaxItem;
 import redero.abyssaldepths.artifact.RepriseItem;
 import redero.abyssaldepths.entity.AbsentBody;
+import redero.abyssaldepths.entity.Seat;
+import redero.abyssaldepths.block.MeditationMatBlock;
 import redero.abyssaldepths.block.QuicksiltBlock;
 import redero.abyssaldepths.block.SmoulderingRockBlock;
 import redero.abyssaldepths.block.ThermalVentBlock;
@@ -223,11 +225,19 @@ public class AbyssalDepths {
                     .isValidSpawn((state, level, pos, type) -> false).pushReaction(PushReaction.BLOCK)
                     .lightLevel(state -> 0).emissiveRendering((state, level, pos) -> true)));
 
+    /** A mat to sit on; at the heart of the island inner self. */
+    public static final DeferredBlock<MeditationMatBlock> MEDITATION_MAT = withItem(BLOCKS.registerBlock("meditation_mat", MeditationMatBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.WHITE_CARPET).mapColor(MapColor.COLOR_RED)));
+
     public static final DeferredRegister<EntityType<?>> ENTITY_TYPES = DeferredRegister.create(Registries.ENTITY_TYPE, MODID);
     /** The body left behind while its player is in their inner self. */
     public static final DeferredHolder<EntityType<?>, EntityType<AbsentBody>> ABSENT_BODY = ENTITY_TYPES.register("absent_body",
             () -> EntityType.Builder.<AbsentBody>of(AbsentBody::new, MobCategory.MISC).sized(0.6F, 1.8F).clientTrackingRange(10)
                     .build("absent_body"));
+    /** What a player sits on on a meditation mat (invisible). */
+    public static final DeferredHolder<EntityType<?>, EntityType<Seat>> SEAT = ENTITY_TYPES.register("seat",
+            () -> EntityType.Builder.<Seat>of(Seat::new, MobCategory.MISC).sized(0.01F, 0.01F).noSummon().clientTrackingRange(10)
+                    .build("seat"));
 
     /** Blobs in the thalan layer, generated like tuff (data/abyssaldepths/worldgen). */
     public static final DeferredBlock<Block> SHALE = BLOCKS.registerSimpleBlock("shale",

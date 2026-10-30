@@ -15,6 +15,7 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 import redero.abyssaldepths.AbyssalDepths;
+import redero.abyssaldepths.ClientConfig;
 
 /**
  * What players see while Reprise turns the world back:
@@ -143,9 +144,98 @@ public final class RepriseCover {
             }
         }
         if (phase == Phase.WAITING) {
-            spinner(g, w / 2, h / 2, waitTicks + partialTick);
+            waiting(g, w / 2, h / 2, waitTicks + partialTick);
         }
         g.pose().popPose();
+    }
+
+    /** The waiting sign in the middle, in the style of the client config. */
+    private static void waiting(GuiGraphics g, int x, int y, float time) {
+        waiting(g, x, y, time, ClientConfig.repriseWait());
+    }
+
+    /** A waiting sign of the style at x, y (also for the preview screen). */
+    public static void waiting(GuiGraphics g, int x, int y, float time, ClientConfig.RepriseWait style) {
+        switch (style) {
+            case CIRCLE -> spinner(g, x, y, time);
+            case SQUARE -> square(g, x, y, time);
+            case CLOCK -> clock(g, x, y, time, false);
+            case CLOCK_TICKING -> clock(g, x, y, time, true);
+        }
+    }
+
+    /**
+     * A square border of crimson pixels with a snake running round it: it grows until its head meets its
+     * tail and the border is whole for a moment (lit up), then lets go of its tail and shrinks again.
+     */
+    private static void square(GuiGraphics g, int x, int y, float time) {
+        final int side = 7, size = 5, gap = 1, cells = 4 * (side - 1);
+        final float head = time * 0.45F % cells;
+        final float wave = 0.5F - 0.5F * Mth.cos(time * 0.09F); // 0 .. 1 .. 0, about every 3.5 seconds
+        final float length = 3.0F + (cells - 3.0F) * Math.min(1.0F, wave * 1.15F); // whole for a moment at the top
+        final boolean closed = length >= cells - 0.01F;
+        final int origin = -(side * (size + gap) - gap) / 2;
+        for (int i = 0; i < cells; i++) {
+            final float behind = (head - i + cells) % cells; // 0 = the head
+            if (!closed && behind > length) {
+                continue;
+            }
+            final float light = closed ? 0.9F + 0.1F * Mth.sin(time * 0.6F + i) : Math.max(0.15F, 1.0F - behind / length);
+            final int[] at = squareCell(i, side);
+            final int px = x + origin + at[0] * (size + gap), py = y + origin + at[1] * (size + gap);
+            g.fill(px, py, px + size, py + size, (int) (light * 255) << 24 | (CRIMSON & 0xFFFFFF));
+        }
+    }
+
+    /** The cell of the border at a place along it (clockwise from the top left corner). */
+    private static int[] squareCell(int i, int side) {
+        final int edge = side - 1;
+        if (i < edge) {
+            return new int[] {i, 0};
+        } else if (i < 2 * edge) {
+            return new int[] {edge, i - edge};
+        } else if (i < 3 * edge) {
+            return new int[] {edge - (i - 2 * edge), edge};
+        }
+        return new int[] {0, edge - (i - 3 * edge)};
+    }
+
+    /**
+     * A clock of crimson pixels turning backwards (the world being rewound): twelve marks, a long hand
+     * going round and a short one going slower. Ticking: the long hand jumps back a mark at a time,
+     * with a short shiver as it lands; otherwise both sweep.
+     */
+    private static void clock(GuiGraphics g, int x, int y, float time, boolean ticking) {
+        final int radius = 20, dot = 3;
+        for (int mark = 0; mark < 12; mark++) {
+            final double a = 2 * Math.PI * mark / 12;
+            final int size = mark % 3 == 0 ? dot + 1 : dot - 1;
+            final int px = x + (int) Math.round(Math.sin(a) * radius) - size / 2, py = y - (int) Math.round(Math.cos(a) * radius) - size / 2;
+            g.fill(px, py, px + size, py + size, (mark % 3 == 0 ? 0xE0 : 0x90) << 24 | (CRIMSON & 0xFFFFFF));
+        }
+        float minute;
+        if (ticking) {
+            final float steps = time / 6.0F; // a mark every 0.3 s
+            final int whole = (int) Math.floor(steps);
+            final float within = steps - whole;
+            final float settle = within < 0.25F ? (float) Math.sin(within / 0.25F * Math.PI) * 0.12F : 0.0F; // a shiver landing
+            minute = -(whole + settle) / 12.0F;
+        } else {
+            minute = -time / 50.0F; // once round in 2.5 s
+        }
+        final float hour = minute / 12.0F;
+        hand(g, x, y, minute, radius - 5, dot, RED);
+        hand(g, x, y, hour, radius - 10, dot + 1, RED_DARK);
+        g.fill(x - 2, y - 2, x + 2, y + 2, RED);
+    }
+
+    /** A clock hand of pixels from the middle, at a share of a full turn (0 = up, clockwise). */
+    private static void hand(GuiGraphics g, int x, int y, float turn, int length, int size, int colour) {
+        final double a = 2 * Math.PI * turn;
+        for (int r = 2; r <= length; r += size - 1) {
+            final int px = x + (int) Math.round(Math.sin(a) * r) - size / 2, py = y - (int) Math.round(Math.cos(a) * r) - size / 2;
+            g.fill(px, py, px + size, py + size, colour);
+        }
     }
 
     /** A small circle of crimson pixels with a bright head turning round, the tail fading. */

@@ -74,12 +74,15 @@ public class AbsentBody extends LivingEntity {
     public void tick() {
         super.tick();
         setDeltaMovement(Vec3.ZERO);
-        // the head eases from where the player looked to straight ahead, over about a second (both sides,
-        // so it stays smooth between the server's updates)
+        // the head eases from where the player looked to straight ahead, over about a second: only on the
+        // clients (the server keeps the first look, so it sends no turns that would jerk it), drawn smoothly
+        // between ticks from the previous values
         final float facing = getYRot();
-        yBodyRot = facing;
-        setYHeadRot(getYHeadRot() + Mth.wrapDegrees(facing - getYHeadRot()) * HEAD_EASE);
-        setXRot(getXRot() * (1.0F - HEAD_EASE));
+        yBodyRot = yBodyRotO = facing;
+        if (level().isClientSide) {
+            setYHeadRot(getYHeadRot() + Mth.wrapDegrees(facing - getYHeadRot()) * HEAD_EASE);
+            setXRot(getXRot() * (1.0F - HEAD_EASE));
+        }
         if (!level().isClientSide) {
             // the owner is back in this world (or gone for good): the body is no longer needed
             final Player owner = owner().map(id -> level().getServer().getPlayerList().getPlayer(id)).orElse(null);
@@ -87,6 +90,17 @@ public class AbsentBody extends LivingEntity {
                 discard();
             }
         }
+    }
+
+    /** The server's word on the head is ignored: it is turned here (see {@link #tick}). */
+    @Override
+    public void lerpHeadTo(float yaw, int steps) {
+    }
+
+    /** It does not move; the server's rotations would undo the turning head. */
+    @Override
+    public void lerpTo(double x, double y, double z, float yRot, float xRot, int steps) {
+        super.lerpTo(x, y, z, getYRot(), getXRot(), steps);
     }
 
     @Override

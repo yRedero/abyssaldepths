@@ -53,6 +53,15 @@ final class TooltipPreviewScreen extends Screen {
         // the other ranks, for their palette and title size
         g.renderTooltip(font, new ItemStack(AbyssalDepths.INTERLUDE.get()), -4, 170);
         g.renderTooltip(font, new ItemStack(AbyssalDepths.PARALLAX.get()), 420, 44);
+        // Reprise's waiting signs, every style
+        final float time = (net.minecraft.Util.getMillis() % 1_000_000L) / 50.0F;
+        int x = 340;
+        for (redero.abyssaldepths.ClientConfig.RepriseWait style : redero.abyssaldepths.ClientConfig.RepriseWait.values()) {
+            g.fill(x - 30, 200, x + 30, 260, 0xFF050203);
+            redero.abyssaldepths.client.RepriseCover.waiting(g, x, 230, time, style);
+            label(g, style.name().toLowerCase(java.util.Locale.ROOT), x - 28, 264);
+            x += 70;
+        }
     }
 
     private void label(GuiGraphics g, String text, int x, int y) {

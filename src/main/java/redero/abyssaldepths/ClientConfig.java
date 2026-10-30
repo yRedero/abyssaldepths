@@ -56,6 +56,10 @@ public final class ClientConfig {
             .comment("Afterimages of players using Interlude.")
             .translation("abyssaldepths.config.afterimages")
             .define("afterimages", true);
+    private static final ModConfigSpec.BooleanValue INTERLUDE_PARTICLES = BUILDER
+            .comment("Particles in an Interlude field slow down too.")
+            .translation("abyssaldepths.config.interlude_particles")
+            .define("interludeParticles", true);
     private static final ModConfigSpec.IntValue AFTERIMAGE_INTERVAL = BUILDER
             .comment("How often an afterimage is left behind, in milliseconds.")
             .translation("abyssaldepths.config.afterimage_interval")
@@ -70,6 +74,11 @@ public final class ClientConfig {
             .translation("abyssaldepths.config.parallax_transition")
             .defineInRange("parallaxTransition", 1600, 200, 6000);
 
+    private static final ModConfigSpec.EnumValue<RepriseWait> REPRISE_WAIT = BUILDER
+            .comment("What turns in the middle while Reprise is still rewinding: CIRCLE, SQUARE (a snake round a",
+                    "square that closes on itself), CLOCK (sweeping backwards), CLOCK_TICKING (jumping back mark by mark).")
+            .translation("abyssaldepths.config.reprise_wait")
+            .defineEnum("repriseWait", RepriseWait.CIRCLE);
     private static final ModConfigSpec.IntValue PARALLAX_SPOTS = BUILDER
             .comment("How many black spots open on the screen when crossing into the shadow (Parallax).")
             .translation("abyssaldepths.config.parallax_spots")
@@ -91,6 +100,9 @@ public final class ClientConfig {
             .defineEnum("shadeVanish", ShadeVanishStyle.DISSOLVE);
 
     public static final ModConfigSpec SPEC = BUILDER.build();
+
+    /** The waiting sign of Reprise. */
+    public enum RepriseWait { CIRCLE, SQUARE, CLOCK, CLOCK_TICKING }
 
     /** How shades look in the shadow. */
     public enum ShadeLook { CONTRAST, PRINT, SILHOUETTE, INVERTED, NONE }
@@ -141,6 +153,10 @@ public final class ClientConfig {
         return !SPEC.isLoaded() || AFTERIMAGES.get();
     }
 
+    public static boolean interludeParticles() {
+        return !SPEC.isLoaded() || INTERLUDE_PARTICLES.get();
+    }
+
     public static long afterimageIntervalMillis() {
         return SPEC.isLoaded() ? AFTERIMAGE_INTERVAL.get() : 70;
     }
@@ -175,6 +191,10 @@ public final class ClientConfig {
             SHADE_LOOK.set(look);
             SHADE_LOOK.save();
         }
+    }
+
+    public static RepriseWait repriseWait() {
+        return SPEC.isLoaded() ? REPRISE_WAIT.get() : RepriseWait.CIRCLE;
     }
 
     public static int parallaxSpots() {

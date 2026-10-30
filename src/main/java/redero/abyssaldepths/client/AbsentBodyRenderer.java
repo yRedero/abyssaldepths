@@ -69,6 +69,7 @@ public class AbsentBodyRenderer extends LivingEntityRenderer<AbsentBody, PlayerM
         @SubscribeEvent
         public static void register(EntityRenderersEvent.RegisterRenderers event) {
             event.registerEntityRenderer(AbyssalDepths.ABSENT_BODY.get(), AbsentBodyRenderer::new);
+            event.registerEntityRenderer(AbyssalDepths.SEAT.get(), net.minecraft.client.renderer.entity.NoopRenderer::new); // the mat's seat: nothing to see
         }
     }
 }

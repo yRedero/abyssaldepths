@@ -86,6 +86,7 @@ public final class AutoShot {
         switch (step) {
             case TITLE -> {
                 if (mc.screen instanceof TitleScreen) {
+                    toSecondMonitor(mc);
                     for (String b : PLAN.split(",")) {
                         BIOMES.add(b.trim() + "#0");   // two places per biome: formations are a matter of chance
                         BIOMES.add(b.trim() + "#1");
@@ -266,10 +267,13 @@ public final class AutoShot {
                     final int k = (t - 20) / 100, at = (t - 20) % 100;
                     final redero.abyssaldepths.ClientConfig.ShadeVanishStyle style = redero.abyssaldepths.ClientConfig.ShadeVanishStyle.values()[k];
                     final int half = new int[] {13, 18, 8, 23, 17, 13}[k]; // about 45 % of each style's time, in ticks
-                    if (at < 90) { // walks to the side and back (as a remote player: position and walking legs)
+                    if (at < 90) { // walks to the side and back, moved like the server moves remote players
                         final double x = mc.player.getX() + 1.5 * Math.sin((at < 45 ? at : 90 - at) * 0.07);
-                        fake.lerpTo(x, fake.getY(), fake.getZ(), 180.0F, 0.0F, 1);
-                        fake.walkAnimation.setSpeed(0.6F);
+                        fake.lerpTo(x, fake.getY(), fake.getZ(), 180.0F + 20.0F * (float) Math.sin(at * 0.2), 0.0F, 3);
+                        fake.lerpHeadTo(180.0F + 40.0F * (float) Math.sin(at * 0.15), 3);
+                    }
+                    if (k == 5 && at >= 4 && at <= 12 && at % 2 == 0) { // dissolve: a few frames in a row, to judge the motion
+                        shoot(mc, "vanishmotion_" + (at / 2) + "_dir0");
                     }
                     if (at == 0) {
                         redero.abyssaldepths.ClientConfig.setShadeVanish(style);
@@ -479,6 +483,25 @@ public final class AutoShot {
 
     /** The fake player of the vanishing test. */
     private static net.minecraft.client.player.RemotePlayer fake;
+
+    /** Puts the window in the middle of a monitor other than the main one, if there is one (out of the way). */
+    private static void toSecondMonitor(Minecraft mc) {
+        final long window = mc.getWindow().getWindow();
+        final org.lwjgl.PointerBuffer monitors = org.lwjgl.glfw.GLFW.glfwGetMonitors();
+        final long primary = org.lwjgl.glfw.GLFW.glfwGetPrimaryMonitor();
+        for (int i = 0; monitors != null && i < monitors.limit(); i++) {
+            final long monitor = monitors.get(i);
+            final org.lwjgl.glfw.GLFWVidMode mode = org.lwjgl.glfw.GLFW.glfwGetVideoMode(monitor);
+            if (monitor == primary || mode == null) {
+                continue;
+            }
+            final int[] mx = new int[1], my = new int[1];
+            org.lwjgl.glfw.GLFW.glfwGetMonitorPos(monitor, mx, my);
+            final int w = mc.getWindow().getWidth(), h = mc.getWindow().getHeight();
+            org.lwjgl.glfw.GLFW.glfwSetWindowPos(window, mx[0] + Math.max(0, (mode.width() - w) / 2), my[0] + Math.max(30, (mode.height() - h) / 2));
+            return;
+        }
+    }
 
     private static void shoot(Minecraft mc, String name) {
         Screenshot.grab(mc.gameDirectory, "autoshot_" + name + ".png", mc.getMainRenderTarget(), msg -> { });

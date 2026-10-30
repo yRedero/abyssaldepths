@@ -97,7 +97,8 @@ public final class DuneStormClient {
         }
         // the wind is loudest inside the dunes, heard faintly from nearby
         near += Mth.clamp((count == 0 ? 0.0F : hits / (float) count) - near, -0.02F, 0.02F);
-        if (Math.max(strength, 0.4F * blowing * near) > 0.01F && (howl == null || howl.isStopped())) {
+        if (Math.max(strength, 0.4F * blowing * near) > 0.01F && (howl == null || !mc.getSoundManager().isActive(howl))) {
+            // not "stopped" only: a howl blocked or cut off (the shadow) never says so, and would never come back
             howl = new Howl();
             mc.getSoundManager().play(howl);
         }

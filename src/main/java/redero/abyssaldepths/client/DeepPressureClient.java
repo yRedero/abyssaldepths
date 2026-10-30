@@ -157,12 +157,12 @@ public final class DeepPressureClient {
 
         if (stage >= 2 && --heartbeatCooldown <= 0) {
             heartbeatCooldown = stage == 2 ? 30 : stage == 3 ? 22 : 15; // faster with the pressure
-            mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.WARDEN_HEARTBEAT, 0.9F, 0.2F + 0.1F * stage));
+            ShadeView.ownSound(SimpleSoundInstance.forUI(SoundEvents.WARDEN_HEARTBEAT, 0.9F, 0.2F + 0.1F * stage));
         }
 
-        if (stage >= 3 && (ringing == null || ringing.isStopped())) {
+        if (stage >= 3 && (ringing == null || !mc.getSoundManager().isActive(ringing))) {
             ringing = new Ringing(player);
-            mc.getSoundManager().play(ringing);
+            ShadeView.ownSound(ringing);
         }
 
         tickScheduled();
@@ -248,7 +248,7 @@ public final class DeepPressureClient {
     }
 
     private static void playAt(SoundEvent sound, SoundSource source, Vec3 at, float volume, float pitch) {
-        Minecraft.getInstance().getSoundManager().play(new SimpleSoundInstance(sound, source, volume, pitch, RANDOM, at.x, at.y, at.z));
+        ShadeView.ownSound(new SimpleSoundInstance(sound, source, volume, pitch, RANDOM, at.x, at.y, at.z));
     }
 
     private static void schedule(int delay, Runnable action) {

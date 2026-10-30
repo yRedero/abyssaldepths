@@ -7,8 +7,8 @@ package redero.abyssaldepths.artifact;
 public enum ArtifactFrame {
     /** The Hollow (the thalan layer and everything below the surface): black and dark purple. */
     HOLLOW(0xF00B0711, 0xFF050308, 0xFF2E1647, 0xFF5A2D86),
-    /** The Zenith (a region still to come): white and orange. */
-    ZENITH(0xF0140C06, 0xFFF4F0E8, 0xFFB8561A, 0xFFF08A2C);
+    /** The Zenith (a region still to come): orange on black. */
+    ZENITH(0xF0140C06, 0xFF050302, 0xFFB8561A, 0xFFF08A2C);
 
     /** Inside of the tooltip. */
     public final int background;

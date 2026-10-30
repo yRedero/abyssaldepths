@@ -81,7 +81,10 @@ public final class LayerCommands {
                 .then(Commands.literal("mastery")
                         .then(Commands.argument("percent", IntegerArgumentType.integer(0, 100))
                                 .executes(c -> mastery(c, IntegerArgumentType.getInteger(c, "percent")))))
-                .then(Commands.literal("innerhaven").executes(LayerCommands::innerHaven))
+                .then(Commands.literal("innerhaven").executes(LayerCommands::innerHaven)
+                        .then(Commands.literal("form")
+                                .then(Commands.literal("room").executes(c -> form(c, InnerSelf.Form.ROOM)))
+                                .then(Commands.literal("islands").executes(c -> form(c, InnerSelf.Form.ISLANDS)))))
                 .then(Commands.literal("reprise")
                         .executes(c -> Reprise.activate(c.getSource().getServer()) ? 1 : 0)
                         .then(Commands.literal("slow").executes(c -> Reprise.activate(c.getSource().getServer(), 100) ? 1 : 0))
@@ -115,6 +118,12 @@ public final class LayerCommands {
     }
 
     /** Crosses into the inner self or back, as if Inner Haven had been used (no charge needed). */
+    private static int form(CommandContext<CommandSourceStack> context, InnerSelf.Form form) throws CommandSyntaxException {
+        InnerSelf.setForm(context.getSource().getPlayerOrException(), form);
+        context.getSource().sendSuccess(() -> Component.literal("Inner self: " + form.name().toLowerCase(java.util.Locale.ROOT)), false);
+        return 1;
+    }
+
     private static int innerHaven(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         final ServerPlayer player = context.getSource().getPlayerOrException();
         if (InnerSelf.travelling(player)) {

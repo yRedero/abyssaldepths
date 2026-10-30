@@ -19,6 +19,8 @@
     "defaultRequire": 1
   },
   "client": [
+    "InterludeParticleEngineMixin",
+    "InterludeParticleMixin",
     "ShadeClientSoundMixin",
     "ShadeParticleMixin",
     "ShadeRenderMixin",

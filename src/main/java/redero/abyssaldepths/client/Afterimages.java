@@ -77,7 +77,7 @@ public final class Afterimages {
     private static void capture(ClientLevel level, long now) {
         final long interval = ClientConfig.afterimageIntervalMillis();
         for (Player player : level.players()) {
-            if (!InterludeField.clientIsActive(player.getId(), level.getGameTime())) {
+            if (!InterludeField.clientIsActive(player.getId(), level.getGameTime()) || ShadeView.hidden(player)) {
                 continue;
             }
             final UUID id = player.getUUID();
