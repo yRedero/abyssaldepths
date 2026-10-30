@@ -31,7 +31,7 @@ import redero.abyssaldepths.AbyssalDepths;
 import redero.abyssaldepths.artifact.RepriseItem;
 
 /**
- * Puts the world back to the oldest moment Reprise remembers (up to 120 seconds ago), in one go:
+ * Puts the world back to a moment Reprise remembers (as far back as the Reprise used reaches), in one go:
  * <ol>
  * <li>blocks: every recorded change after the moment is undone, newest first, without neighbour updates
  * (so nothing breaks or drops on the way); fluids get a tick to flow again;</li>
@@ -50,13 +50,22 @@ public final class Rewind {
     private Rewind() {
     }
 
-    /** Rewinds; returns how many seconds back it went, or -1 if there is nothing to go back to. */
-    public static int run(MinecraftServer server) {
+    /**
+     * Rewinds to the oldest moment no more than {@code reach} ticks back (the newest one if all are older);
+     * returns how many seconds back it went, or -1 if there is nothing to go back to.
+     */
+    public static int run(MinecraftServer server, int reach) {
         if (!RepriseRecorder.recording || RepriseRecorder.MOMENTS.isEmpty()) {
             return -1;
         }
-        final RepriseRecorder.Moment moment = RepriseRecorder.MOMENTS.peekFirst();
         final long now = server.overworld().getGameTime();
+        RepriseRecorder.Moment moment = RepriseRecorder.MOMENTS.peekLast();
+        for (RepriseRecorder.Moment candidate : RepriseRecorder.MOMENTS) {
+            if (candidate.time() >= now - reach) {
+                moment = candidate;
+                break;
+            }
+        }
         final long started = System.nanoTime();
         int blocks = 0, entities = 0;
         // Reprise stays with whoever carries it now

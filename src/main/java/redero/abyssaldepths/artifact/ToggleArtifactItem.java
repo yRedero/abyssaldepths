@@ -37,7 +37,12 @@ public abstract class ToggleArtifactItem extends ArtifactItem {
     }
 
     /** Every tick while on, on the server, for the player carrying it. */
-    protected abstract void whileActive(ServerPlayer player);
+    protected abstract void whileActive(ServerPlayer player, ItemStack stack);
+
+    /** Ticks between two charges used while on (can grow with the mastery). */
+    protected int drainTicks(ItemStack stack) {
+        return drainTicks;
+    }
 
     /** The message when it is used without charge. */
     protected abstract String noChargeKey();
@@ -88,7 +93,7 @@ public abstract class ToggleArtifactItem extends ArtifactItem {
         if (level.isClientSide || !(entity instanceof ServerPlayer player)) {
             return;
         }
-        if (level.getGameTime() % drainTicks == 0) {
+        if (level.getGameTime() % drainTicks(stack) == 0) {
             setCharge(stack, charge(stack) - 1);
         }
         if (charge(stack) <= 0) {
@@ -97,7 +102,7 @@ public abstract class ToggleArtifactItem extends ArtifactItem {
             return;
         }
         stack.remove(AbyssalDepths.CHARGE_TIME.get()); // no regeneration while it runs
-        whileActive(player);
+        whileActive(player, stack);
     }
 
     /** Thrown away: it stops. */

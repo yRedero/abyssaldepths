@@ -132,6 +132,25 @@ public final class ShadeVanish {
     private ShadeVanish() {
     }
 
+    /** A puff of black and purple pixels from a creature that vanishes or comes back for this client. */
+    public static void puff(Entity entity) {
+        final Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || mc.player == null || entity.distanceToSqr(mc.player) > RANGE * RANGE) {
+            return;
+        }
+        final net.minecraft.util.RandomSource random = mc.level.random;
+        final int count = 10 + (int) (entity.getBbWidth() * entity.getBbHeight() * 12);
+        for (int i = 0; i < Math.min(80, count); i++) {
+            final float r = random.nextFloat();
+            final int rgb = r < 0.45F ? BLACK : r < 0.75F ? DEEP : r < 0.93F ? VIOLET : BRIGHT;
+            final org.joml.Vector3f colour = new org.joml.Vector3f(((rgb >> 16) & 255) / 255.0F, ((rgb >> 8) & 255) / 255.0F, (rgb & 255) / 255.0F);
+            final double x = entity.getX() + (random.nextDouble() - 0.5) * entity.getBbWidth();
+            final double y = entity.getY() + random.nextDouble() * entity.getBbHeight();
+            final double z = entity.getZ() + (random.nextDouble() - 0.5) * entity.getBbWidth();
+            mc.level.addParticle(new net.minecraft.core.particles.DustParticleOptions(colour, 1.2F), x, y, z, 0.0, 0.0, 0.0);
+        }
+    }
+
     /** Whether the entity is still appearing (and only its fade is drawn). */
     static boolean appearing(Entity entity) {
         for (Fade fade : FADES) {

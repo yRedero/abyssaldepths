@@ -13,20 +13,16 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import redero.abyssaldepths.artifact.Shades;
 
-/** Shades neither push nor get pushed, cannot be aimed at, and raise no dust landing ({@link Shades}). */
+/**
+ * Across the sides of the shadow nothing pushes and nothing can be aimed at; shades raise no dust landing
+ * ({@link Shades}).
+ */
 @Mixin(LivingEntity.class)
 public abstract class ShadeLivingMixin {
     @Inject(method = "doPush", at = @At("HEAD"), cancellable = true)
     private void abyssaldepths$noShadePush(Entity other, CallbackInfo ci) {
-        if (Shades.isShade((Entity) (Object) this) || Shades.isShade(other)) {
+        if (Shades.apart((Entity) (Object) this, other)) {
             ci.cancel();
-        }
-    }
-
-    @Inject(method = "isPushable", at = @At("HEAD"), cancellable = true)
-    private void abyssaldepths$shadeNotPushable(CallbackInfoReturnable<Boolean> cir) {
-        if (Shades.isShade((Entity) (Object) this)) {
-            cir.setReturnValue(false);
         }
     }
 
@@ -40,7 +36,9 @@ public abstract class ShadeLivingMixin {
 
     @Inject(method = "isPickable", at = @At("HEAD"), cancellable = true)
     private void abyssaldepths$shadeNotPickable(CallbackInfoReturnable<Boolean> cir) {
-        if (Shades.isShade((Entity) (Object) this)) {
+        // on a client: what is on the other side of the shadow from its view cannot be aimed at
+        final Entity self = (Entity) (Object) this;
+        if (self.level().isClientSide && Shades.isShade(self) != Shades.clientViewInShadow) {
             cir.setReturnValue(false);
         }
     }

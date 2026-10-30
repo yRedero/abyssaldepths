@@ -141,6 +141,7 @@ public final class ShadeView {
             crossing = Mth.clamp(crossing + (shade ? step : -step), 0.0F, 1.0F);
         }
         seesWorld = mc.player != null && ParallaxItem.seesWorld(mc.player);
+        Shades.clientViewInShadow = inShadow();
         if (inShadow() && previous < 0.5F) {
             mc.getSoundManager().stop(); // what plays in the world stops at the crossing
         }

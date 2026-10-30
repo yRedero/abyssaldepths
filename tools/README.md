@@ -22,7 +22,7 @@ three shots a quarter second apart for animations) and `haven` (Inner Haven's cr
 fade, the room, the way back) `reprise` (changes the world, rewinds, and checks in `game.log`: grep
 "reprise check" and "block data") and `interlude` (two falling sand blocks, normal and slowed: their
 heights after 20 ticks in `game.log`; the afterimage trail in third person) and `parallax` (the shadow's
-view before, in and after; grep "parallax check" in `game.log`) and `vanish` (every way a shade vanishes and
+view before, in and after; grep "parallax check" in `game.log`) `oblivion` (creatures sent away and back, the strong sooner; grep "oblivion check") and `vanish` (every way a shade vanishes and
 comes back, with a fake player; at the end the shadow's view with that player as a shade) can be listed like biomes, e.g. `tools/autoshot.sh tt artifacts`.
 
 Takes 3 to 6 minutes. Needs Python with Pillow.

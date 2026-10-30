@@ -60,6 +60,7 @@ import redero.abyssaldepths.artifact.ArtifactItem;
 import redero.abyssaldepths.artifact.ArtifactRank;
 import redero.abyssaldepths.artifact.InnerHavenItem;
 import redero.abyssaldepths.artifact.InterludeItem;
+import redero.abyssaldepths.artifact.OblivionItem;
 import redero.abyssaldepths.artifact.ParallaxItem;
 import redero.abyssaldepths.artifact.RepriseItem;
 import redero.abyssaldepths.entity.AbsentBody;
@@ -214,6 +215,10 @@ public class AbyssalDepths {
     /** Slows everything around its holder to half speed while switched on; 10 charges, 1 used every 2 s, 1 back every 30 s. */
     public static final DeferredItem<InterludeItem> INTERLUDE = ITEMS.register("interlude",
             () -> new InterludeItem(new Item.Properties(), ArtifactRank.GREATER, ArtifactFrame.HOLLOW, 10, 20 * 30));
+
+    /** Sends everything alive around its user into the shadow for 30 s (the strong for less); 1 charge, 30 minutes. */
+    public static final DeferredItem<OblivionItem> OBLIVION = ITEMS.register("oblivion",
+            () -> new OblivionItem(new Item.Properties(), ArtifactRank.PRIMORDIAL, ArtifactFrame.HOLLOW, 1, 20 * 60 * 30));
 
     /** Makes its holder a shade in the shadow of this world while switched on; 10 charges, 1 used every 6 s, 1 back every minute. */
     public static final DeferredItem<ParallaxItem> PARALLAX = ITEMS.register("parallax",

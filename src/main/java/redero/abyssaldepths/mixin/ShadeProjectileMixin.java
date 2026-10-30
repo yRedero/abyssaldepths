@@ -9,12 +9,13 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.projectile.Projectile;
 import redero.abyssaldepths.artifact.Shades;
 
-/** Projectiles fly through shades ({@link Shades}). */
+/** Projectiles fly through what is on the other side of the shadow from them ({@link Shades}). */
 @Mixin(Projectile.class)
 public abstract class ShadeProjectileMixin {
     @Inject(method = "canHitEntity", at = @At("HEAD"), cancellable = true)
     private void abyssaldepths$throughShades(Entity target, CallbackInfoReturnable<Boolean> cir) {
-        if (Shades.isShade(target)) {
+        final Projectile self = (Projectile) (Object) this;
+        if (Shades.isShade(self) != Shades.isShade(target) || Shades.apart(self.getOwner() != null ? self.getOwner() : self, target)) {
             cir.setReturnValue(false);
         }
     }

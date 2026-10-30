@@ -23,6 +23,19 @@ public class ArtifactItem extends Item {
      * {@code maxCharge} 0: the artifact has no charge. {@code regenTicks}: one charge comes back every so
      * many ticks while the artifact is in an inventory (0: it never comes back by itself).
      */
+    /** Mastery milestones: one every 25 %, from 0 (none reached) to 4 (full mastery). */
+    public static int milestone(ItemStack stack) {
+        return Math.min(4, mastery(stack) / 25);
+    }
+
+    /**
+     * What the artifact does at its current milestone, for the tooltip (null: nothing that grows with the
+     * mastery).
+     */
+    public net.minecraft.network.chat.Component powerLine(ItemStack stack) {
+        return null;
+    }
+
     /**
      * Ticks an artifact rests after being used, so it cannot be spammed (the game shows it on the item and
      * refuses the use meanwhile); artifacts can ask for another rest.

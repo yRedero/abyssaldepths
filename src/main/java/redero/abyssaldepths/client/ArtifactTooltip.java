@@ -82,6 +82,10 @@ public final class ArtifactTooltip {
             }
         }
         lines.add(Component.translatable("abyssaldepths.artifact.mastery", ArtifactItem.mastery(stack)).withStyle(ChatFormatting.GRAY));
+        final Component power = artifact.powerLine(stack);
+        if (power != null) {
+            lines.add(power.copy().withStyle(ChatFormatting.DARK_GRAY));
+        }
         if (forceDetails || Screen.hasShiftDown()) {
             lines.add(Component.empty());
             final Font font = Minecraft.getInstance().font;

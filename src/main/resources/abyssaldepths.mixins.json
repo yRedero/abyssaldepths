@@ -8,6 +8,7 @@
     "LevelChunkMixin",
     "MineshaftStructureMixin",
     "OverworldBiomeBuilderMixin",
+    "ShadeCreatureSoundMixin",
     "ShadeEntityMixin",
     "ShadeLivingMixin",
     "ShadePlayerMixin",

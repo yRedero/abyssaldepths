@@ -15,12 +15,20 @@ public final class ClientEffects {
         if (effect.startsWith("interlude/")) {
             final net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
             if (mc.level != null) {
-                InterludeField.clientActive(Integer.parseInt(effect.substring("interlude/".length())), payload.ticks(), mc.level.getGameTime());
+                final String[] parts = effect.substring("interlude/".length()).split("/");
+                final float strength = parts.length > 1 ? Integer.parseInt(parts[1]) / 100.0F : 0.5F;
+                InterludeField.clientActive(Integer.parseInt(parts[0]), payload.ticks(), mc.level.getGameTime(), strength);
             }
         } else if (effect.startsWith("shade/")) {
             final net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
             if (mc.level != null) {
-                Shades.clientShade(Integer.parseInt(effect.substring("shade/".length())), payload.ticks(), mc.level.getGameTime());
+                final int id = Integer.parseInt(effect.substring("shade/".length()));
+                final net.minecraft.world.entity.Entity entity = mc.level.getEntity(id);
+                final boolean wasHidden = entity != null && ShadeView.seenHidden(entity);
+                Shades.clientShade(id, payload.ticks(), mc.level.getGameTime());
+                if (entity != null && !(entity instanceof net.minecraft.world.entity.player.Player) && wasHidden != ShadeView.seenHidden(entity)) {
+                    ShadeVanish.puff(entity); // creatures: no fade like players', a puff of the shadow's pixels
+                }
                 ShadeVanish.check(); // at once: until the next tick the player would be drawn as they are now
             }
         } else if (effect.startsWith("vanish_style/")) {

@@ -9,9 +9,10 @@ import net.minecraft.world.level.Level;
 /**
  * Parallax: right click switches it on and off. While it is on, its holder is a shade in the shadow of
  * this world ({@link Shades}): there, unseen and untouchable, unable to touch anything but able to walk,
- * and to meet everyone else in the shadow. It uses up one charge every six seconds (a minute from full);
- * when empty it switches off. While off, the charge comes back (one a minute). A shade sees nothing of
- * the world's creatures and players (only other shades) until its Parallax is at full mastery.
+ * and to meet everyone else in the shadow. It uses up its charge (a full one lasts 60 s, up to 120 s with
+ * the mastery milestones, {@link #SECONDS}); when empty it switches off. While off, the charge comes back
+ * (one a minute). A shade sees nothing of the world's creatures and players (only other shades) until its
+ * Parallax is at full mastery.
  */
 public class ParallaxItem extends ToggleArtifactItem {
     public ParallaxItem(Properties properties, ArtifactRank rank, ArtifactFrame frame, int maxCharge, int regenTicks) {
@@ -33,9 +34,22 @@ public class ParallaxItem extends ToggleArtifactItem {
         return false;
     }
 
+    /** Seconds a full charge lasts, per milestone (0 .. 4). */
+    static final int[] SECONDS = {60, 75, 90, 105, 120};
+
     @Override
-    protected void whileActive(ServerPlayer player) {
+    protected void whileActive(ServerPlayer player, ItemStack stack) {
         Shades.mark(player);
+    }
+
+    @Override
+    protected int drainTicks(ItemStack stack) {
+        return SECONDS[milestone(stack)] * 20 / Math.max(1, maxCharge());
+    }
+
+    @Override
+    public net.minecraft.network.chat.Component powerLine(ItemStack stack) {
+        return net.minecraft.network.chat.Component.translatable("item.abyssaldepths.parallax.power", SECONDS[milestone(stack)]);
     }
 
     @Override

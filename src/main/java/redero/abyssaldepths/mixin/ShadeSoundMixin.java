@@ -23,13 +23,17 @@ import redero.abyssaldepths.artifact.Shades;
 /**
  * Sounds keep to their side of the shadow ({@link Shades}): a shade hears only what other shades make, and
  * what a shade makes only other shades hear. Applies to the sounds (and level events, mostly sounds) the
- * server sends to the players around a place; who made one is the player it is not sent to.
+ * server sends to the players around a place; who made one is the player it is not sent to, the entity a
+ * sound is on, or a shade creature that marked it ({@code ShadeCreatureSoundMixin}).
  */
 @Mixin(PlayerList.class)
 public abstract class ShadeSoundMixin {
     @Shadow
     @Final
     private java.util.List<ServerPlayer> players;
+    @Shadow
+    @Final
+    private net.minecraft.server.MinecraftServer server;
 
     @Inject(method = "broadcast", at = @At("HEAD"), cancellable = true)
     private void abyssaldepths$soundsKeepToTheirSide(@Nullable Player except, double x, double y, double z, double radius,
@@ -37,7 +41,9 @@ public abstract class ShadeSoundMixin {
         if (!(packet instanceof ClientboundSoundPacket || packet instanceof ClientboundSoundEntityPacket || packet instanceof ClientboundLevelEventPacket)) {
             return;
         }
-        final boolean byShade = except != null && Shades.isShade(except);
+        final boolean byShade = except != null && Shades.isShade(except) || Shades.SOUND_BY_SHADE.get()
+                || packet instanceof ClientboundSoundEntityPacket sound && server.getLevel(dimension) != null
+                        && Shades.isShade(server.getLevel(dimension).getEntity(sound.getId()));
         for (ServerPlayer player : players) {
             if (player != except && player.level().dimension() == dimension && Shades.isShade(player) == byShade
                     && player.distanceToSqr(x, y, z) < radius * radius) {

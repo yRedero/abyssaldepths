@@ -52,7 +52,7 @@ public final class AutoShot {
     private static final String SPOT_COMMANDS = System.getProperty("abyssaldepths.autoshot.spotCommands", "");
     private static final int SETTLE_TICKS = 220, TURN_TICKS = 15;
 
-    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, VANISH, DONE }
+    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, VANISH, OBLIVION, DONE }
 
     private static Step step = Step.TITLE;
     private static final Deque<String> BIOMES = new ArrayDeque<>();
@@ -142,6 +142,14 @@ public final class AutoShot {
                 }
                 spotsDone++;
                 biome = BIOMES.poll();
+                if (biome != null && biome.startsWith("oblivion#")) {
+                    // not a place: Oblivion sends creatures away, the strong for less ("oblivion check" lines)
+                    if (biome.endsWith("#0")) {
+                        wait = 0;
+                        step = Step.OBLIVION;
+                    }
+                    return;
+                }
                 if (biome != null && biome.startsWith("vanish#")) {
                     // not a place: how a shade vanishes and comes back, every style (a fake player on this client)
                     if (biome.endsWith("#0")) {
@@ -247,6 +255,36 @@ public final class AutoShot {
                 }
                 if (wait > 70 && wait < 120) {
                     command(server, "tp @s ~-0.3 ~ ~"); // walk sideways: the afterimages trail behind
+                }
+            }
+            case OBLIVION -> {
+                final MinecraftServer server = mc.getSingleplayerServer();
+                final int t = ++wait;
+                final int cast = 40;
+                if (t == 1) {
+                    command(server, "tp @s ~ ~40 ~ 0 15");
+                } else if (t == 8) {
+                    command(server, "fill ~-6 ~-1 ~2 ~6 ~-1 ~14 stone");
+                } else if (t == 12) {
+                    command(server, "summon zombie ~2 ~ ~5 {NoAI:1b,PersistenceRequired:1b,Tags:[\"oblivion_test\"]}");
+                    command(server, "summon cow ~-2 ~ ~5 {NoAI:1b,Tags:[\"oblivion_test\"]}");
+                    command(server, "summon wither ~0 ~ ~10 {NoAI:1b,Tags:[\"oblivion_test\"]}");
+                } else if (t == cast - 5) {
+                    shoot(mc, "oblivion_0_dir0"); // before
+                } else if (t == cast) {
+                    command(server, "abyssaldepths oblivion");
+                } else if (t == cast + 10) {
+                    shoot(mc, "oblivion_0_dir1"); // gone
+                    oblivionCheck(server, "just after");
+                } else if (t == cast + 20 * 16) {
+                    shoot(mc, "oblivion_0_dir2"); // the wither (300 health: 15 s) back, the others still away
+                    oblivionCheck(server, "after 16 s");
+                } else if (t == cast + 20 * 31) {
+                    shoot(mc, "oblivion_0_dir3"); // all back
+                    oblivionCheck(server, "after 31 s");
+                } else if (t == cast + 20 * 31 + 5) {
+                    command(server, "kill @e[tag=oblivion_test]");
+                    step = Step.NEXT;
                 }
             }
             case VANISH -> {
@@ -480,6 +518,19 @@ public final class AutoShot {
     private static void command(MinecraftServer server, String command) {
         server.execute(() -> server.getCommands().performPrefixedCommand(
                 server.getPlayerList().getPlayers().get(0).createCommandSourceStack().withPermission(4), command));
+    }
+
+    /** Logs which of the Oblivion test's creatures are in the shadow. */
+    private static void oblivionCheck(MinecraftServer server, String when) {
+        final StringBuilder out = new StringBuilder();
+        for (net.minecraft.server.level.ServerLevel level : server.getAllLevels()) {
+            for (net.minecraft.world.entity.Entity e : level.getAllEntities()) {
+                if (e.getTags().contains("oblivion_test")) {
+                    out.append(e.getType().getDescription().getString()).append('=').append(redero.abyssaldepths.artifact.Shades.isShade(e) ? "shade" : "world").append(' ');
+                }
+            }
+        }
+        AbyssalDepths.LOGGER.info("oblivion check {}: {}", when, out);
     }
 
     /** The fake player of the vanishing test. */

@@ -32,7 +32,7 @@ import redero.abyssaldepths.network.EffectPayload;
 
 /**
  * Interlude's slowed time: around every player with an active Interlude ({@link #RADIUS} blocks), everything
- * else runs at {@link #SPEED} of its normal pace.
+ * else runs at a slower pace (half of it at first; slower with the holder's mastery, {@link #strength}).
  * <ul>
  * <li>Creatures, projectiles, items, falling blocks: they only get some of their ticks (every other one
  * at half speed), on the server and on the clients alike, so all about them slows down: movement, AI,
@@ -53,7 +53,10 @@ import redero.abyssaldepths.network.EffectPayload;
 public final class InterludeField {
     public static final double RADIUS = 32.0;
     /** Pace of everything in the field; later from the mastery. */
-    public static final float SPEED = 0.5F;
+    /** Server: how strongly each active holder's field slows (0 .. 1), from their Interlude's mastery. */
+    private static final Map<UUID, Float> STRENGTH = new HashMap<>();
+    /** Client: the same per holder's entity id, as the server sent it. */
+    private static final it.unimi.dsi.fastutil.ints.Int2FloatOpenHashMap CLIENT_STRENGTH = new it.unimi.dsi.fastutil.ints.Int2FloatOpenHashMap();
     private static final ResourceLocation SLOW = ResourceLocation.fromNamespaceAndPath(AbyssalDepths.MODID, "interlude_slow");
     /** What is slowed on players in a field. */
     private static final java.util.List<Holder<Attribute>> SLOWED = java.util.List.of(
@@ -72,12 +75,14 @@ public final class InterludeField {
     }
 
     /** The player's Interlude is on (called every tick by the item while it is in their inventory). */
-    static void mark(ServerPlayer player) {
+    static void mark(ServerPlayer player, float strength) {
+        STRENGTH.put(player.getUUID(), strength);
         ACTIVE.put(player.getUUID(), player.serverLevel().getGameTime());
     }
 
     /** Client: a holder is active for the next {@code ticks} ticks (sent by the server every second). */
-    public static void clientActive(int entityId, int ticks, long clientTick) {
+    public static void clientActive(int entityId, int ticks, long clientTick, float strength) {
+        CLIENT_STRENGTH.put(entityId, strength);
         if (ticks <= 0) {
             CLIENT.remove(entityId);
         } else {
@@ -99,11 +104,11 @@ public final class InterludeField {
     }
 
     /**
-     * How strongly a holder's field slows (0 .. 1: the share of the pace taken away). The same for all for
-     * now; it will grow with the mastery.
+     * How strongly a holder's field slows (0 .. 1: the share of the pace taken away), from their Interlude's
+     * mastery milestone (the server knows it; the clients get it with the holder's activity).
      */
     static float strength(Player holder) {
-        return 1.0F - SPEED;
+        return holder.level().isClientSide ? CLIENT_STRENGTH.getOrDefault(holder.getId(), 0.5F) : STRENGTH.getOrDefault(holder.getUUID(), 0.5F);
     }
 
     /** Whether the player is an active holder (on the side of the level). */
@@ -256,7 +261,7 @@ public final class InterludeField {
             for (UUID id : ACTIVE.keySet()) {
                 final ServerPlayer holder = server.getPlayerList().getPlayer(id);
                 if (holder != null) {
-                    PacketDistributor.sendToPlayersInDimension(holder.serverLevel(), new EffectPayload("interlude/" + holder.getId(), 30));
+                    PacketDistributor.sendToPlayersInDimension(holder.serverLevel(), new EffectPayload("interlude/" + holder.getId() + "/" + Math.round(strength(holder) * 100), 30));
                 }
             }
         }

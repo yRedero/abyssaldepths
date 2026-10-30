@@ -16,13 +16,25 @@ import redero.abyssaldepths.artifact.reprise.Reprise;
 import redero.abyssaldepths.artifact.reprise.RepriseRecorder;
 
 /**
- * Reprise: while it is in a player's inventory, the world remembers its last 120 seconds
- * ({@link RepriseRecorder}); hold right click for five seconds and everything (blocks, their contents,
- * creatures, items, every player) goes back to how it was, for everyone. One charge, back after 30
- * minutes. Reprise itself is not rewound.
+ * Reprise: while it is in a player's inventory, the world remembers its last seconds ({@link RepriseRecorder}:
+ * 30 at first, up to 240 with the mastery milestones, {@link #REACH}); hold right click for five seconds and
+ * everything (blocks, their contents, creatures, items, every player) goes back to how it was that long
+ * ago, for everyone. One charge, back after 30 minutes. Reprise itself is not rewound.
  */
 public class RepriseItem extends ArtifactItem {
     private static final int USE_TICKS = 100;
+    /** How far back it reaches, in seconds, per milestone (0 .. 4). */
+    public static final int[] REACH = {30, 60, 120, 180, 240};
+
+    /** How far back this Reprise reaches, in ticks. */
+    public static int reachTicks(ItemStack stack) {
+        return REACH[milestone(stack)] * 20;
+    }
+
+    @Override
+    public Component powerLine(ItemStack stack) {
+        return Component.translatable("item.abyssaldepths.reprise.power", REACH[milestone(stack)]);
+    }
 
     public RepriseItem(Properties properties, ArtifactRank rank, ArtifactFrame frame, int maxCharge, int regenTicks) {
         super(properties, rank, frame, maxCharge, regenTicks);
@@ -69,7 +81,7 @@ public class RepriseItem extends ArtifactItem {
 
     @Override
     public ItemStack finishUsingItem(ItemStack stack, Level level, LivingEntity entity) {
-        if (!level.isClientSide && entity instanceof ServerPlayer player && charge(stack) >= 1 && Reprise.activate(player.server)) {
+        if (!level.isClientSide && entity instanceof ServerPlayer player && charge(stack) >= 1 && Reprise.activate(player.server, 0, reachTicks(stack))) {
             setCharge(stack, charge(stack) - 1);
             level.playSound(null, player.blockPosition(), SoundEvents.BEACON_DEACTIVATE, SoundSource.PLAYERS, 1.0F, 0.6F);
             rest(player);

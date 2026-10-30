@@ -52,8 +52,10 @@ import redero.abyssaldepths.artifact.RepriseItem;
  */
 @EventBusSubscriber(modid = AbyssalDepths.MODID)
 public final class RepriseRecorder {
-    /** How far back Reprise reaches: 120 seconds. */
-    public static final int WINDOW = 20 * 120;
+    /** How far back Reprise can reach at most: 240 seconds (at full mastery). */
+    public static final int WINDOW = 20 * 240;
+    /** How far back the memory is kept now: as far as the furthest reaching Reprise carried needs. */
+    static int window = WINDOW;
     /** How often a moment is taken, in ticks. */
     static final int MOMENT_EVERY = 100;
     /** Changes kept at most; beyond that the oldest are dropped (the reach gets shorter). */
@@ -176,6 +178,7 @@ public final class RepriseRecorder {
         final long now = server.overworld().getGameTime();
         if (now % 20 == 0) {
             final boolean carried = server.getPlayerList().getPlayers().stream().anyMatch(RepriseRecorder::carries);
+            window = server.getPlayerList().getPlayers().stream().mapToInt(RepriseRecorder::reach).max().orElse(WINDOW);
             if (carried && !recording) {
                 start(server);
             } else if (!carried && recording) {
@@ -199,7 +202,7 @@ public final class RepriseRecorder {
         while (MOMENTS.size() > 1) {
             final java.util.Iterator<Moment> it = MOMENTS.iterator();
             it.next();
-            if (it.next().time() > now - WINDOW) {
+            if (it.next().time() > now - window) {
                 break; // the second oldest is still inside: the oldest is the one to go back to
             }
             MOMENTS.removeFirst();
@@ -218,6 +221,18 @@ public final class RepriseRecorder {
     }
 
     /** Whether the player has a Reprise anywhere in their inventory. */
+    /** How far back the Reprises a player carries reach, in ticks (0 if none). */
+    static int reach(ServerPlayer player) {
+        int reach = 0;
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            final net.minecraft.world.item.ItemStack stack = player.getInventory().getItem(i);
+            if (stack.getItem() instanceof RepriseItem) {
+                reach = Math.max(reach, RepriseItem.reachTicks(stack));
+            }
+        }
+        return reach;
+    }
+
     static boolean carries(ServerPlayer player) {
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
             if (player.getInventory().getItem(i).getItem() instanceof RepriseItem) {

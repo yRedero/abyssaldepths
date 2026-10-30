@@ -26,7 +26,9 @@ and ambience.
   slows everything around you to half speed while you leave afterimages behind. *Parallax* makes you a
   shade in the shadow of this world: unseen and untouchable, unable to touch anything, only to walk, and
   to meet whoever else is in the shadow (the world's creatures and players stay hidden from you until
-  its mastery is full).
+  its mastery is full). *Oblivion*
+  casts everything alive around you into that shadow for thirty seconds (the mightiest for less). Mastery
+  strengthens Reprise (30 to 240 s back), Interlude (slower and longer) and Parallax (longer).
 - **Ambience**: biome sounds, echo in the halls, dust, drips, gusts, fog tinted per biome, no game
   music in the layer.
 
@@ -47,6 +49,7 @@ Test commands for operators:
 /abyssaldepths reprise [status]                 (rewind now / how far back it reaches and what is kept)
 /abyssaldepths vanish style <style>             (how shades vanish: pixels, ash, slide, shadow, disintegrate, dissolve, none)
 /abyssaldepths vanish play [style]              (plays it on a copy of you, three blocks ahead)
+/abyssaldepths oblivion                         (casts Oblivion around you, without charge)
 /abyssaldepths shadelook <look>                 (how shades look in the shadow: contrast, print, silhouette, inverted, none)
 ```
 
