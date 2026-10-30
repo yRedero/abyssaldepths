@@ -24,6 +24,8 @@ public final class ClientEffects {
             }
         } else if (effect.startsWith("vanish_style/")) {
             ClientConfig.setShadeVanish(ClientConfig.ShadeVanishStyle.valueOf(effect.substring("vanish_style/".length())));
+        } else if (effect.startsWith("shade_look/")) {
+            ClientConfig.setShadeLook(ClientConfig.ShadeLook.valueOf(effect.substring("shade_look/".length())));
         } else if (effect.startsWith("vanish_play/")) {
             final String style = effect.substring("vanish_play/".length());
             ShadeVanish.preview(style.isEmpty() ? ClientConfig.shadeVanish() : ClientConfig.ShadeVanishStyle.valueOf(style));

@@ -22,6 +22,7 @@
     "ShadeClientSoundMixin",
     "ShadeParticleMixin",
     "ShadeRenderMixin",
+    "ShadeSkinMixin",
     "WorldOpenFlowsMixin"
   ]
 }

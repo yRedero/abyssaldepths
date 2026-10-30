@@ -58,6 +58,10 @@ public final class LayerCommands {
                 vanishPlay.then(Commands.literal(name).executes(c -> send(c, "vanish_play/" + style.name())));
             }
         }
+        final LiteralArgumentBuilder<CommandSourceStack> shadeLook = Commands.literal("shadelook");
+        for (ClientConfig.ShadeLook look : ClientConfig.ShadeLook.values()) {
+            shadeLook.then(Commands.literal(look.name().toLowerCase(java.util.Locale.ROOT)).executes(c -> send(c, "shade_look/" + look.name())));
+        }
         final LiteralArgumentBuilder<CommandSourceStack> ambience = Commands.literal("ambience");
         for (String kind : AMBIENCE) {
             ambience.then(Commands.literal(kind).executes(c -> send(c, "ambience/" + kind)));
@@ -67,6 +71,7 @@ public final class LayerCommands {
                 .then(hallucinate)
                 .then(ambience)
                 .then(Commands.literal("vanish").then(vanishStyle).then(vanishPlay))
+                .then(shadeLook)
                 .then(Commands.literal("storm")
                         .then(Commands.literal("start")
                                 .executes(c -> storm(c, 180))

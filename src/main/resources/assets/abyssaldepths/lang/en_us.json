@@ -21,6 +21,7 @@
   "abyssaldepths.config.parallax_transition": "Parallax crossing time (ms)",
   "abyssaldepths.config.particles": "Ambient particles",
   "abyssaldepths.config.reverb": "Cave echo",
+  "abyssaldepths.config.shade_look": "Look of shades",
   "abyssaldepths.config.shade_vanish": "Shade vanishing",
   "abyssaldepths.config.silence_music": "No music in the layer",
   "abyssaldepths.config.thermal_scan_chunks": "Thermal scan radius (chunks)",

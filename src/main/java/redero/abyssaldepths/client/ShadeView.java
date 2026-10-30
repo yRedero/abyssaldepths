@@ -5,6 +5,7 @@ import com.mojang.blaze3d.pipeline.RenderTarget;
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.PostChain;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundSource;
@@ -85,6 +86,15 @@ public final class ShadeView {
             return true;
         }
         return seenHidden(entity);
+    }
+
+    /** The skin a shade wears in this client's view of the shadow (in the configured look), or null for its own. */
+    public static ResourceLocation shadeSkin(AbstractClientPlayer player) {
+        final ClientConfig.ShadeLook look = ClientConfig.shadeLook();
+        if (look == ClientConfig.ShadeLook.NONE || !inShadow() || !Shades.isShade(player)) {
+            return null;
+        }
+        return SkinPixels.shadeSkin(player.getSkin().texture(), look);
     }
 
     /** Hidden by the rules alone (without the appearing ones). */

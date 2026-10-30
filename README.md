@@ -46,6 +46,7 @@ Test commands for operators:
 /abyssaldepths reprise [status]                 (rewind now / how far back it reaches and what is kept)
 /abyssaldepths vanish style <style>             (how shades vanish: pixels, ash, slide, shadow, disintegrate, none)
 /abyssaldepths vanish play [style]              (plays it on a copy of you, three blocks ahead)
+/abyssaldepths shadelook <look>                 (how shades look in the shadow: contrast, print, silhouette, inverted, none)
 ```
 
 ## Building

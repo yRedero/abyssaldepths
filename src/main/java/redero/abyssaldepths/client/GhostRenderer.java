@@ -29,6 +29,8 @@ final class GhostRenderer extends LivingEntityRenderer<AbstractClientPlayer, Pla
     /** Alpha and tint of what is drawn now (read while the model is put into the buffer). */
     private static float alpha = 1.0F;
     private static int tint = 0xFFFFFF;
+    /** The texture drawn instead of the skin, if any. */
+    private static ResourceLocation texture;
 
     private final PlayerModel<AbstractClientPlayer> wide, slim;
 
@@ -44,12 +46,20 @@ final class GhostRenderer extends LivingEntityRenderer<AbstractClientPlayer, Pla
 
     /** Draws the player at the origin of the pose, with this alpha (0 .. 1) and tint (RGB). */
     static void draw(AbstractClientPlayer player, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, float alpha, int tint) {
+        draw(player, yaw, partialTick, pose, buffers, alpha, tint, null);
+    }
+
+    /** As above, with another texture in place of the skin (null: the skin). */
+    static void draw(AbstractClientPlayer player, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, float alpha, int tint,
+            ResourceLocation texture) {
         if (instance == null) {
             return;
         }
         GhostRenderer.alpha = alpha;
         GhostRenderer.tint = tint;
+        GhostRenderer.texture = texture;
         instance.render(player, yaw, partialTick, pose, buffers, LightTexture.FULL_BRIGHT);
+        GhostRenderer.texture = null;
     }
 
     @Override
@@ -61,7 +71,7 @@ final class GhostRenderer extends LivingEntityRenderer<AbstractClientPlayer, Pla
 
     @Override
     public ResourceLocation getTextureLocation(AbstractClientPlayer ghost) {
-        return ghost.getSkin().texture();
+        return texture != null ? texture : ghost.getSkin().texture();
     }
 
     @Override

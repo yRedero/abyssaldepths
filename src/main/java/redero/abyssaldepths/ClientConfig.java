@@ -74,16 +74,25 @@ public final class ClientConfig {
             .comment("How many black spots open on the screen when crossing into the shadow (Parallax).")
             .translation("abyssaldepths.config.parallax_spots")
             .defineInRange("parallaxSpots", 33, 1, 300);
+    private static final ModConfigSpec.EnumValue<ShadeLook> SHADE_LOOK = BUILDER
+            .comment("How shades (players in Parallax's shadow) look to each other:",
+                    "CONTRAST: harsh contrast, the shading leaning purple; PRINT: three purples, like a print;",
+                    "SILHOUETTE: near black with glowing eyes; INVERTED: the colours turned, purple; NONE: their skin.")
+            .translation("abyssaldepths.config.shade_look")
+            .defineEnum("shadeLook", ShadeLook.CONTRAST);
     private static final ModConfigSpec.EnumValue<ShadeVanishStyle> SHADE_VANISH = BUILDER
             .comment("How a player stepping into the shadow (Parallax) vanishes for those who stay, and comes back:",
                     "PIXELS: falls apart into black and purple pixels; ASH: darkens and rises away as ash;",
                     "SLIDE: slides sideways out of the world, thinning to a line; SHADOW: fades, leaving a shadow",
-                    "on the ground for a moment; DISINTEGRATE: turns dark purple while pixels of them jump off;",
+                    "on the ground for a moment; DISINTEGRATE: crumbles away, pixel by pixel of their skin;",
                     "NONE: just gone. Also: /abyssaldepths vanish style <style>, preview: /abyssaldepths vanish play.")
             .translation("abyssaldepths.config.shade_vanish")
             .defineEnum("shadeVanish", ShadeVanishStyle.PIXELS);
 
     public static final ModConfigSpec SPEC = BUILDER.build();
+
+    /** How shades look in the shadow. */
+    public enum ShadeLook { CONTRAST, PRINT, SILHOUETTE, INVERTED, NONE }
 
     /** How a shade vanishes for those outside the shadow. */
     public enum ShadeVanishStyle { PIXELS, ASH, SLIDE, SHADOW, DISINTEGRATE, NONE }
@@ -152,6 +161,18 @@ public final class ClientConfig {
         if (SPEC.isLoaded()) {
             SHADE_VANISH.set(style);
             SHADE_VANISH.save();
+        }
+    }
+
+    public static ShadeLook shadeLook() {
+        return SPEC.isLoaded() ? SHADE_LOOK.get() : ShadeLook.CONTRAST;
+    }
+
+    /** Sets the look of shades and saves it (the command). */
+    public static void setShadeLook(ShadeLook look) {
+        if (SPEC.isLoaded()) {
+            SHADE_LOOK.set(look);
+            SHADE_LOOK.save();
         }
     }
 

@@ -10,6 +10,7 @@ import java.util.Set;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
+import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
@@ -22,6 +23,9 @@ import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.RemotePlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.client.resources.PlayerSkin;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
@@ -46,8 +50,8 @@ import redero.abyssaldepths.ClientConfig.ShadeVanishStyle;
  * <li>ASH: the body darkens to a black silhouette, then fades while ash rises off it, from the feet up;</li>
  * <li>SLIDE: the body slides sideways out of the world, thinning to a violet line;</li>
  * <li>SHADOW: the body fades into the dark and leaves a pixelated shadow on the ground, which shrinks away;</li>
- * <li>DISINTEGRATE: the body turns dark purple while pixels of it keep jumping off and falling away, until
- * nothing is left.</li>
+ * <li>DISINTEGRATE: the skin crumbles away pixel by pixel, the top first: every pixel of it breaks off the
+ * body (leaving a hole) and falls, darkening to purple, until nothing is left.</li>
  * </ul>
  * {@link #preview} plays one on a copy of the player in front of them (the command).
  */
@@ -84,7 +88,7 @@ public final class ShadeVanish {
                 case ASH -> 2000;
                 case SLIDE -> 900;
                 case SHADOW -> 2600;
-                case DISINTEGRATE -> 1900;
+                case DISINTEGRATE -> 2200;
                 case NONE -> 0;
             };
         }
@@ -105,6 +109,8 @@ public final class ShadeVanish {
     }
 
     private static final List<Fade> FADES = new ArrayList<>();
+    /** The crumbling bodies of the disintegrating fades. */
+    private static final Map<Fade, Crumble> CRUMBLES = new HashMap<>();
     /** Whether each player was hidden last tick. */
     private static final Map<Integer, Boolean> HIDDEN = new HashMap<>();
     private static boolean wasInShadow;
@@ -133,12 +139,21 @@ public final class ShadeVanish {
         if (level == null || mc.player == null || level != lastLevel) {
             FADES.clear();
             PREVIEW.clear();
+            CRUMBLES.values().forEach(Crumble::close);
+            CRUMBLES.clear();
             HIDDEN.clear();
             lastLevel = level;
             return;
         }
         final long now = Util.getMillis();
         FADES.removeIf(fade -> fade.done(now));
+        CRUMBLES.entrySet().removeIf(entry -> {
+            if (FADES.contains(entry.getKey())) {
+                return false;
+            }
+            entry.getValue().close();
+            return true;
+        });
         while (!PREVIEW.isEmpty() && PREVIEW.get(0).start() <= now) { // the next part of a preview
             FADES.add(PREVIEW.remove(0));
         }
@@ -258,9 +273,14 @@ public final class ShadeVanish {
                     shadow(quads(buffers), matrix, fade, p);
                 }
                 case DISINTEGRATE -> {
-                    final float alpha = 1.0F - smooth((p - 0.55F) / 0.4F);
-                    body(subject, subjectPartial, pose, buffers, alpha, mix(0xFFFFFF, DUSK, smooth(p / 0.4F)));
-                    disintegrate(quads(buffers), matrix, fade, p, right, up);
+                    final Crumble crumble = p > 0.0F ? CRUMBLES.computeIfAbsent(fade, Crumble::of) : null;
+                    if (crumble == null) {
+                        body(subject, subjectPartial, pose, buffers, 1.0F, 0xFFFFFF);
+                    } else {
+                        crumble.show(p);
+                        GhostRenderer.draw(subject, subject.yBodyRot, subjectPartial, pose, buffers, 1.0F, mix(0xFFFFFF, 0x9A88B0, smooth(p / 0.6F)), crumble.id);
+                        crumble.fall(quads(buffers), matrix, p, fade.duration() / 1000.0F, subject.yBodyRot, right, up);
+                    }
                 }
                 case NONE -> {
                 }
@@ -322,28 +342,86 @@ public final class ShadeVanish {
     }
 
     /**
-     * Pixels jumping off the body all the while it darkens: each one leaps out and up from where it sat,
-     * falls away and goes out, the leaps coming thicker as it fades.
+     * A body crumbling away: a copy of its skin from which the pixels are taken one by one (each at its own
+     * moment, the top first), and every taken pixel falling from where it sat on the body.
      */
-    private static void disintegrate(VertexConsumer quads, Matrix4f matrix, Fade fade, float p, Vector3f right, Vector3f up) {
-        final float seconds = fade.duration() / 1000.0F;
-        for (int i = 0; i < 260; i++) {
-            final int n = fade.seed() * 1000 + i;
-            final float release = 0.05F + 0.8F * (float) Math.sqrt(noise(n, 1)); // fewer at first, thicker later
-            final float life = (p - release) / 0.35F;
-            if (life < 0.0F || life > 0.55F + 0.45F * noise(n, 2)) {
-                continue;
+    private static final class Crumble {
+        /** How long a broken-off pixel falls, in seconds. */
+        private static final float FALL = 0.6F;
+
+        final ResourceLocation id;
+        private final DynamicTexture texture;
+        private final NativeImage skin;
+        private final List<SkinPixels.Texel> texels;
+        /** When each pixel breaks off (as part of the vanishing). */
+        private final float[] when;
+        private int shown = -1;
+
+        private Crumble(ResourceLocation id, DynamicTexture texture, NativeImage skin, List<SkinPixels.Texel> texels, float[] when) {
+            this.id = id;
+            this.texture = texture;
+            this.skin = skin;
+            this.texels = texels;
+            this.when = when;
+        }
+
+        static Crumble of(Fade fade) {
+            final AbstractClientPlayer subject = fade.ghost();
+            final NativeImage skin = SkinPixels.read(subject.getSkin().texture());
+            final NativeImage copy = new NativeImage(64, 64, false);
+            if (skin != null) {
+                copy.copyFrom(skin);
             }
-            final float t = life * 0.35F * seconds; // seconds since it jumped
-            final float sx = (noise(n, 3) - 0.5F) * fade.width(), sy = noise(n, 4) * fade.height(), sz = (noise(n, 5) - 0.5F) * fade.width();
-            final float out = 0.5F + 0.7F * noise(n, 6), jump = 0.8F + 1.0F * noise(n, 7);
-            final float length = Math.max(0.05F, (float) Math.sqrt(sx * sx + sz * sz));
-            final float x = sx + sx / length * out * t, z = sz + sz / length * out * t;
-            final float y = sy + jump * t - 3.0F * t * t;
-            final float size = 0.055F * (0.7F + 0.6F * noise(n, 8)) * (1.0F - 0.4F * life);
-            final float r = noise(n, 9);
-            final int rgb = r < 0.35F ? BLACK : r < 0.65F ? DUSK : r < 0.9F ? VIOLET : BRIGHT;
-            billboard(quads, matrix, x, y, z, right, up, size, 0xFF000000 | rgb);
+            final List<SkinPixels.Texel> texels = skin == null ? List.of() : SkinPixels.texels(skin, subject.getSkin().model() == PlayerSkin.Model.SLIM);
+            final float[] when = new float[texels.size()];
+            for (int i = 0; i < when.length; i++) {
+                final float top = 1.0F - Mth.clamp(texels.get(i).up() / 2.0F, 0.0F, 1.0F); // 0 at the top of the head
+                when[i] = 0.04F + 0.6F * (0.55F * noise(fade.seed() * 7 + i, 3) + 0.45F * top);
+            }
+            final ResourceLocation id = ResourceLocation.fromNamespaceAndPath(AbyssalDepths.MODID, "crumble/" + fade.seed());
+            final DynamicTexture texture = new DynamicTexture(copy);
+            Minecraft.getInstance().getTextureManager().register(id, texture);
+            return new Crumble(id, texture, skin, texels, when);
+        }
+
+        /** Takes out of the copy every pixel broken off by p (puts back the others: appearing runs backwards). */
+        void show(float p) {
+            int count = 0;
+            for (float w : when) {
+                count += w < p ? 1 : 0;
+            }
+            if (count == shown || skin == null) {
+                return;
+            }
+            shown = count;
+            final NativeImage pixels = texture.getPixels();
+            for (int i = 0; i < texels.size(); i++) {
+                final SkinPixels.Texel t = texels.get(i);
+                pixels.setPixelRGBA(t.x(), t.y(), when[i] < p ? 0 : skin.getPixelRGBA(t.x(), t.y()));
+            }
+            texture.upload();
+        }
+
+        /** The broken-off pixels falling: a little push outwards, then down, darkening to purple. */
+        void fall(VertexConsumer quads, Matrix4f matrix, float p, float seconds, float bodyYaw, Vector3f right, Vector3f up) {
+            final float yaw = bodyYaw * Mth.DEG_TO_RAD;
+            final float rx = -Mth.cos(yaw), rz = -Mth.sin(yaw), fx = -Mth.sin(yaw), fz = Mth.cos(yaw); // the body's right and forward
+            for (int i = 0; i < texels.size(); i++) {
+                final float age = (p - when[i]) * seconds;
+                if (age < 0.0F || age > FALL) {
+                    continue;
+                }
+                final SkinPixels.Texel t = texels.get(i);
+                final float push = 0.3F * age;
+                final float r = t.right() + t.nr() * push, f = t.forward() + t.nf() * push;
+                final float y = t.up() + t.nu() * push + 0.2F * age - 4.5F * age * age;
+                final int rgb = mix(SkinPixels.fromAbgr(skin.getPixelRGBA(t.x(), t.y())), DUSK, age / FALL);
+                billboard(quads, matrix, r * rx + f * fx, y, r * rz + f * fz, right, up, 0.028F, 0xFF000000 | rgb);
+            }
+        }
+
+        void close() {
+            Minecraft.getInstance().getTextureManager().release(id);
         }
     }
 

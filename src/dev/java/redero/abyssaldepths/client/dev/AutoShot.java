@@ -280,9 +280,14 @@ public final class AutoShot {
                     // inside the shadow, the fake one a shade too: seen, in the shadow's look
                     redero.abyssaldepths.artifact.Shades.clientShade(fake.getId(), 1_000_000, mc.level.getGameTime());
                     command(server, "give @s abyssaldepths:parallax[abyssaldepths:artifact_active=true]");
-                } else if (t == 580) {
-                    shoot(mc, "vanish_5_dir0");
-                } else if (t == 585) {
+                } else if (t >= 580 && t < 700 && (t - 580) % 30 == 0) {
+                    // every look of shades, the fake one seen from inside the shadow
+                    final redero.abyssaldepths.ClientConfig.ShadeLook look = redero.abyssaldepths.ClientConfig.ShadeLook.values()[(t - 580) / 30];
+                    redero.abyssaldepths.ClientConfig.setShadeLook(look);
+                } else if (t >= 580 && t < 700 && (t - 580) % 30 == 25) {
+                    shoot(mc, "vanish_5_dir" + (t - 580) / 30);
+                } else if (t == 705) {
+                    redero.abyssaldepths.ClientConfig.setShadeLook(redero.abyssaldepths.ClientConfig.ShadeLook.CONTRAST);
                     command(server, "clear @s abyssaldepths:parallax");
                     fake.discard();
                     redero.abyssaldepths.ClientConfig.setShadeVanish(redero.abyssaldepths.ClientConfig.ShadeVanishStyle.PIXELS);
