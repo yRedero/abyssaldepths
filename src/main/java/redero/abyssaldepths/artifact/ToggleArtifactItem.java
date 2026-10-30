@@ -30,6 +30,12 @@ public abstract class ToggleArtifactItem extends ArtifactItem {
         this.drainTicks = drainTicks;
     }
 
+    /** Switching is quicker to rest from than the other artifacts' uses. */
+    @Override
+    protected int cooldownTicks() {
+        return 40;
+    }
+
     /** Every tick while on, on the server, for the player carrying it. */
     protected abstract void whileActive(ServerPlayer player);
 
@@ -67,6 +73,7 @@ public abstract class ToggleArtifactItem extends ArtifactItem {
             final boolean on = !active(stack);
             setActive(stack, on);
             playSwitch(level, player, on);
+            rest(player);
         }
         return InteractionResultHolder.sidedSuccess(stack, level.isClientSide);
     }

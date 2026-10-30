@@ -72,6 +72,7 @@ public class RepriseItem extends ArtifactItem {
         if (!level.isClientSide && entity instanceof ServerPlayer player && charge(stack) >= 1 && Reprise.activate(player.server)) {
             setCharge(stack, charge(stack) - 1);
             level.playSound(null, player.blockPosition(), SoundEvents.BEACON_DEACTIVATE, SoundSource.PLAYERS, 1.0F, 0.6F);
+            rest(player);
         }
         return stack;
     }

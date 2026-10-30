@@ -117,6 +117,8 @@ public final class ShadeVanish {
     private static final Map<Fade, Crumble> CRUMBLES = new HashMap<>();
     /** The skin of the fade being drawn: the shadow's look, or null for the player's own. */
     private static ResourceLocation skin;
+    /** Whether the fade being drawn is on the real player (else a still copy). */
+    private static boolean drawingLive;
     /** Whether each player was hidden last tick. */
     private static final Map<Integer, Boolean> HIDDEN = new HashMap<>();
     private static boolean wasInShadow;
@@ -264,6 +266,7 @@ public final class ShadeVanish {
             final float subjectPartial = live ? partial : 1.0F;
             // seen from inside the shadow, whoever comes or goes there wears the shadow's look all the while
             skin = ShadeView.lookSkin(subject);
+            drawingLive = live;
             pose.pushPose();
             pose.translate(at.x - cam.x, at.y - cam.y, at.z - cam.z);
             final Matrix4f matrix = pose.last().pose();
@@ -300,7 +303,7 @@ public final class ShadeVanish {
                     } else {
                         final float yaw = Mth.rotLerp(subjectPartial, subject.yBodyRotO, subject.yBodyRot);
                         crumble.show(p, at, yaw);
-                        GhostRenderer.draw(subject, subject.yBodyRot, subjectPartial, pose, buffers, 1.0F, mix(0xFFFFFF, 0x9A88B0, smooth(p / 0.6F)), crumble.id);
+                        body(subject, subjectPartial, pose, buffers, 1.0F, mix(0xFFFFFF, 0x9A88B0, smooth(p / 0.6F)), crumble.id);
                         if (fade.style() == ShadeVanishStyle.DISINTEGRATE) {
                             crumble.fall(quads(buffers), matrix, p, fade.duration() / 1000.0F, at, yaw, !fade.appear(), right, up);
                         }
@@ -319,9 +322,22 @@ public final class ShadeVanish {
         return buffers.getBuffer(RenderType.debugQuads());
     }
 
+    /**
+     * The body: a real player through the game's player renderer (moving as always), a still copy through
+     * the ghost renderer.
+     */
     private static void body(AbstractClientPlayer subject, float partial, PoseStack pose, MultiBufferSource buffers, float alpha, int tint) {
-        if (alpha > 0.01F) {
-            GhostRenderer.draw(subject, subject.yBodyRot, partial, pose, buffers, alpha, tint, skin);
+        body(subject, partial, pose, buffers, alpha, tint, skin);
+    }
+
+    private static void body(AbstractClientPlayer subject, float partial, PoseStack pose, MultiBufferSource buffers, float alpha, int tint, ResourceLocation texture) {
+        if (alpha <= 0.01F) {
+            return;
+        }
+        if (drawingLive) {
+            FadeDraw.draw(subject, partial, pose, buffers, alpha, tint, texture);
+        } else {
+            GhostRenderer.draw(subject, subject.yBodyRot, partial, pose, buffers, alpha, tint, texture);
         }
     }
 

@@ -10,6 +10,7 @@ import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.resources.ResourceLocation;
+import redero.abyssaldepths.client.FadeDraw;
 import redero.abyssaldepths.client.ShadeView;
 
 /** In the shadow, shades wear their skin in the shadow's look ({@link ShadeView#shadeSkin}): body and hand. */
@@ -18,6 +19,10 @@ public abstract class ShadeSkinMixin {
     @Inject(method = "getTextureLocation(Lnet/minecraft/client/player/AbstractClientPlayer;)Lnet/minecraft/resources/ResourceLocation;",
             at = @At("HEAD"), cancellable = true)
     private void abyssaldepths$shadeSkin(AbstractClientPlayer player, CallbackInfoReturnable<ResourceLocation> cir) {
+        if (FadeDraw.active && FadeDraw.texture != null) {
+            cir.setReturnValue(FadeDraw.texture); // a fade's texture (the look, a crumbling copy)
+            return;
+        }
         final ResourceLocation skin = ShadeView.shadeSkin(player);
         if (skin != null) {
             cir.setReturnValue(skin);

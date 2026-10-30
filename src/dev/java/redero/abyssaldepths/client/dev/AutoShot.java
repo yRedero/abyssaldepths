@@ -262,6 +262,7 @@ public final class AutoShot {
                     fake.setYRot(180.0F);
                     fake.yBodyRot = fake.yBodyRotO = fake.yHeadRot = fake.yHeadRotO = 180.0F; // facing the camera
                     mc.level.addEntity(fake);
+                    fake.tickCount = 100; // not "just joined": that skips the vanishing
                 } else if (t >= 20 && t < 620) {
                     // six styles, 100 ticks each, the fake one walking sideways: vanish, a shot halfway, come back, a shot halfway
                     final int k = (t - 20) / 100, at = (t - 20) % 100;

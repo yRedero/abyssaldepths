@@ -71,6 +71,7 @@ public class InnerHavenItem extends ArtifactItem {
             setCharge(stack, charge(stack) - COST);
             level.playSound(null, player.blockPosition(), SoundEvents.BEACON_POWER_SELECT, SoundSource.PLAYERS, 0.8F, 1.6F);
             InnerSelf.travel(player);
+            rest(player);
         }
         return stack;
     }

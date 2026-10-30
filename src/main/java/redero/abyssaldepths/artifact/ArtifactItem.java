@@ -23,6 +23,19 @@ public class ArtifactItem extends Item {
      * {@code maxCharge} 0: the artifact has no charge. {@code regenTicks}: one charge comes back every so
      * many ticks while the artifact is in an inventory (0: it never comes back by itself).
      */
+    /**
+     * Ticks an artifact rests after being used, so it cannot be spammed (the game shows it on the item and
+     * refuses the use meanwhile); artifacts can ask for another rest.
+     */
+    protected int cooldownTicks() {
+        return 100;
+    }
+
+    /** Starts the rest after a use. */
+    protected void rest(net.minecraft.world.entity.player.Player player) {
+        player.getCooldowns().addCooldown(this, cooldownTicks());
+    }
+
     public ArtifactItem(Properties properties, ArtifactRank rank, ArtifactFrame frame, int maxCharge, int regenTicks) {
         super(properties.stacksTo(1));
         this.rank = rank;
