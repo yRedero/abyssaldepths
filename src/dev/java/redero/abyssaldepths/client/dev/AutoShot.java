@@ -285,17 +285,22 @@ public final class AutoShot {
                     // inside the shadow, the fake one a shade too: seen, in the shadow's look
                     redero.abyssaldepths.artifact.Shades.clientShade(fake.getId(), 1_000_000, mc.level.getGameTime());
                     command(server, "give @s abyssaldepths:parallax[abyssaldepths:artifact_active=true]");
-                } else if (t >= 680 && t < 800 && (t - 680) % 30 == 0) {
+                } else if (t == 670 || t == 710) {
+                    // seen from inside: the fake one leaves the shadow and comes back, in the shadow's look all the while
+                    redero.abyssaldepths.artifact.Shades.clientShade(fake.getId(), t == 670 ? 0 : 1_000_000, mc.level.getGameTime());
+                } else if (t == 680 || t == 720) {
+                    shoot(mc, "vanish_7_dir" + (t == 680 ? 0 : 1));
+                } else if (t >= 740 && t < 860 && (t - 740) % 30 == 0) {
                     // every look of shades, the fake one seen from inside the shadow
-                    final redero.abyssaldepths.ClientConfig.ShadeLook look = redero.abyssaldepths.ClientConfig.ShadeLook.values()[(t - 680) / 30];
+                    final redero.abyssaldepths.ClientConfig.ShadeLook look = redero.abyssaldepths.ClientConfig.ShadeLook.values()[(t - 740) / 30];
                     redero.abyssaldepths.ClientConfig.setShadeLook(look);
-                } else if (t >= 680 && t < 800 && (t - 680) % 30 == 25) {
-                    shoot(mc, "vanish_6_dir" + (t - 680) / 30);
-                } else if (t == 805) {
-                    redero.abyssaldepths.ClientConfig.setShadeLook(redero.abyssaldepths.ClientConfig.ShadeLook.CONTRAST);
+                } else if (t >= 740 && t < 860 && (t - 740) % 30 == 25) {
+                    shoot(mc, "vanish_6_dir" + (t - 740) / 30);
+                } else if (t == 865) {
+                    redero.abyssaldepths.ClientConfig.setShadeLook(redero.abyssaldepths.ClientConfig.ShadeLook.SILHOUETTE);
                     command(server, "clear @s abyssaldepths:parallax");
                     fake.discard();
-                    redero.abyssaldepths.ClientConfig.setShadeVanish(redero.abyssaldepths.ClientConfig.ShadeVanishStyle.PIXELS);
+                    redero.abyssaldepths.ClientConfig.setShadeVanish(redero.abyssaldepths.ClientConfig.ShadeVanishStyle.DISSOLVE);
                     step = Step.NEXT;
                 }
             }

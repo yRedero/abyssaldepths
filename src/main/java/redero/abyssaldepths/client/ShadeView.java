@@ -97,6 +97,15 @@ public final class ShadeView {
         return SkinPixels.shadeSkin(player.getSkin().texture(), look);
     }
 
+    /**
+     * The skin a player coming into the shadow or leaving it wears in this client's view while it plays:
+     * the look, if this client is in the shadow (null otherwise, or without a look).
+     */
+    static ResourceLocation lookSkin(AbstractClientPlayer player) {
+        final ClientConfig.ShadeLook look = ClientConfig.shadeLook();
+        return look == ClientConfig.ShadeLook.NONE || !inShadow() ? null : SkinPixels.shadeSkin(player.getSkin().texture(), look);
+    }
+
     /** Hidden by the rules alone (without the appearing ones). */
     static boolean seenHidden(Entity entity) {
         return inShadow() ? !Shades.isShade(entity) && !seesWorld : Shades.isShade(entity);

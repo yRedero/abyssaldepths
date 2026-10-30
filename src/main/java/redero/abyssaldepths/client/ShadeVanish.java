@@ -115,6 +115,8 @@ public final class ShadeVanish {
     private static final List<Fade> FADES = new ArrayList<>();
     /** The crumbling bodies of the disintegrating fades. */
     private static final Map<Fade, Crumble> CRUMBLES = new HashMap<>();
+    /** The skin of the fade being drawn: the shadow's look, or null for the player's own. */
+    private static ResourceLocation skin;
     /** Whether each player was hidden last tick. */
     private static final Map<Integer, Boolean> HIDDEN = new HashMap<>();
     private static boolean wasInShadow;
@@ -260,6 +262,8 @@ public final class ShadeVanish {
             final float p = fade.progress(now);
             final Vec3 at = live ? subject.getPosition(partial) : fade.pos();
             final float subjectPartial = live ? partial : 1.0F;
+            // seen from inside the shadow, whoever comes or goes there wears the shadow's look all the while
+            skin = ShadeView.lookSkin(subject);
             pose.pushPose();
             pose.translate(at.x - cam.x, at.y - cam.y, at.z - cam.z);
             final Matrix4f matrix = pose.last().pose();
@@ -290,7 +294,7 @@ public final class ShadeVanish {
                     shadow(quads(buffers), matrix, fade, p);
                 }
                 case DISINTEGRATE, DISSOLVE -> {
-                    final Crumble crumble = p > 0.0F ? CRUMBLES.computeIfAbsent(fade, f -> Crumble.of(f, subject)) : null;
+                    final Crumble crumble = p > 0.0F ? CRUMBLES.computeIfAbsent(fade, f -> Crumble.of(f, subject, skin)) : null;
                     if (crumble == null) {
                         body(subject, subjectPartial, pose, buffers, 1.0F, 0xFFFFFF);
                     } else {
@@ -317,7 +321,7 @@ public final class ShadeVanish {
 
     private static void body(AbstractClientPlayer subject, float partial, PoseStack pose, MultiBufferSource buffers, float alpha, int tint) {
         if (alpha > 0.01F) {
-            GhostRenderer.draw(subject, subject.yBodyRot, partial, pose, buffers, alpha, tint);
+            GhostRenderer.draw(subject, subject.yBodyRot, partial, pose, buffers, alpha, tint, skin);
         }
     }
 
@@ -392,8 +396,9 @@ public final class ShadeVanish {
             this.broken = new boolean[texels.size()];
         }
 
-        static Crumble of(Fade fade, AbstractClientPlayer subject) {
-            final NativeImage skin = SkinPixels.read(subject.getSkin().texture());
+        /** For the fade, from the subject's skin (or the look it wears, if not null). */
+        static Crumble of(Fade fade, AbstractClientPlayer subject, ResourceLocation worn) {
+            final NativeImage skin = SkinPixels.read(worn != null ? worn : subject.getSkin().texture());
             final NativeImage copy = new NativeImage(64, 64, false);
             if (skin != null) {
                 copy.copyFrom(skin);

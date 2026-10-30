@@ -79,7 +79,7 @@ public final class ClientConfig {
                     "CONTRAST: harsh contrast, the shading leaning purple; PRINT: three purples, like a print;",
                     "SILHOUETTE: near black with glowing eyes; INVERTED: the colours turned, purple; NONE: their skin.")
             .translation("abyssaldepths.config.shade_look")
-            .defineEnum("shadeLook", ShadeLook.CONTRAST);
+            .defineEnum("shadeLook", ShadeLook.SILHOUETTE);
     private static final ModConfigSpec.EnumValue<ShadeVanishStyle> SHADE_VANISH = BUILDER
             .comment("How a player stepping into the shadow (Parallax) vanishes for those who stay, and comes back:",
                     "PIXELS: falls apart into black and purple pixels; ASH: darkens and rises away as ash;",
@@ -88,7 +88,7 @@ public final class ClientConfig {
                     "DISSOLVE: the pixels of their skin go out one by one;",
                     "NONE: just gone. Also: /abyssaldepths vanish style <style>, preview: /abyssaldepths vanish play.")
             .translation("abyssaldepths.config.shade_vanish")
-            .defineEnum("shadeVanish", ShadeVanishStyle.PIXELS);
+            .defineEnum("shadeVanish", ShadeVanishStyle.DISSOLVE);
 
     public static final ModConfigSpec SPEC = BUILDER.build();
 
@@ -154,7 +154,7 @@ public final class ClientConfig {
     }
 
     public static ShadeVanishStyle shadeVanish() {
-        return SPEC.isLoaded() ? SHADE_VANISH.get() : ShadeVanishStyle.PIXELS;
+        return SPEC.isLoaded() ? SHADE_VANISH.get() : ShadeVanishStyle.DISSOLVE;
     }
 
     /** Sets the vanishing style and saves it (the command). */
@@ -166,7 +166,7 @@ public final class ClientConfig {
     }
 
     public static ShadeLook shadeLook() {
-        return SPEC.isLoaded() ? SHADE_LOOK.get() : ShadeLook.CONTRAST;
+        return SPEC.isLoaded() ? SHADE_LOOK.get() : ShadeLook.SILHOUETTE;
     }
 
     /** Sets the look of shades and saves it (the command). */
