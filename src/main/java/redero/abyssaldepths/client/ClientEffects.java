@@ -9,7 +9,11 @@ public final class ClientEffects {
 
     public static void handle(EffectPayload payload) {
         final String effect = payload.effect();
-        if (effect.equals("storm")) {
+        if (effect.equals("haven_out")) {
+            HavenFade.out(payload.ticks());
+        } else if (effect.equals("haven_in")) {
+            HavenFade.in(payload.ticks());
+        } else if (effect.equals("storm")) {
             DuneStormClient.set(payload.ticks());
         } else if (effect.startsWith("hallucinate/")) {
             DeepPressureClient.hallucinate(effect.substring("hallucinate/".length()));

@@ -9,10 +9,13 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
+import redero.abyssaldepths.artifact.ArtifactItem;
+import redero.abyssaldepths.artifact.InnerSelf;
 import redero.abyssaldepths.network.EffectPayload;
 
 /**
@@ -21,6 +24,9 @@ import redero.abyssaldepths.network.EffectPayload;
  * <li>{@code /abyssaldepths hallucinate footsteps|mob|digging|shadow}: a deep pressure hallucination.</li>
  * <li>{@code /abyssaldepths ambience groan|creature|steps|rockfall|gust}: one of the rare ambient sounds.</li>
  * <li>{@code /abyssaldepths storm start [seconds]} / {@code storm stop}: a storm in the silt dunes.</li>
+ * <li>{@code /abyssaldepths mastery <percent>}: the mastery of the artifact in the main hand.</li>
+ * <li>{@code /abyssaldepths charge <charge>}: its charge.</li>
+ * <li>{@code /abyssaldepths innerhaven}: into the inner self or back, as with Inner Haven (no charge).</li>
  * </ul>
  */
 @EventBusSubscriber(modid = AbyssalDepths.MODID)
@@ -50,13 +56,56 @@ public final class LayerCommands {
                                 .executes(c -> storm(c, 180))
                                 .then(Commands.argument("seconds", IntegerArgumentType.integer(5, 3600))
                                         .executes(c -> storm(c, IntegerArgumentType.getInteger(c, "seconds")))))
-                        .then(Commands.literal("stop").executes(c -> storm(c, 0)))));
+                        .then(Commands.literal("stop").executes(c -> storm(c, 0))))
+                .then(Commands.literal("mastery")
+                        .then(Commands.argument("percent", IntegerArgumentType.integer(0, 100))
+                                .executes(c -> mastery(c, IntegerArgumentType.getInteger(c, "percent")))))
+                .then(Commands.literal("innerhaven").executes(LayerCommands::innerHaven))
+                .then(Commands.literal("charge")
+                        .then(Commands.argument("charge", IntegerArgumentType.integer(0))
+                                .executes(c -> charge(c, IntegerArgumentType.getInteger(c, "charge"))))));
     }
 
     private static int send(CommandContext<CommandSourceStack> context, String effect) throws CommandSyntaxException {
         final ServerPlayer player = context.getSource().getPlayerOrException();
         PacketDistributor.sendToPlayer(player, new EffectPayload(effect, 0));
         context.getSource().sendSuccess(() -> Component.literal("Played " + effect), false);
+        return 1;
+    }
+
+    /** Sets the mastery of the artifact in the main hand. */
+    private static int mastery(CommandContext<CommandSourceStack> context, int percent) throws CommandSyntaxException {
+        final ServerPlayer player = context.getSource().getPlayerOrException();
+        final ItemStack held = player.getMainHandItem();
+        if (!(held.getItem() instanceof ArtifactItem)) {
+            context.getSource().sendFailure(Component.literal("Hold an artifact in your main hand"));
+            return 0;
+        }
+        ArtifactItem.setMastery(held, percent);
+        context.getSource().sendSuccess(() -> Component.literal("Mastery set to " + percent + " %"), false);
+        return 1;
+    }
+
+    /** Crosses into the inner self or back, as if Inner Haven had been used (no charge needed). */
+    private static int innerHaven(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        final ServerPlayer player = context.getSource().getPlayerOrException();
+        if (InnerSelf.travelling(player)) {
+            return 0;
+        }
+        InnerSelf.travel(player);
+        return 1;
+    }
+
+    /** Sets the charge of the artifact in the main hand (up to its maximum). */
+    private static int charge(CommandContext<CommandSourceStack> context, int charge) throws CommandSyntaxException {
+        final ServerPlayer player = context.getSource().getPlayerOrException();
+        final ItemStack held = player.getMainHandItem();
+        if (!(held.getItem() instanceof ArtifactItem artifact) || artifact.maxCharge() == 0) {
+            context.getSource().sendFailure(Component.literal("Hold an artifact with a charge in your main hand"));
+            return 0;
+        }
+        artifact.setCharge(held, charge);
+        context.getSource().sendSuccess(() -> Component.literal("Charge set to " + artifact.charge(held) + " / " + artifact.maxCharge()), false);
         return 1;
     }
 

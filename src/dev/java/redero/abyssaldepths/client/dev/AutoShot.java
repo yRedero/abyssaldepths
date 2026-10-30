@@ -52,7 +52,7 @@ public final class AutoShot {
     private static final String SPOT_COMMANDS = System.getProperty("abyssaldepths.autoshot.spotCommands", "");
     private static final int SETTLE_TICKS = 220, TURN_TICKS = 15;
 
-    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, DONE }
+    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, DONE }
 
     private static Step step = Step.TITLE;
     private static final Deque<String> BIOMES = new ArrayDeque<>();
@@ -80,7 +80,7 @@ public final class AutoShot {
     }
 
     private static void tick(Minecraft mc) throws Exception {
-        if (step.ordinal() > Step.LOADING.ordinal() && mc.screen != null) {
+        if (step.ordinal() > Step.LOADING.ordinal() && step != Step.PREVIEW && step != Step.HAVEN && mc.screen != null) {
             mc.setScreen(null); // a pause menu that opened anyway
         }
         switch (step) {
@@ -141,6 +141,23 @@ public final class AutoShot {
                 }
                 spotsDone++;
                 biome = BIOMES.poll();
+                if (biome != null && biome.startsWith("haven#")) {
+                    // not a place: Inner Haven's crossing, in and out, shot along the way
+                    if (biome.endsWith("#0")) {
+                        wait = 0;
+                        step = Step.HAVEN;
+                    }
+                    return;
+                }
+                if (biome != null && biome.startsWith("artifacts#")) {
+                    // not a place: the tooltip preview screen, one shot of it
+                    if (biome.endsWith("#0")) {
+                        mc.setScreen(new TooltipPreviewScreen());
+                        wait = 0;
+                        step = Step.PREVIEW;
+                    }
+                    return;
+                }
                 if (biome == null) {
                     AbyssalDepths.LOGGER.info("autoshot: all done");
                     step = Step.DONE;
@@ -166,6 +183,45 @@ public final class AutoShot {
                     wait = 0;
                     shot = 0;
                     step = Step.SETTLING;
+                }
+            }
+            case HAVEN -> {
+                final MinecraftServer server = mc.getSingleplayerServer();
+                ++wait;
+                if (wait == 1) {
+                    command(server, "tp @s ~ ~30 ~"); // out of trees and terrain, into open air
+                }
+                if (wait == 10) {
+                    // a body to look at: one of a player who is not here, so it stays
+                    command(server, "summon abyssaldepths:absent_body ^ ^-1.2 ^3 {Owner:[I;1,2,3,4]}");
+                }
+                if (wait == 30) {
+                    shoot(mc, "haven_0_dir0"); // the body
+                    command(server, "abyssaldepths innerhaven");
+                }
+                if (wait == 42) {
+                    shoot(mc, "haven_0_dir1"); // fading out
+                }
+                if (wait == 120) {
+                    shoot(mc, "haven_0_dir2"); // in the room
+                    mc.player.setXRot(60.0F);
+                }
+                if (wait == 130) {
+                    shoot(mc, "haven_0_down");
+                    command(server, "abyssaldepths innerhaven");
+                }
+                if (wait == 230) {
+                    shoot(mc, "haven_0_dir3"); // back
+                    step = Step.NEXT;
+                }
+            }
+            case PREVIEW -> {
+                // three shots a quarter second apart: animations (the title shimmer) show in the difference
+                if (++wait == 20 || wait == 25 || wait == 30) {
+                    Screenshot.grab(mc.gameDirectory, "autoshot_artifacts_0_dir" + (wait - 20) / 5 + ".png", mc.getMainRenderTarget(), msg -> { });
+                } else if (wait > 35) {
+                    mc.setScreen(null);
+                    step = Step.NEXT;
                 }
             }
             case SETTLING -> {
@@ -203,6 +259,15 @@ public final class AutoShot {
             default -> {
             }
         }
+    }
+
+    private static void command(MinecraftServer server, String command) {
+        server.execute(() -> server.getCommands().performPrefixedCommand(
+                server.getPlayerList().getPlayers().get(0).createCommandSourceStack().withPermission(4), command));
+    }
+
+    private static void shoot(Minecraft mc, String name) {
+        Screenshot.grab(mc.gameDirectory, "autoshot_" + name + ".png", mc.getMainRenderTarget(), msg -> { });
     }
 
     /**

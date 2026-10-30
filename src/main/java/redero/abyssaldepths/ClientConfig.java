@@ -43,6 +43,15 @@ public final class ClientConfig {
             .translation("abyssaldepths.config.thermal_scan_chunks")
             .defineInRange("thermalScanChunks", 2, 1, 4);
 
+    private static final ModConfigSpec.DoubleValue ARTIFACT_TITLE_SCALE = BUILDER
+            .comment("Size of an artifact's name at the top of its tooltip, relative to normal text.")
+            .translation("abyssaldepths.config.artifact_title_scale")
+            .defineInRange("artifactTitleScale", 1.25, 1.0, 1.5);
+    private static final ModConfigSpec.BooleanValue ARTIFACT_TITLE_SHIMMER = BUILDER
+            .comment("A shimmer sweeping through the name of an artifact in its tooltip.")
+            .translation("abyssaldepths.config.artifact_title_shimmer")
+            .define("artifactTitleShimmer", true);
+
     public static final ModConfigSpec SPEC = BUILDER.build();
 
     private ClientConfig() {
@@ -74,6 +83,14 @@ public final class ClientConfig {
 
     public static boolean silenceMusic() {
         return !SPEC.isLoaded() || SILENCE_MUSIC.get();
+    }
+
+    public static float artifactTitleScale() {
+        return SPEC.isLoaded() ? ARTIFACT_TITLE_SCALE.get().floatValue() : 1.25F;
+    }
+
+    public static boolean artifactTitleShimmer() {
+        return !SPEC.isLoaded() || ARTIFACT_TITLE_SHIMMER.get();
     }
 
     public static int thermalScanChunks() {

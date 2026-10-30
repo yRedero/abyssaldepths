@@ -18,7 +18,10 @@ and ambience.
     outcrops, quicksilt pools that pull you down, and dune storms.
   - *Thermal reaches*: thermal rock, glowing smouldering fissures, vent cones and vent fields with steam,
     oxide and sulfur deposits, sinter terraces with warm pools.
-- **Blocks**: the thalan and siltstone building sets, shale, silt, thermal and vent blocks.
+- **Blocks**: the thalan and siltstone building sets, shale, silt, thermal and vent blocks, Numinor ore.
+- **Artifacts**: ranked items (Lesser, Greater, Exalted, Primordial) with mastery and charge and their
+  own tooltip. *Inner Haven* carries you into your inner self, a room of your own in the Inner Self
+  dimension, while your body waits behind.
 - **Ambience**: biome sounds, echo in the halls, dust, drips, gusts, fog tinted per biome, no game
   music in the layer.
 
@@ -33,6 +36,8 @@ Test commands for operators:
 /abyssaldepths hallucinate footsteps|mob|digging|shadow
 /abyssaldepths ambience groan|creature|steps|rockfall|gust
 /abyssaldepths storm start [seconds] | stop
+/abyssaldepths mastery <percent> | charge <n>     (the artifact in your main hand)
+/abyssaldepths innerhaven                       (into your inner self or back, like Inner Haven)
 ```
 
 ## Building

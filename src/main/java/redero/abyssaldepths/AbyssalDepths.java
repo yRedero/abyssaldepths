@@ -19,6 +19,11 @@ import net.minecraft.util.ColorRGBA;
 import net.minecraft.util.valueproviders.ConstantInt;
 import net.minecraft.util.valueproviders.UniformInt;
 import net.minecraft.world.effect.MobEffect;
+import net.minecraft.core.component.DataComponentType;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.util.ExtraCodecs;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
@@ -50,6 +55,11 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
+import redero.abyssaldepths.artifact.ArtifactFrame;
+import redero.abyssaldepths.artifact.ArtifactItem;
+import redero.abyssaldepths.artifact.ArtifactRank;
+import redero.abyssaldepths.artifact.InnerHavenItem;
+import redero.abyssaldepths.entity.AbsentBody;
 import redero.abyssaldepths.block.QuicksiltBlock;
 import redero.abyssaldepths.block.SmoulderingRockBlock;
 import redero.abyssaldepths.block.ThermalVentBlock;
@@ -62,6 +72,16 @@ public class AbyssalDepths {
 
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(MODID);
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(MODID);
+    public static final DeferredRegister.DataComponents DATA_COMPONENTS = DeferredRegister.createDataComponents(Registries.DATA_COMPONENT_TYPE, MODID);
+    /** Mastery of an artifact, 0 .. 100 %. */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> MASTERY = DATA_COMPONENTS.registerComponentType("mastery",
+            builder -> builder.persistent(ExtraCodecs.intRange(0, 100)).networkSynchronized(ByteBufCodecs.VAR_INT));
+    /** Game time since which an artifact's charge has been below its maximum (for regenerating). */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Long>> CHARGE_TIME = DATA_COMPONENTS.registerComponentType("charge_time",
+            builder -> builder.persistent(com.mojang.serialization.Codec.LONG).networkSynchronized(ByteBufCodecs.VAR_LONG));
+    /** Charge of an artifact, 0 .. its maximum (not every artifact has one). */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> CHARGE = DATA_COMPONENTS.registerComponentType("charge",
+            builder -> builder.persistent(ExtraCodecs.NON_NEGATIVE_INT).networkSynchronized(ByteBufCodecs.VAR_INT));
     public static final DeferredRegister<Feature<?>> FEATURES = DeferredRegister.create(Registries.FEATURE, MODID);
     public static final DeferredRegister<CreativeModeTab> CREATIVE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MODID);
     public static final DeferredRegister<MobEffect> MOB_EFFECTS = DeferredRegister.create(Registries.MOB_EFFECT, MODID);
@@ -171,6 +191,23 @@ public class AbyssalDepths {
             p -> new DropExperienceBlock(UniformInt.of(2, 5), p));
     public static final DeferredItem<Item> NUMINOR_NUGGET = ITEMS.registerSimpleItem("numinor_nugget");
     public static final DeferredItem<Item> NUMINOR_INGOT = ITEMS.registerSimpleItem("numinor_ingot");
+
+    // artifacts (see artifact/): Inner Haven is the first one, its powers come later
+    /** Carries its holder into their inner self and back; 5 charges, 2 per crossing, 1 back every 10 minutes. */
+    public static final DeferredItem<InnerHavenItem> INNER_HAVEN = ITEMS.register("inner_haven",
+            () -> new InnerHavenItem(new Item.Properties(), ArtifactRank.PRIMORDIAL, ArtifactFrame.ZENITH, 5, 20 * 60 * 10));
+
+    /** The walls of the rooms of the inner self: pure white, can not be broken. */
+    public static final DeferredBlock<Block> HAVEN_WALL = withItem(BLOCKS.registerSimpleBlock("haven_wall",
+            BlockBehaviour.Properties.of().mapColor(MapColor.SNOW).strength(-1.0F, 3600000.0F).noLootTable()
+                    .isValidSpawn((state, level, pos, type) -> false).pushReaction(PushReaction.BLOCK)
+                    .lightLevel(state -> 0).emissiveRendering((state, level, pos) -> true)));
+
+    public static final DeferredRegister<EntityType<?>> ENTITY_TYPES = DeferredRegister.create(Registries.ENTITY_TYPE, MODID);
+    /** The body left behind while its player is in their inner self. */
+    public static final DeferredHolder<EntityType<?>, EntityType<AbsentBody>> ABSENT_BODY = ENTITY_TYPES.register("absent_body",
+            () -> EntityType.Builder.<AbsentBody>of(AbsentBody::new, MobCategory.MISC).sized(0.6F, 1.8F).clientTrackingRange(10)
+                    .build("absent_body"));
 
     /** Blobs in the thalan layer, generated like tuff (data/abyssaldepths/worldgen). */
     public static final DeferredBlock<Block> SHALE = BLOCKS.registerSimpleBlock("shale",
@@ -304,6 +341,10 @@ public class AbyssalDepths {
         container.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
         BLOCKS.register(modEventBus);
         ITEMS.register(modEventBus);
+        DATA_COMPONENTS.register(modEventBus);
+        ENTITY_TYPES.register(modEventBus);
+        modEventBus.addListener((net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent event) ->
+                event.put(ABSENT_BODY.get(), net.minecraft.world.entity.LivingEntity.createLivingAttributes().build()));
         FEATURES.register(modEventBus);
         CREATIVE_TABS.register(modEventBus);
         MOB_EFFECTS.register(modEventBus);
