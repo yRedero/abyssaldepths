@@ -1,5 +1,6 @@
 package redero.abyssaldepths.client;
 
+import redero.abyssaldepths.artifact.ParallaxField;
 import redero.abyssaldepths.network.EffectPayload;
 
 /** Runs the effects the server asks for ({@link EffectPayload}): dune storms and the test commands. */
@@ -9,7 +10,12 @@ public final class ClientEffects {
 
     public static void handle(EffectPayload payload) {
         final String effect = payload.effect();
-        if (effect.equals("haven_out")) {
+        if (effect.startsWith("parallax/")) {
+            final net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc.level != null) {
+                ParallaxField.clientActive(Integer.parseInt(effect.substring("parallax/".length())), payload.ticks(), mc.level.getGameTime());
+            }
+        } else if (effect.equals("haven_out")) {
             HavenFade.out(payload.ticks());
         } else if (effect.equals("haven_in")) {
             HavenFade.in(payload.ticks());

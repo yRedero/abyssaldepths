@@ -59,6 +59,7 @@ import redero.abyssaldepths.artifact.ArtifactFrame;
 import redero.abyssaldepths.artifact.ArtifactItem;
 import redero.abyssaldepths.artifact.ArtifactRank;
 import redero.abyssaldepths.artifact.InnerHavenItem;
+import redero.abyssaldepths.artifact.ParallaxItem;
 import redero.abyssaldepths.artifact.RepriseItem;
 import redero.abyssaldepths.entity.AbsentBody;
 import redero.abyssaldepths.block.QuicksiltBlock;
@@ -80,6 +81,9 @@ public class AbyssalDepths {
     /** Game time since which an artifact's charge has been below its maximum (for regenerating). */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Long>> CHARGE_TIME = DATA_COMPONENTS.registerComponentType("charge_time",
             builder -> builder.persistent(com.mojang.serialization.Codec.LONG).networkSynchronized(ByteBufCodecs.VAR_LONG));
+    /** An artifact that is switched on (Parallax). */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Boolean>> ARTIFACT_ACTIVE = DATA_COMPONENTS.registerComponentType("artifact_active",
+            builder -> builder.persistent(com.mojang.serialization.Codec.BOOL).networkSynchronized(ByteBufCodecs.BOOL));
     /** Charge of an artifact, 0 .. its maximum (not every artifact has one). */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> CHARGE = DATA_COMPONENTS.registerComponentType("charge",
             builder -> builder.persistent(ExtraCodecs.NON_NEGATIVE_INT).networkSynchronized(ByteBufCodecs.VAR_INT));
@@ -203,6 +207,10 @@ public class AbyssalDepths {
     /** Remembers the last 120 seconds of the world while carried, and takes everything back to them; 1 charge, 30 minutes. */
     public static final DeferredItem<RepriseItem> REPRISE = ITEMS.register("reprise",
             () -> new RepriseItem(new Item.Properties(), ArtifactRank.PRIMORDIAL, ArtifactFrame.ZENITH, 1, 20 * 60 * 30));
+
+    /** Slows everything around its holder to half speed while switched on; 10 charges, 1 used every 2 s, 1 back every 30 s. */
+    public static final DeferredItem<ParallaxItem> PARALLAX = ITEMS.register("parallax",
+            () -> new ParallaxItem(new Item.Properties(), ArtifactRank.EXALTED, ArtifactFrame.HOLLOW, 10, 20 * 30));
 
     /** The walls of the rooms of the inner self: pure white, can not be broken. */
     public static final DeferredBlock<Block> HAVEN_WALL = withItem(BLOCKS.registerSimpleBlock("haven_wall",

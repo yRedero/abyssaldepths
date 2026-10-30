@@ -52,6 +52,19 @@ public final class ClientConfig {
             .translation("abyssaldepths.config.artifact_title_shimmer")
             .define("artifactTitleShimmer", true);
 
+    private static final ModConfigSpec.BooleanValue AFTERIMAGES = BUILDER
+            .comment("Afterimages of players using Parallax.")
+            .translation("abyssaldepths.config.afterimages")
+            .define("afterimages", true);
+    private static final ModConfigSpec.IntValue AFTERIMAGE_INTERVAL = BUILDER
+            .comment("How often an afterimage is left behind, in milliseconds.")
+            .translation("abyssaldepths.config.afterimage_interval")
+            .defineInRange("afterimageInterval", 70, 20, 1000);
+    private static final ModConfigSpec.IntValue AFTERIMAGE_FADE = BUILDER
+            .comment("How long an afterimage takes to fade out, in milliseconds.")
+            .translation("abyssaldepths.config.afterimage_fade")
+            .defineInRange("afterimageFade", 250, 50, 2000);
+
     public static final ModConfigSpec SPEC = BUILDER.build();
 
     private ClientConfig() {
@@ -91,6 +104,18 @@ public final class ClientConfig {
 
     public static boolean artifactTitleShimmer() {
         return !SPEC.isLoaded() || ARTIFACT_TITLE_SHIMMER.get();
+    }
+
+    public static boolean afterimages() {
+        return !SPEC.isLoaded() || AFTERIMAGES.get();
+    }
+
+    public static long afterimageIntervalMillis() {
+        return SPEC.isLoaded() ? AFTERIMAGE_INTERVAL.get() : 70;
+    }
+
+    public static long afterimageFadeMillis() {
+        return SPEC.isLoaded() ? AFTERIMAGE_FADE.get() : 250;
     }
 
     public static int thermalScanChunks() {
