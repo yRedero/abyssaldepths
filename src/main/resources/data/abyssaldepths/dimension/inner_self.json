@@ -3,7 +3,7 @@
   "generator": {
     "type": "minecraft:flat",
     "settings": {
-      "biome": "minecraft:the_void",
+      "biome": "abyssaldepths:inner_self",
       "layers": [],
       "lakes": false,
       "features": false,

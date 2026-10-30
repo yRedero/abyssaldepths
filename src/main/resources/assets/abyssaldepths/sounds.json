@@ -388,5 +388,15 @@
         "stream": true
       }
     ]
+  },
+  "ambient.inner_self.loop": {
+    "sounds": [
+      {
+        "name": "minecraft:ambient/underwater/underwater_ambience",
+        "volume": 0.45,
+        "pitch": 0.8,
+        "stream": true
+      }
+    ]
   }
 }

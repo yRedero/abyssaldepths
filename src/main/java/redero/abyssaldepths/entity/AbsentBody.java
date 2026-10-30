@@ -17,18 +17,22 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import redero.abyssaldepths.AbyssalDepths;
 
 /**
  * The body a player leaves behind while they are in their inner self: looks like them (skin, armour and
  * held items, as copies for show), floats a hand's breadth above the ground, can not be hurt, pushed or
- * moved, and vanishes once its owner is back in its world.
+ * moved, and vanishes once its owner is back in its world. It starts looking where the player looked and
+ * then turns its head straight ahead.
  */
 public class AbsentBody extends LivingEntity {
     private static final EntityDataAccessor<Optional<UUID>> OWNER = SynchedEntityData.defineId(AbsentBody.class, EntityDataSerializers.OPTIONAL_UUID);
     /** How far above the ground it floats. */
     public static final double HOVER = 0.12;
+    /** Share of the way the head turns towards straight ahead every tick. */
+    private static final float HEAD_EASE = 0.12F;
 
     private final NonNullList<ItemStack> hands = NonNullList.withSize(2, ItemStack.EMPTY);
     private final NonNullList<ItemStack> armour = NonNullList.withSize(4, ItemStack.EMPTY);
@@ -43,9 +47,10 @@ public class AbsentBody extends LivingEntity {
     public static void leave(ServerPlayer player) {
         final AbsentBody body = new AbsentBody(AbyssalDepths.ABSENT_BODY.get(), player.level());
         body.entityData.set(OWNER, Optional.of(player.getUUID()));
-        body.moveTo(player.getX(), player.getY() + HOVER, player.getZ(), player.getYRot(), 0.0F);
+        // facing where the player's body faced, the head still where they looked: it turns straight in tick()
+        body.moveTo(player.getX(), player.getY() + HOVER, player.getZ(), player.yBodyRot, player.getXRot());
         body.setYHeadRot(player.getYHeadRot());
-        body.yBodyRot = player.yBodyRot;
+        body.yBodyRot = body.yBodyRotO = player.yBodyRot;
         for (EquipmentSlot slot : EquipmentSlot.values()) {
             if (slot.getType() != EquipmentSlot.Type.ANIMAL_ARMOR) {
                 body.setItemSlot(slot, player.getItemBySlot(slot).copy());
@@ -69,6 +74,12 @@ public class AbsentBody extends LivingEntity {
     public void tick() {
         super.tick();
         setDeltaMovement(Vec3.ZERO);
+        // the head eases from where the player looked to straight ahead, over about a second (both sides,
+        // so it stays smooth between the server's updates)
+        final float facing = getYRot();
+        yBodyRot = facing;
+        setYHeadRot(getYHeadRot() + Mth.wrapDegrees(facing - getYHeadRot()) * HEAD_EASE);
+        setXRot(getXRot() * (1.0F - HEAD_EASE));
         if (!level().isClientSide) {
             // the owner is back in this world (or gone for good): the body is no longer needed
             final Player owner = owner().map(id -> level().getServer().getPlayerList().getPlayer(id)).orElse(null);

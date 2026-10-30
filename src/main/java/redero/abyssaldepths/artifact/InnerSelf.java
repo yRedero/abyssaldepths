@@ -94,8 +94,8 @@ public final class InnerSelf {
                     x = back.getDouble("x");
                     y = back.getDouble("y");
                     z = back.getDouble("z");
-                    yaw = back.getFloat("yaw");
-                    pitch = back.getFloat("pitch");
+                    yaw = back.getFloat("yaw"); // the way the body faces, looking straight ahead like it
+                    pitch = 0.0F;
                 }
             }
             player.teleportTo(level, x, y, z, yaw, pitch);
@@ -111,7 +111,7 @@ public final class InnerSelf {
             back.putDouble("x", player.getX());
             back.putDouble("y", player.getY());
             back.putDouble("z", player.getZ());
-            back.putFloat("yaw", player.getYRot());
+            back.putFloat("yaw", player.yBodyRot);
             back.putFloat("pitch", player.getXRot());
             rooms.returns.put(player.getUUID(), back);
             rooms.setDirty();

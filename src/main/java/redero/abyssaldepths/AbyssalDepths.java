@@ -118,6 +118,8 @@ public class AbyssalDepths {
     public static final DeferredHolder<SoundEvent, SoundEvent> DISTANT_STEPS = sound("ambient.thalan_layer.distant_steps");
     public static final DeferredHolder<SoundEvent, SoundEvent> GUST = sound("ambient.thalan_layer.gust");
     public static final DeferredHolder<SoundEvent, SoundEvent> DUNE_STORM = sound("ambient.silt_dunes.storm");
+    /** The ambience of the inner self (placeholder from vanilla sounds, see sounds.json). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> INNER_SELF_LOOP = sound("ambient.inner_self.loop");
 
     /** Biome of the thalan layer (data/abyssaldepths/worldgen/biome), it brings the layer's features and sounds. */
     public static final ResourceKey<Biome> THALAN_DEPTHS = biome("thalan_depths");
