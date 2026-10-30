@@ -186,7 +186,7 @@ public final class ShadeVanish {
             present.add(player.getId());
             final boolean hidden = ShadeView.seenHidden(player);
             final Boolean before = HIDDEN.put(player.getId(), hidden);
-            if (before != null && before != hidden && !viewerChanged && style != ShadeVanishStyle.NONE
+            if (before != null && before != hidden && !viewerChanged && style != ShadeVanishStyle.NONE && player.tickCount >= ShadeView.JOINED_TICKS
                     && player.distanceToSqr(mc.player) < RANGE * RANGE) {
                 FADES.removeIf(fade -> fade.entityId() == player.getId());
                 FADES.add(new Fade(player.getId(), hidden ? Mode.VANISH : Mode.APPEAR, now, Fade.duration(style), style,

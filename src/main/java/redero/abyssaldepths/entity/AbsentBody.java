@@ -45,19 +45,27 @@ public class AbsentBody extends LivingEntity {
 
     /** Leaves the player's body where they stand. */
     public static void leave(ServerPlayer player) {
-        final AbsentBody body = new AbsentBody(AbyssalDepths.ABSENT_BODY.get(), player.level());
+        leave(player, player.serverLevel(), player.getX(), player.getY(), player.getZ(), player.yBodyRot, player.getXRot(), player.getYHeadRot());
+    }
+
+    /**
+     * Leaves the player's body at a place (also when they log in while in their inner self: it went away
+     * when they logged out), facing yaw, the head first where they looked.
+     */
+    public static void leave(ServerPlayer player, net.minecraft.server.level.ServerLevel level, double x, double y, double z, float yaw, float pitch, float headYaw) {
+        final AbsentBody body = new AbsentBody(AbyssalDepths.ABSENT_BODY.get(), level);
         body.entityData.set(OWNER, Optional.of(player.getUUID()));
         // facing where the player's body faced, the head still where they looked: it turns straight in tick()
-        body.moveTo(player.getX(), player.getY() + HOVER, player.getZ(), player.yBodyRot, player.getXRot());
-        body.setYHeadRot(player.getYHeadRot());
-        body.yBodyRot = body.yBodyRotO = player.yBodyRot;
+        body.moveTo(x, y + HOVER, z, yaw, pitch);
+        body.setYHeadRot(headYaw);
+        body.yBodyRot = body.yBodyRotO = yaw;
         for (EquipmentSlot slot : EquipmentSlot.values()) {
             if (slot.getType() != EquipmentSlot.Type.ANIMAL_ARMOR) {
                 body.setItemSlot(slot, player.getItemBySlot(slot).copy());
             }
         }
         body.setCustomName(player.getName());
-        player.level().addFreshEntity(body);
+        level.addFreshEntity(body);
     }
 
     public Optional<UUID> owner() {
@@ -84,9 +92,10 @@ public class AbsentBody extends LivingEntity {
             setXRot(getXRot() * (1.0F - HEAD_EASE));
         }
         if (!level().isClientSide) {
-            // the owner is back in this world (or gone for good): the body is no longer needed
+            // the owner is back in this world, logged out, or gone for good: the body is no longer needed (it
+            // is left again when they go into the inner self anew)
             final Player owner = owner().map(id -> level().getServer().getPlayerList().getPlayer(id)).orElse(null);
-            if (owner().isEmpty() || owner != null && owner.level() == level()) {
+            if (owner == null || owner.level() == level()) {
                 discard();
             }
         }

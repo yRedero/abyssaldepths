@@ -22,6 +22,7 @@
     "InterludeParticleEngineMixin",
     "InterludeParticleMixin",
     "ShadeClientSoundMixin",
+    "ShadeOwnSoundMixin",
     "ShadeParticleMixin",
     "ShadeRenderMixin",
     "ShadeSkinMixin",

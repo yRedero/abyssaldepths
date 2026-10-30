@@ -193,6 +193,21 @@ public final class InnerSelf {
         PacketDistributor.sendToPlayer(player, new EffectPayload("haven_in", 40));
     }
 
+    /** Logging in while in the inner self: the body (gone at logging out) is left where it was again. */
+    @SubscribeEvent
+    public static void onLogin(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player) || player.level().dimension() != DIMENSION) {
+            return;
+        }
+        final CompoundTag back = Rooms.get(player.getServer()).returns.get(player.getUUID());
+        final ServerLevel level = back == null ? null
+                : player.getServer().getLevel(ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(back.getString("dim"))));
+        if (level != null) {
+            final float yaw = back.getFloat("yaw");
+            AbsentBody.leave(player, level, back.getDouble("x"), back.getDouble("y"), back.getDouble("z"), yaw, 0.0F, yaw);
+        }
+    }
+
     /** The corner of a player's place (the room's outer corner; the islands lie around its middle). */
     private static BlockPos origin(int index) {
         return new BlockPos(index * SPACING, FLOOR_Y - WALL, 0);

@@ -42,6 +42,11 @@ import redero.abyssaldepths.artifact.Shades;
 @EventBusSubscriber(modid = AbyssalDepths.MODID, value = Dist.CLIENT)
 public final class ShadeView {
     private static final ResourceLocation EFFECT = ResourceLocation.fromNamespaceAndPath(AbyssalDepths.MODID, "shaders/post/shade.json");
+    /** A player this young (in ticks) has just joined: who is in the shadow then was in it already. */
+    static final int JOINED_TICKS = 60;
+    /** The game mode seen last tick: changing it can leave the post effect broken, so it is loaded anew. */
+    private static net.minecraft.world.level.GameType lastMode;
+
     /** The effect's target holding a copy of the world's depth. */
     private static final String DEPTH_TARGET = "world_depth";
     /** One pixel of the crossing (GUI pixels, as in Reprise's cover). */
@@ -121,6 +126,9 @@ public final class ShadeView {
         } else {
             if (shade && crossing == 0.0F) {
                 seed++; // new spots every time
+                if (mc.player.tickCount < JOINED_TICKS) {
+                    crossing = previous = 1.0F; // joined the game in the shadow: already there, no crossing
+                }
             }
             final float step = 50.0F / ClientConfig.parallaxTransitionMillis();
             crossing = Mth.clamp(crossing + (shade ? step : -step), 0.0F, 1.0F);
@@ -130,6 +138,11 @@ public final class ShadeView {
             mc.getSoundManager().stop(); // what plays in the world stops at the crossing
         }
 
+        final net.minecraft.world.level.GameType mode = mc.gameMode == null ? null : mc.gameMode.getPlayerMode();
+        if (mode != lastMode && ours() != null) {
+            mc.gameRenderer.shutdownEffect(); // reloaded right below
+        }
+        lastMode = mode;
         final boolean wanted = crossing > 0.0F;
         if (wanted && ours() == null) {
             mc.gameRenderer.loadEffect(EFFECT);
