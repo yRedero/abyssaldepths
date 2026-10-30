@@ -28,6 +28,17 @@ public final class MirageClient {
         }
     }
 
+    /** Whether this client's own player is under a mirage (its first person arm is drawn in its look). */
+    public static boolean ownActive() {
+        final Minecraft mc = Minecraft.getInstance();
+        return mc.player != null && mc.level != null && !ACTIVE.isEmpty() && ACTIVE.get(mc.player.getId()) >= mc.level.getGameTime();
+    }
+
+    /** The look's colour, with alpha (ARGB). */
+    public static int colour() {
+        return (int) (ALPHA * 255) << 24 | TINT;
+    }
+
     @SubscribeEvent
     public static void onRender(RenderPlayerEvent.Pre event) {
         final Minecraft mc = Minecraft.getInstance();

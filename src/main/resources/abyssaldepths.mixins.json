@@ -24,6 +24,7 @@
     "FadeDrawMixin",
     "InterludeParticleEngineMixin",
     "InterludeParticleMixin",
+    "MirageHandMixin",
     "ShadeAfterPostMixin",
     "ShadeClientSoundMixin",
     "ShadeEntityEventMixin",

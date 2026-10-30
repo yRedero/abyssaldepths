@@ -45,6 +45,11 @@ public final class ClientEffects {
         } else if (effect.startsWith("vanish_play/")) {
             final String style = effect.substring("vanish_play/".length());
             ShadeVanish.preview(style.isEmpty() ? ClientConfig.shadeVanish() : ClientConfig.ShadeVanishStyle.valueOf(style));
+        } else if (effect.startsWith("haven_out/")) {
+            WaypointShots.capture(Long.parseLong(effect.substring("haven_out/".length()))); // the place left, as it looks
+            HavenFade.out(payload.ticks());
+        } else if (effect.startsWith("waypoint_marks/")) {
+            WaypointMarks.set(effect.substring("waypoint_marks/".length()));
         } else if (effect.equals("haven_out")) {
             HavenFade.out(payload.ticks());
         } else if (effect.equals("haven_in")) {

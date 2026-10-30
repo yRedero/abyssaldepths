@@ -62,12 +62,14 @@ public final class InnerSelf {
 
     /** How many places left from are remembered. */
     public static final int WAYPOINTS = 5;
+    /** Players on their way in, with the key of the place they leave (for its picture). */
+    private static final Map<UUID, Long> KEYS = new HashMap<>();
     /** Players coming back to a remembered place instead of their body, with it. */
     private static final Map<UUID, CompoundTag> CHOSEN = new HashMap<>();
 
     /**
      * The places a player last left from into their inner self, newest first, for the choosing screen:
-     * "dimension|x|y|z|seconds ago" each, joined by ';'.
+     * "dimension|x|y|z|seconds ago|key" each, joined by ';'.
      */
     public static String waypoints(ServerPlayer player) {
         final net.minecraft.nbt.ListTag places = Rooms.get(player.getServer()).waypoints.get(player.getUUID());
@@ -80,9 +82,23 @@ public final class InnerSelf {
             }
             out.append(place.getString("dim")).append('|').append((int) Math.floor(place.getDouble("x"))).append('|')
                     .append((int) Math.floor(place.getDouble("y"))).append('|').append((int) Math.floor(place.getDouble("z"))).append('|')
-                    .append(Math.max(0, (now - place.getLong("time")) / 20));
+                    .append(Math.max(0, (now - place.getLong("time")) / 20)).append('|').append(place.getLong("time"));
         }
         return out.toString();
+    }
+
+    /** The owner's client learns their remembered places, to mark them on the ground. */
+    static void sendMarks(ServerPlayer player) {
+        final net.minecraft.nbt.ListTag places = Rooms.get(player.getServer()).waypoints.get(player.getUUID());
+        final StringBuilder out = new StringBuilder();
+        for (int i = 0; places != null && i < places.size(); i++) {
+            final CompoundTag place = places.getCompound(i);
+            if (i > 0) {
+                out.append(';');
+            }
+            out.append(place.getString("dim")).append('|').append(place.getDouble("x")).append('|').append(place.getDouble("y")).append('|').append(place.getDouble("z"));
+        }
+        PacketDistributor.sendToPlayer(player, new EffectPayload("waypoint_marks/" + out, 0));
     }
 
     /** Leaves the inner self for a remembered place (index into {@link #waypoints}), or the body (-1). */
@@ -115,7 +131,12 @@ public final class InnerSelf {
     /** Starts the crossing: the screen fades out, the move follows. In or out depends on where they are. */
     public static void travel(ServerPlayer player) {
         PENDING.put(player.getUUID(), player.serverLevel().getGameTime() + FADE_TICKS + WHITE_TICKS);
-        PacketDistributor.sendToPlayer(player, new EffectPayload("haven_out", FADE_TICKS));
+        // going in, the client takes a picture of where it leaves, filed under the place's key (the time now)
+        final long key = player.getServer().overworld().getGameTime();
+        if (player.level().dimension() != DIMENSION) {
+            KEYS.put(player.getUUID(), key);
+        }
+        PacketDistributor.sendToPlayer(player, new EffectPayload(player.level().dimension() != DIMENSION ? "haven_out/" + key : "haven_out", FADE_TICKS));
     }
 
     @SubscribeEvent
@@ -229,18 +250,23 @@ public final class InnerSelf {
             final net.minecraft.nbt.ListTag places = rooms.waypoints.computeIfAbsent(player.getUUID(), k -> new net.minecraft.nbt.ListTag());
             final CompoundTag here = back.copy();
             here.remove("effects");
-            here.putLong("time", server.overworld().getGameTime());
+            here.putLong("time", KEYS.getOrDefault(player.getUUID(), server.overworld().getGameTime()));
+            KEYS.remove(player.getUUID());
             places.add(0, here);
             while (places.size() > WAYPOINTS) {
                 places.remove(places.size() - 1);
             }
+            sendMarks(player);
             rooms.setDirty();
             AbsentBody.leave(player);
 
             final int index = rooms.room(player.getUUID());
             final Form form = rooms.form(player.getUUID());
-            if (rooms.built.add(index)) {
-                build(inner, index, form);
+            final int islands = islandsFor(player);
+            // built the first time; islands grow with the mastery (one per milestone): rebuilt when that changed
+            if (rooms.built.add(index) || form == Form.ISLANDS && rooms.islands.getOrDefault(player.getUUID(), -1) != islands) {
+                build(inner, index, form, islands);
+                rooms.islands.put(player.getUUID(), islands);
                 rooms.setDirty();
             }
             final Vec3 arrival = arrival(index, form);
@@ -252,6 +278,9 @@ public final class InnerSelf {
     /** Logging in while in the inner self: the body (gone at logging out) is left where it was again. */
     @SubscribeEvent
     public static void onLogin(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            sendMarks(player);
+        }
         if (!(event.getEntity() instanceof ServerPlayer player) || player.level().dimension() != DIMENSION) {
             return;
         }
@@ -276,11 +305,11 @@ public final class InnerSelf {
         return new Vec3(origin.getX() + half, FLOOR_Y, origin.getZ() + half + (form == Form.ISLANDS ? 2.0 : 0.0));
     }
 
-    /** Builds the place of the form (anything there before is cleared first). */
-    private static void build(ServerLevel level, int index, Form form) {
+    /** Builds the place of the form (anything there before is cleared first), with that many small islands. */
+    private static void build(ServerLevel level, int index, Form form, int islands) {
         clear(level, origin(index));
         if (form == Form.ISLANDS) {
-            InnerIslands.build(level, origin(index).offset(ROOM / 2 + WALL, WALL, ROOM / 2 + WALL), index);
+            InnerIslands.build(level, origin(index).offset(ROOM / 2 + WALL, WALL, ROOM / 2 + WALL), index, islands);
         } else {
             build(level, origin(index));
         }
@@ -317,11 +346,25 @@ public final class InnerSelf {
         rooms.forms.put(player.getUUID(), form);
         rooms.built.add(index);
         rooms.setDirty();
-        build(inner, index, form);
+        final int islands = islandsFor(player);
+        build(inner, index, form, islands);
+        rooms.islands.put(player.getUUID(), islands);
         if (player.level() == inner) {
             final Vec3 arrival = arrival(index, form);
             player.teleportTo(inner, arrival.x, arrival.y, arrival.z, player.getYRot(), 0.0F);
         }
+    }
+
+    /** How many small islands a player's inner self has: one per milestone of the Inner Haven they carry. */
+    private static int islandsFor(ServerPlayer player) {
+        int best = 0;
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            final net.minecraft.world.item.ItemStack stack = player.getInventory().getItem(i);
+            if (stack.getItem() instanceof InnerHavenItem) {
+                best = Math.max(best, ArtifactItem.milestone(stack));
+            }
+        }
+        return best;
     }
 
     /** Players this gave flight to (taken again when they leave, or lose the mastery). */
@@ -397,6 +440,8 @@ public final class InnerSelf {
         final Map<UUID, CompoundTag> returns = new HashMap<>();
         final Map<UUID, Form> forms = new HashMap<>();
         final Map<UUID, net.minecraft.nbt.ListTag> waypoints = new HashMap<>();
+        /** How many small islands each player's place was last built with. */
+        final Map<UUID, Integer> islands = new HashMap<>();
 
         Form form(UUID player) {
             return forms.getOrDefault(player, Form.ROOM);
@@ -424,6 +469,8 @@ public final class InnerSelf {
             returns.getAllKeys().forEach(k -> rooms.returns.put(UUID.fromString(k), returns.getCompound(k)));
             final CompoundTag forms = tag.getCompound("forms");
             forms.getAllKeys().forEach(k -> rooms.forms.put(UUID.fromString(k), Form.valueOf(forms.getString(k))));
+            final CompoundTag islands = tag.getCompound("islands");
+            islands.getAllKeys().forEach(k -> rooms.islands.put(UUID.fromString(k), islands.getInt(k)));
             final CompoundTag waypoints = tag.getCompound("waypoints");
             waypoints.getAllKeys().forEach(k -> rooms.waypoints.put(UUID.fromString(k), waypoints.getList(k, Tag.TAG_COMPOUND)));
             return rooms;
@@ -441,6 +488,9 @@ public final class InnerSelf {
             final CompoundTag forms = new CompoundTag();
             this.forms.forEach((k, v) -> forms.putString(k.toString(), v.name()));
             tag.put("forms", forms);
+            final CompoundTag islands = new CompoundTag();
+            this.islands.forEach((k, v) -> islands.putInt(k.toString(), v));
+            tag.put("islands", islands);
             final CompoundTag waypoints = new CompoundTag();
             this.waypoints.forEach((k, v) -> waypoints.put(k.toString(), v));
             tag.put("waypoints", waypoints);

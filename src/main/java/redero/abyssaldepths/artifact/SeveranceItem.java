@@ -25,12 +25,26 @@ import redero.abyssaldepths.AbyssalDepths;
 /**
  * Severance: right click cuts away every harmful effect on its holder. Three charges, one back every five
  * minutes (sooner with the mastery, {@link #REGEN_SECONDS}); from 50 % mastery it also leaves the holder
- * untouchable by new harmful effects for a while ({@link #IMMUNITY_SECONDS}).
+ * untouchable by new harmful effects for a while ({@link #IMMUNITY_SECONDS}); at full mastery every effect cut
+ * away turns into its good opposite for eight seconds ({@link #OPPOSITES}).
  */
 @EventBusSubscriber(modid = AbyssalDepths.MODID)
 public class SeveranceItem extends ArtifactItem {
     /** Seconds for a charge to come back, and of immunity afterwards, per milestone (0 .. 4). */
     static final int[] REGEN_SECONDS = {300, 240, 180, 150, 120}, IMMUNITY_SECONDS = {0, 0, 10, 20, 45};
+    /** The good opposite of a harmful effect, given at full mastery for {@link #OPPOSITE_TICKS}. */
+    private static final Map<net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect>, net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect>> OPPOSITES = Map.of(
+            net.minecraft.world.effect.MobEffects.POISON, net.minecraft.world.effect.MobEffects.REGENERATION,
+            net.minecraft.world.effect.MobEffects.WITHER, net.minecraft.world.effect.MobEffects.REGENERATION,
+            net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN, net.minecraft.world.effect.MobEffects.MOVEMENT_SPEED,
+            net.minecraft.world.effect.MobEffects.DIG_SLOWDOWN, net.minecraft.world.effect.MobEffects.DIG_SPEED,
+            net.minecraft.world.effect.MobEffects.WEAKNESS, net.minecraft.world.effect.MobEffects.DAMAGE_BOOST,
+            net.minecraft.world.effect.MobEffects.BLINDNESS, net.minecraft.world.effect.MobEffects.NIGHT_VISION,
+            net.minecraft.world.effect.MobEffects.DARKNESS, net.minecraft.world.effect.MobEffects.NIGHT_VISION,
+            net.minecraft.world.effect.MobEffects.HUNGER, net.minecraft.world.effect.MobEffects.SATURATION,
+            net.minecraft.world.effect.MobEffects.LEVITATION, net.minecraft.world.effect.MobEffects.SLOW_FALLING,
+            net.minecraft.world.effect.MobEffects.UNLUCK, net.minecraft.world.effect.MobEffects.LUCK);
+    static final int OPPOSITE_TICKS = 8 * 20;
     /** Server: players immune to harmful effects, until the game time. */
     private static final Map<UUID, Long> IMMUNE = new HashMap<>();
 
@@ -63,6 +77,14 @@ public class SeveranceItem extends ArtifactItem {
         final List<MobEffectInstance> harmful = player.getActiveEffects().stream()
                 .filter(effect -> effect.getEffect().value().getCategory() == MobEffectCategory.HARMFUL).toList();
         harmful.forEach(effect -> player.removeEffect(effect.getEffect()));
+        if (milestone(stack) >= 4) { // mastered: each one cut away turns into its opposite for a while
+            for (MobEffectInstance effect : harmful) {
+                final net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect> opposite = OPPOSITES.get(effect.getEffect());
+                if (opposite != null) {
+                    player.addEffect(new MobEffectInstance(opposite, OPPOSITE_TICKS, effect.getAmplifier()));
+                }
+            }
+        }
         final int immunity = IMMUNITY_SECONDS[milestone(stack)];
         if (immunity > 0) {
             IMMUNE.put(player.getUUID(), level.getGameTime() + immunity * 20L);

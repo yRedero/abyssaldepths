@@ -56,6 +56,10 @@ public final class ClientConfig {
             .comment("Afterimages of players using Interlude.")
             .translation("abyssaldepths.config.afterimages")
             .define("afterimages", true);
+    private static final ModConfigSpec.EnumValue<InterludeOverlay> INTERLUDE_OVERLAY = BUILDER
+            .comment("What its holder sees while Interlude runs: TINT (a soft violet tint), BORDER (a ragged pixel frame), NONE.")
+            .translation("abyssaldepths.config.interlude_overlay")
+            .defineEnum("interludeOverlay", InterludeOverlay.TINT);
     private static final ModConfigSpec.BooleanValue INTERLUDE_PARTICLES = BUILDER
             .comment("Particles in an Interlude field slow down too.")
             .translation("abyssaldepths.config.interlude_particles")
@@ -105,6 +109,9 @@ public final class ClientConfig {
             .defineEnum("shadeVanish", ShadeVanishStyle.DISSOLVE);
 
     public static final ModConfigSpec SPEC = BUILDER.build();
+
+    /** Interlude's screen effect. */
+    public enum InterludeOverlay { TINT, BORDER, NONE }
 
     /** The waiting sign of Reprise. */
     public enum RepriseWait { CIRCLE, SQUARE, CLOCK, CLOCK_TICKING }
@@ -156,6 +163,10 @@ public final class ClientConfig {
 
     public static boolean afterimages() {
         return !SPEC.isLoaded() || AFTERIMAGES.get();
+    }
+
+    public static InterludeOverlay interludeOverlay() {
+        return SPEC.isLoaded() ? INTERLUDE_OVERLAY.get() : InterludeOverlay.TINT;
     }
 
     public static boolean interludeParticles() {

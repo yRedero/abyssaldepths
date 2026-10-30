@@ -549,16 +549,24 @@ public final class AutoShot {
                 if (wait == 42) {
                     shoot(mc, "haven_0_dir1"); // fading out
                 }
-                if (wait == 120) {
-                    shoot(mc, "haven_0_dir2"); // in the room
+                if (wait == 160) {
+                    shoot(mc, "haven_0_dir2"); // in the room (or on the islands)
                     mc.player.setXRot(60.0F);
                 }
-                if (wait == 130) {
+                if (wait == 170) {
                     shoot(mc, "haven_0_down");
+                    mc.player.setXRot(-20.0F);
+                }
+                if (wait == 175) {
+                    shoot(mc, "haven_1_dir1"); // the sky
                     command(server, "abyssaldepths innerhaven");
                 }
-                if (wait == 230) {
+                if (wait == 290) {
                     shoot(mc, "haven_0_dir3"); // back
+                    mc.player.setXRot(80.0F);
+                }
+                if (wait == 300) {
+                    shoot(mc, "haven_1_dir0"); // the mark of the place left (Inner Haven mastered in the inventory)
                     step = Step.NEXT;
                 }
             }
@@ -573,10 +581,10 @@ public final class AutoShot {
                 } else if (wait >= 32 && wait < 72 && (wait - 32) % 10 == 6) {
                     Screenshot.grab(mc.gameDirectory, "autoshot_showcase_0_dir" + (wait - 32) / 10 + ".png", mc.getMainRenderTarget(), msg -> { });
                 } else if (wait == 75) {
-                    mc.setScreen(new redero.abyssaldepths.client.WaypointScreen("minecraft:overworld|120|64|-35|42;minecraft:the_nether|8|70|-2|900;abyssaldepths:inner_self|0|64|0|7300"));
-                } else if (wait == 81) {
+                    mc.setScreen(new redero.abyssaldepths.client.WaypointScreen("minecraft:overworld|120|64|-35|42|107;minecraft:the_nether|8|70|-2|900|2;minecraft:overworld|-310|71|88|7300|3"));
+                } else if (wait == 97) {
                     Screenshot.grab(mc.gameDirectory, "autoshot_showcase_1_dir0.png", mc.getMainRenderTarget(), msg -> { });
-                } else if (wait > 85) {
+                } else if (wait > 100) {
                     mc.setScreen(null);
                     step = Step.NEXT;
                 }

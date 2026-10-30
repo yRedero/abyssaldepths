@@ -81,6 +81,7 @@ public class MirageItem extends ArtifactItem {
             server.serverLevel().sendParticles(ParticleTypes.WITCH, player.getX(), player.getY() + 1.0, player.getZ(), 30, 0.4, 0.8, 0.4, 0.05);
             level.playSound(null, player.blockPosition(), SoundEvents.ILLUSIONER_MIRROR_MOVE, SoundSource.PLAYERS, 1.0F, 0.8F);
             send(server, SECONDS[milestone(stack)] * 20 + 20);
+            server.addEffect(new net.minecraft.world.effect.MobEffectInstance(AbyssalDepths.VEILED, SECONDS[milestone(stack)] * 20, 0, false, false, true));
             rest(player);
         }
         return InteractionResultHolder.sidedSuccess(stack, level.isClientSide);
@@ -99,6 +100,7 @@ public class MirageItem extends ArtifactItem {
                 decoy.discard();
             }
             send(player, 0);
+            player.removeEffect(AbyssalDepths.VEILED);
         }
     }
 

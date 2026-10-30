@@ -12,6 +12,7 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import redero.abyssaldepths.AbyssalDepths;
+import redero.abyssaldepths.ClientConfig;
 import redero.abyssaldepths.artifact.InterludeField;
 
 /**
@@ -40,7 +41,13 @@ public final class InterludeBorder {
 
     private static void draw(GuiGraphics g, float partialTick) {
         final float s = Mth.lerp(partialTick, previous, strength);
-        if (s <= 0.01F) {
+        if (s <= 0.01F || ClientConfig.interludeOverlay() == ClientConfig.InterludeOverlay.NONE) {
+            return;
+        }
+        if (ClientConfig.interludeOverlay() == ClientConfig.InterludeOverlay.TINT) {
+            // a soft violet over everything, breathing a little
+            final float breath = 0.85F + 0.15F * Mth.sin(Util.getMillis() / 1600.0F * Mth.TWO_PI);
+            g.fill(0, 0, g.guiWidth(), g.guiHeight(), (int) (s * breath * 0x30) << 24 | 0x5A2A9A);
             return;
         }
         final float time = Util.getMillis() / 1000.0F;

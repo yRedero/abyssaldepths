@@ -34,6 +34,13 @@ public final class HavenFade {
         holding = false;
     }
 
+    /** At once fully white (the waypoint screen hands over to the crossing). */
+    static void white() {
+        alpha = previous = 1.0F;
+        step = 0.0F;
+        holding = false;
+    }
+
     static void in(int ticks) {
         holding = true;
         settle = 0;

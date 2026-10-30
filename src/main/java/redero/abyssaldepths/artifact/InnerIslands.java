@@ -18,32 +18,38 @@ import redero.abyssaldepths.AbyssalDepths;
 final class InnerIslands {
     /** How far from the middle the islands reach (the space cleared before building). */
     static final int REACH = 30;
-    private static final int CENTRAL_RADIUS = 7, SMALL = 6;
+    private static final int CENTRAL_RADIUS = 7;
 
     private InnerIslands() {
     }
 
-    /** Builds the islands around centre (the top of the central island is one below it: centre is where one stands). */
-    static void build(ServerLevel level, BlockPos centre, int seed) {
+    /**
+     * Builds the islands around centre (the top of the central island is one below it: centre is where one
+     * stands): the central island and {@code small} more around it (one per mastery milestone), every one
+     * reachable over stepping stones.
+     */
+    static void build(ServerLevel level, BlockPos centre, int seed, int small) {
         final RandomSource random = RandomSource.create(seed * 341873128712L + 132897987541L);
         final BlockPos top = centre.below();
         island(level, top, CENTRAL_RADIUS, random);
         level.setBlock(centre, AbyssalDepths.MEDITATION_MAT.get().defaultBlockState(), 2);
         tree(level, top.offset(-4, 1, -3), 5, random);
         petals(level, top, CENTRAL_RADIUS - 1, random);
-        for (int i = 0; i < SMALL; i++) {
-            final double angle = 2 * Math.PI * i / SMALL + (random.nextDouble() - 0.5) * 0.6;
+        pond(level, top.offset(3, 0, 2));
+        for (int i = 0; i < small; i++) {
+            final double angle = 2 * Math.PI * i / Math.max(4, small) + (random.nextDouble() - 0.5) * 0.4;
             final double distance = 15 + random.nextDouble() * 8;
             final int radius = 2 + random.nextInt(3);
-            final BlockPos at = top.offset((int) Math.round(Math.cos(angle) * distance), random.nextInt(11) - 5, (int) Math.round(Math.sin(angle) * distance));
+            final BlockPos at = top.offset((int) Math.round(Math.cos(angle) * distance), random.nextInt(7) - 3, (int) Math.round(Math.sin(angle) * distance));
             island(level, at, radius, random);
             if (random.nextBoolean()) {
                 tree(level, at.above(), 3, random);
             } else {
                 level.setBlock(at.above(), Blocks.MOSSY_COBBLESTONE.defaultBlockState(), 2);
             }
-            if (i % 2 == 0) {
-                stones(level, top, at, angle, radius);
+            stones(level, top, at, angle, radius);
+            if (i == 1) {
+                waterfall(level, at, radius, angle);
             }
         }
     }
@@ -73,6 +79,23 @@ final class InnerIslands {
                 }
             }
         }
+    }
+
+    /** A small pool sunk into the grass, with a lily pad. */
+    private static void pond(ServerLevel level, BlockPos at) {
+        for (int dz = 0; dz < 2; dz++) {
+            for (int dx = 0; dx < 3; dx++) {
+                level.setBlock(at.offset(dx, 0, dz), Blocks.WATER.defaultBlockState(), 2);
+                level.setBlock(at.offset(dx, -1, dz), Blocks.DIRT.defaultBlockState(), 2);
+            }
+        }
+        level.setBlock(at.offset(1, 1, 0), Blocks.LILY_PAD.defaultBlockState(), 2);
+    }
+
+    /** Water welling up at an island's outer edge and falling into the clouds. */
+    private static void waterfall(ServerLevel level, BlockPos top, int radius, double angle) {
+        final BlockPos edge = top.offset((int) Math.round(Math.cos(angle) * (radius - 1)), 0, (int) Math.round(Math.sin(angle) * (radius - 1)));
+        level.setBlock(edge, Blocks.WATER.defaultBlockState(), 3);
     }
 
     /** A small blossoming tree: a cherry trunk and a round crown of (lasting) cherry leaves. */
@@ -112,9 +135,7 @@ final class InnerIslands {
         final double startDistance = CENTRAL_RADIUS + 1.5, endDistance = Math.sqrt(from.distSqr(new BlockPos(to.getX(), from.getY(), to.getZ()))) - radius - 1;
         final int steps = Math.max(1, (int) ((endDistance - startDistance) / 3.0));
         final int rise = to.getY() - from.getY();
-        if (Math.abs(rise) > steps) {
-            return; // too steep to walk
-        }
+        // never steeper than a jump (the islands lie at most 3 apart in height, so this always reaches)
         for (int i = 0; i <= steps; i++) {
             final double t = (double) i / steps;
             final double distance = Mth.lerp(t, startDistance, endDistance);

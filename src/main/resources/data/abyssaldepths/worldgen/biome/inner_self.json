@@ -3,11 +3,13 @@
   "temperature": 0.5,
   "downfall": 0.0,
   "effects": {
-    "fog_color": 16052972,
-    "sky_color": 16052972,
-    "water_color": 16052972,
-    "water_fog_color": 16052972,
-    "ambient_sound": "abyssaldepths:ambient.inner_self.loop"
+    "fog_color": 15982062,
+    "sky_color": 15190510,
+    "water_color": 2937793,
+    "water_fog_color": 1809555,
+    "ambient_sound": "abyssaldepths:ambient.inner_self.loop",
+    "grass_color": 5426236,
+    "foliage_color": 4636214
   },
   "carvers": {},
   "features": [],

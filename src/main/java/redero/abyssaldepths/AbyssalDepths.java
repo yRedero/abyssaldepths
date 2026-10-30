@@ -109,6 +109,10 @@ public class AbyssalDepths {
 
     /** Icon: textures/mob_effect/deep_pressure.png */
     public static final DeferredHolder<MobEffect, DeepPressure> DEEP_PRESSURE = MOB_EFFECTS.register("deep_pressure", DeepPressure::new);
+    /** Mirage under way: creatures overlook its holder (the effect is the sign of it; Mirage does the work). */
+    public static final DeferredHolder<MobEffect, MobEffect> VEILED = MOB_EFFECTS.register("veiled",
+            () -> new MobEffect(net.minecraft.world.effect.MobEffectCategory.BENEFICIAL, 0x8E52D6) {
+            });
     /** Ticks a player has spent in the thalan layer without Deep Pressure, see {@link DeepPressure}. */
     public static final Supplier<AttachmentType<Integer>> TICKS_BELOW = ATTACHMENT_TYPES.register("ticks_below",
             () -> AttachmentType.builder(() -> 0).serialize(Codec.INT).build());
@@ -228,7 +232,7 @@ public class AbyssalDepths {
 
     /** Opens a gravitational anomaly that draws creatures in, then bursts; 3 charges, 1 back every 5 minutes. */
     public static final DeferredItem<UndertowItem> UNDERTOW = ITEMS.register("undertow",
-            () -> new UndertowItem(new Item.Properties(), ArtifactRank.EXALTED, ArtifactFrame.HOLLOW, 3, 20 * 60 * 5));
+            () -> new UndertowItem(new Item.Properties(), ArtifactRank.PRIMORDIAL, ArtifactFrame.HOLLOW, 3, 20 * 60 * 5));
 
     /** Lightens its holder while switched on (lower gravity, less fall damage); 10 charges, 1 back every 30 s. */
     public static final DeferredItem<CounterweightItem> COUNTERWEIGHT = ITEMS.register("counterweight",
