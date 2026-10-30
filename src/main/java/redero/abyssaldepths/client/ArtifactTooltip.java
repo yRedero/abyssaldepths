@@ -6,6 +6,7 @@ import java.util.List;
 import com.mojang.datafixers.util.Either;
 
 import net.minecraft.ChatFormatting;
+import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -26,6 +27,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderTooltipEvent;
 import net.neoforged.neoforge.event.entity.player.ItemTooltipEvent;
 import redero.abyssaldepths.AbyssalDepths;
+import redero.abyssaldepths.ClientConfig;
 import redero.abyssaldepths.artifact.ArtifactFrame;
 import redero.abyssaldepths.artifact.ArtifactItem;
 import redero.abyssaldepths.artifact.ArtifactRank;
@@ -69,7 +71,7 @@ public final class ArtifactTooltip {
         }
         final List<Component> lines = new ArrayList<>();
         final ArtifactRank rank = artifact.rank();
-        lines.add(Component.translatable("abyssaldepths.artifact.rank_line", rank.title()).withColor(rank.colour()));
+        lines.add(Component.translatable("abyssaldepths.artifact.rank_line", flowing(rank.title().getString(), rank)).withStyle(ChatFormatting.GRAY));
         if (artifact.maxCharge() > 0) {
             lines.add(chargePips(artifact.charge(stack), artifact.maxCharge(), artifact.frame()));
             final long next = Minecraft.getInstance().level == null ? -1 : artifact.ticksToNextCharge(stack, Minecraft.getInstance().level.getGameTime());
@@ -90,6 +92,17 @@ public final class ArtifactTooltip {
             lines.add(Component.translatable("abyssaldepths.artifact.more").withStyle(ChatFormatting.DARK_GRAY));
         }
         event.getToolTip().addAll(Math.min(1, event.getToolTip().size()), lines); // right under the name
+    }
+
+    /** Text in the rank's palette, flowing along its letters (the tooltip is rebuilt every frame, so it moves). */
+    private static Component flowing(String text, ArtifactRank rank) {
+        final MutableComponent out = Component.empty();
+        final long millis = Util.getMillis();
+        for (int i = 0; i < text.length(); i++) {
+            final int colour = ClientConfig.artifactTitleShimmer() ? rank.flowing(i * 0.09F, millis) : rank.colour();
+            out.append(Component.literal(String.valueOf(text.charAt(i))).withColor(colour));
+        }
+        return out;
     }
 
     /** Charge as a row of pips: filled ones in the frame's highlight, empty ones dark, then the numbers. */
@@ -118,7 +131,7 @@ public final class ArtifactTooltip {
         elements.removeIf(e -> e.left().map(text -> text.getString().strip().equals(modName)).orElse(false) && moved.add(e));
         elements.addAll(moved);
         elements.set(0, Either.right(new ArtifactTitle(event.getItemStack().getHoverName().getString(),
-                artifact.rank().colour(), artifact.frame().highlight & 0xFFFFFF)));
+                artifact.rank(), artifact.frame().highlight & 0xFFFFFF)));
         if (I18n.exists(artifact.epithetKey())) {
             elements.add(1, Either.right(new ArtifactEpithet(I18n.get(artifact.epithetKey()))));
         }
@@ -158,7 +171,8 @@ public final class ArtifactTooltip {
         int line = y;
         for (int i = 0; i < components.size(); i++) {
             final ClientTooltipComponent component = components.get(i);
-            final int left = component instanceof ArtifactEpithet.Line ? x + (width - component.getWidth(font)) / 2 : x;
+            final boolean centred = component instanceof ArtifactEpithet.Line || component instanceof ArtifactTitle.Line;
+            final int left = centred ? x + (width - component.getWidth(font)) / 2 : x;
             component.renderText(font, left, line, g.pose().last().pose(), g.bufferSource());
             line += component.getHeight() + gapAfter(components, i);
         }

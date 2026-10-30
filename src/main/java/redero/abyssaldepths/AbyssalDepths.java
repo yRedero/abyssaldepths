@@ -60,6 +60,7 @@ import redero.abyssaldepths.artifact.ArtifactItem;
 import redero.abyssaldepths.artifact.ArtifactRank;
 import redero.abyssaldepths.artifact.InnerHavenItem;
 import redero.abyssaldepths.artifact.InterludeItem;
+import redero.abyssaldepths.artifact.ParallaxItem;
 import redero.abyssaldepths.artifact.RepriseItem;
 import redero.abyssaldepths.entity.AbsentBody;
 import redero.abyssaldepths.block.QuicksiltBlock;
@@ -211,6 +212,10 @@ public class AbyssalDepths {
     /** Slows everything around its holder to half speed while switched on; 10 charges, 1 used every 2 s, 1 back every 30 s. */
     public static final DeferredItem<InterludeItem> INTERLUDE = ITEMS.register("interlude",
             () -> new InterludeItem(new Item.Properties(), ArtifactRank.GREATER, ArtifactFrame.HOLLOW, 10, 20 * 30));
+
+    /** Makes its holder a shade in the shadow of this world while switched on; 10 charges, 1 used every 6 s, 1 back every minute. */
+    public static final DeferredItem<ParallaxItem> PARALLAX = ITEMS.register("parallax",
+            () -> new ParallaxItem(new Item.Properties(), ArtifactRank.EXALTED, ArtifactFrame.HOLLOW, 10, 20 * 60));
 
     /** The walls of the rooms of the inner self: pure white, can not be broken. */
     public static final DeferredBlock<Block> HAVEN_WALL = withItem(BLOCKS.registerSimpleBlock("haven_wall",

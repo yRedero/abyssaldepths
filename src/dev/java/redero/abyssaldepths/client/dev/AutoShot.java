@@ -52,7 +52,7 @@ public final class AutoShot {
     private static final String SPOT_COMMANDS = System.getProperty("abyssaldepths.autoshot.spotCommands", "");
     private static final int SETTLE_TICKS = 220, TURN_TICKS = 15;
 
-    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, DONE }
+    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, DONE }
 
     private static Step step = Step.TITLE;
     private static final Deque<String> BIOMES = new ArrayDeque<>();
@@ -141,6 +141,14 @@ public final class AutoShot {
                 }
                 spotsDone++;
                 biome = BIOMES.poll();
+                if (biome != null && biome.startsWith("parallax#")) {
+                    // not a place: Parallax's shadow, checked through the log ("parallax check" lines)
+                    if (biome.endsWith("#0")) {
+                        wait = 0;
+                        step = Step.PARALLAX;
+                    }
+                    return;
+                }
                 if (biome != null && biome.startsWith("interlude#")) {
                     // not a place: Interlude's slowed time (measured in the log) and the afterimages (shots)
                     if (biome.endsWith("#0")) {
@@ -230,6 +238,55 @@ public final class AutoShot {
                 }
                 if (wait > 70 && wait < 120) {
                     command(server, "tp @s ~-0.3 ~ ~"); // walk sideways: the afterimages trail behind
+                }
+            }
+            case PARALLAX -> {
+                final MinecraftServer server = mc.getSingleplayerServer();
+                final net.minecraft.server.level.ServerPlayer player = server.getPlayerList().getPlayers().get(0);
+                switch (++wait) {
+                    case 1 -> {
+                        command(server, "tp @s ~ ~40 ~");
+                        command(server, "gamemode survival");
+                    }
+                    case 10 -> {
+                        command(server, "fill ~-1 ~-1 ~-1 ~1 ~-1 ~1 stone");
+                        command(server, "setblock ~2 ~ ~2 gold_block");
+                        command(server, "effect give @s resistance 30 4 true"); // no fall damage before the test
+                    }
+                    case 20 -> shoot(mc, "parallax_0_dir0"); // before: colours as usual
+                    case 25 -> command(server, "give @s abyssaldepths:parallax[abyssaldepths:artifact_active=true]");
+                    case 30 -> {
+                        command(server, "effect clear @s");
+                        command(server, "summon item ~ ~ ~ {Item:{id:\"minecraft:diamond\",count:1},PickupDelay:0,Tags:[\"parallax_test\"]}");
+                        command(server, "summon zombie ~4 ~ ~ {Tags:[\"parallax_test\"]}");
+                    }
+                    case 40 -> {
+                        final net.minecraft.core.BlockPos gold = player.blockPosition().offset(2, 0, 2);
+                        AbyssalDepths.LOGGER.info("parallax check: shade on server {}, on client {}, breaking the gold works {}",
+                                redero.abyssaldepths.artifact.Shades.isShade(player), redero.abyssaldepths.artifact.Shades.isShade(mc.player),
+                                player.gameMode.destroyBlock(gold));
+                        final float health = player.getHealth();
+                        player.hurt(player.damageSources().generic(), 5.0F);
+                        AbyssalDepths.LOGGER.info("parallax check: health {} -> {} after 5 damage", health, player.getHealth());
+                    }
+                    case 50 -> shoot(mc, "parallax_0_dir1"); // the shadow: dark and drained
+                    case 80 -> {
+                        command(server, "execute if entity @e[type=item,tag=parallax_test] run say parallax check: the diamond is still on the ground");
+                        command(server, "execute unless entity @e[type=item,tag=parallax_test] run say parallax check: the diamond was picked up");
+                        final var zombie = player.serverLevel().getEntitiesOfClass(net.minecraft.world.entity.monster.Zombie.class, player.getBoundingBox().inflate(16));
+                        AbyssalDepths.LOGGER.info("parallax check: zombie targets the shade {}", zombie.stream().anyMatch(z -> z.getTarget() == player));
+                        command(server, "kill @e[tag=parallax_test]");
+                        command(server, "clear @s abyssaldepths:parallax");
+                    }
+                    case 90 -> AbyssalDepths.LOGGER.info("parallax check: after: shade on server {}, on client {}",
+                            redero.abyssaldepths.artifact.Shades.isShade(player), redero.abyssaldepths.artifact.Shades.isShade(mc.player));
+                    case 95 -> shoot(mc, "parallax_0_dir2"); // back: colours again
+                    case 100 -> {
+                        command(server, "gamemode spectator");
+                        step = Step.NEXT;
+                    }
+                    default -> {
+                    }
                 }
             }
             case REPRISE -> {

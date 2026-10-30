@@ -50,6 +50,9 @@ final class TooltipPreviewScreen extends Screen {
         ArtifactTooltip.forceDetails = true;
         g.renderTooltip(font, haven, 200, 44);
         ArtifactTooltip.forceDetails = false;
+        // the other ranks, for their palette and title size
+        g.renderTooltip(font, new ItemStack(AbyssalDepths.INTERLUDE.get()), -4, 170);
+        g.renderTooltip(font, new ItemStack(AbyssalDepths.PARALLAX.get()), 420, 44);
     }
 
     private void label(GuiGraphics g, String text, int x, int y) {

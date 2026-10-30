@@ -17,14 +17,15 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterClientTooltipComponentFactoriesEvent;
 import redero.abyssaldepths.AbyssalDepths;
 import redero.abyssaldepths.ClientConfig;
+import redero.abyssaldepths.artifact.ArtifactRank;
 
 /**
- * The title line of an artifact tooltip: the name in large spaced capitals in the rank's colour (size in
- * the client config, 1.25x by default), between two small ornaments, with a brighter shimmer sweeping
- * through the letters every few seconds (can be turned off). {@link ArtifactTooltip} puts it in place of
- * the plain name line.
+ * The title line of an artifact tooltip: the name in large spaced capitals (size in the client config,
+ * 1.25x by default, a little smaller for the lower ranks), between two small ornaments, its letters
+ * flowing through the rank's palette with a brighter shimmer sweeping through every few seconds (both can
+ * be turned off). {@link ArtifactTooltip} puts it in place of the plain name line, centred.
  */
-public record ArtifactTitle(String name, int colour, int ornament) implements TooltipComponent {
+public record ArtifactTitle(String name, ArtifactRank rank, int ornament) implements TooltipComponent {
     /** One sweep of the shimmer, in milliseconds, and how wide its bright band is, in letters. */
     private static final long SHIMMER_PERIOD = 2600;
     private static final float SHIMMER_WIDTH = 2.5F;
@@ -46,9 +47,13 @@ public record ArtifactTitle(String name, int colour, int ornament) implements To
             return title.name.toUpperCase(Locale.ROOT);
         }
 
+        private float scale() {
+            return ClientConfig.artifactTitleScale() * title.rank.titleScale();
+        }
+
         @Override
         public int getHeight() {
-            return (int) Math.ceil(9 * ClientConfig.artifactTitleScale());
+            return (int) Math.ceil(9 * scale());
         }
 
         @Override
@@ -61,8 +66,8 @@ public record ArtifactTitle(String name, int colour, int ornament) implements To
         }
 
         /** Width of one letter at the title's size, its tracking included. */
-        private static int advance(Font font, char c) {
-            return Math.round(font.width(String.valueOf(c)) * ClientConfig.artifactTitleScale()) + TRACKING;
+        private int advance(Font font, char c) {
+            return Math.round(font.width(String.valueOf(c)) * scale()) + TRACKING;
         }
 
         /**
@@ -71,19 +76,21 @@ public record ArtifactTitle(String name, int colour, int ornament) implements To
          */
         private int letterColour(int i, int n) {
             if (!ClientConfig.artifactTitleShimmer()) {
-                return title.colour;
+                return title.rank.colour();
             }
-            final float sweep = (Util.getMillis() % SHIMMER_PERIOD) / (float) SHIMMER_PERIOD; // 0 .. 1
+            final long millis = Util.getMillis();
+            final int colour = title.rank.flowing(i * 0.09F, millis); // the rank's palette, flowing along the letters
+            final float sweep = (millis % SHIMMER_PERIOD) / (float) SHIMMER_PERIOD; // 0 .. 1
             final float band = -SHIMMER_WIDTH + sweep * (n + 2 * SHIMMER_WIDTH + 6); // runs past the end: a pause
             final float t = Math.max(0.0F, 1.0F - Math.abs(i - band) / SHIMMER_WIDTH);
-            final float light = 0.65F * t * t * (3 - 2 * t);
-            final int r = (title.colour >> 16) & 255, g = (title.colour >> 8) & 255, b = title.colour & 255;
+            final float light = 0.5F * t * t * (3 - 2 * t);
+            final int r = (colour >> 16) & 255, g = (colour >> 8) & 255, b = colour & 255;
             return (int) (r + (255 - r) * light) << 16 | (int) (g + (255 - g) * light) << 8 | (int) (b + (255 - b) * light);
         }
 
         @Override
         public void renderText(Font font, int x, int y, Matrix4f matrix, MultiBufferSource.BufferSource buffer) {
-            final float scale = ClientConfig.artifactTitleScale();
+            final float scale = scale();
             final int ornamentY = y + Math.round((9 * scale - 9) / 2); // centred on the large letters
             final int full = LightTexture.FULL_BRIGHT;
             font.drawInBatch(ORNAMENT, x, ornamentY, 0xFF000000 | title.ornament, true, matrix, buffer, Font.DisplayMode.NORMAL, 0, full);

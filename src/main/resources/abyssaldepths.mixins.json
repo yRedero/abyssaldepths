@@ -8,12 +8,17 @@
     "LevelChunkMixin",
     "MineshaftStructureMixin",
     "OverworldBiomeBuilderMixin",
+    "ShadeEntityMixin",
+    "ShadeLivingMixin",
+    "ShadePlayerMixin",
+    "ShadeProjectileMixin",
     "VanillaRegistriesMixin"
   ],
   "injectors": {
     "defaultRequire": 1
   },
   "client": [
+    "ShadeRenderMixin",
     "WorldOpenFlowsMixin"
   ]
 }

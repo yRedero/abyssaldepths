@@ -23,7 +23,9 @@ and ambience.
   own tooltip. *Inner Haven* carries you into your inner self, a room of your own in the Inner Self
   dimension, while your body waits behind. *Reprise* remembers the last two minutes of the world while
   carried, and takes everything (blocks, chests, creatures, every player) back to them. *Interlude*
-  slows everything around you to half speed while you leave afterimages behind.
+  slows everything around you to half speed while you leave afterimages behind. *Parallax* makes you a
+  shade in the shadow of this world: unseen and untouchable, unable to touch anything, only to walk, and
+  to meet whoever else is in the shadow.
 - **Ambience**: biome sounds, echo in the halls, dust, drips, gusts, fog tinted per biome, no game
   music in the layer.
 
