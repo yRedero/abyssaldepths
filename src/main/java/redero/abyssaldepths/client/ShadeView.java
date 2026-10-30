@@ -26,13 +26,13 @@ import redero.abyssaldepths.artifact.Shades;
  * How a shade sees the world, and the crossing into it.
  * <p>
  * The crossing runs from 0 (the world) to 1 (the shadow) in the time the client config gives: from spots
- * all over the screen a quick wave of strong black and purple pixels runs outwards until they cover the
- * screen; then, slower, a second front runs out from the same spots and turns them into translucent purple
- * pixels, which stay while in the shadow
+ * all over the screen black spots open and grow into each other until it is black; then from the same
+ * spots wave after wave runs outwards, each one taking the black a step further towards transparent, until
+ * only translucent purple pixels are left, which stay while in the shadow
  * (denser at the edges, some of them lighting up now and then). Leaving runs the same backwards.
  * <p>
- * Meanwhile the shadow's own look fades in: a post effect ({@code shaders/program/shade.fsh}) with purple
- * outlines, drained and darkened colours and more. Halfway through, other entities are hidden (but other
+ * Behind the black the view changes: the shadow's own look, a post effect ({@code shaders/program/shade.fsh})
+ * with purple outlines, drained and darkened colours and more; and other entities are hidden (but other
  * shades, and everything for a Parallax at full mastery, see {@link ParallaxItem#seesWorld}).
  */
 @EventBusSubscriber(modid = AbyssalDepths.MODID, value = Dist.CLIENT)
@@ -44,20 +44,20 @@ public final class ShadeView {
     private static final int CELL = 10;
     /** On average one spot per this many pixels. */
     private static final int CELLS_PER_SPOT = 70;
+    /** The black and the rim of the growing spots. */
+    private static final int BLACK = 0x050307, RIM = 0x1C0B2B;
     /**
-     * The two fronts, as parts of the crossing: the quick wave covers the screen in the first
-     * {@link #FIRST_WAVE}; the slow front clearing it starts at {@link #CLEARING_START}, and behind it the
-     * strong pixels thin out over {@link #CLEARING_EDGE} (in reach, 0 .. 1).
+     * The clearing waves (second half of the crossing): how many, how far apart and how soft their edge
+     * (in reach, 0 .. 1). Each one takes away an equal share of the black.
      */
-    private static final float FIRST_WAVE = 0.3F, CLEARING_START = 0.25F, CLEARING_EDGE = 0.3F;
-    /** The strong pixels of the waves (as Reprise's front, in the shadow's colours). */
-    private static final int BLACK = 0xFF050307, DEEP = 0xFF2A0F45, STRONG_VIOLET = 0xFF5C2A93, BRIGHT = 0xFF8E52D6;
+    private static final int WAVES = 10;
+    private static final float WAVE_GAP = 0.07F, WAVE_EDGE = 0.025F;
     /** The pixels that stay. */
     private static final int PURPLE = 0x3A1E50, VIOLET = 0x8E52D6;
 
     private static float crossing, previous;
     private static boolean seesWorld;
-    /** Per pixel: when the waves reach it (0 .. 1), for the current screen and crossing. */
+    /** Per pixel: when the black reaches it (0 .. 1), for the current screen and crossing. */
     private static float[] reach = new float[0];
     private static int reachCols, reachRows, reachSeed = -1, seed;
 
@@ -119,13 +119,13 @@ public final class ShadeView {
         return current != null && current.getName().equals(EFFECT.toString()) ? current : null;
     }
 
-    /** Every frame: how far the shadow's look has faded in (most of it while the pixels cover the screen). */
+    /** Every frame: how far the shadow's look is in (it changes while the screen is black). */
     @SubscribeEvent
     public static void onFrame(RenderFrameEvent.Pre event) {
         final PostChain effect = ours();
         if (effect != null) {
             final float v = Mth.lerp(event.getPartialTick().getGameTimeDeltaPartialTick(true), previous, crossing);
-            final float t = Mth.clamp((v - 0.1F) / 0.6F, 0.0F, 1.0F);
+            final float t = Mth.clamp((v - 0.44F) / 0.12F, 0.0F, 1.0F);
             effect.setUniform("Amount", t * t * (3 - 2 * t));
         }
     }
@@ -165,7 +165,7 @@ public final class ShadeView {
         }
     }
 
-    /** Scatters the spots and works out, for every pixel, how soon the waves reach it. */
+    /** Scatters the spots and works out, for every pixel, how soon the black reaches it. */
     private static void spots(int cols, int rows) {
         reachCols = cols;
         reachRows = rows;
@@ -191,25 +191,38 @@ public final class ShadeView {
             }
         }
         for (int i = 0; i < reach.length; i++) {
-            reach[i] /= max * 1.001F; // 0 .. 1
+            reach[i] /= max * 1.001F; // all below 1: black everywhere at the middle of the crossing
         }
     }
 
     /** The colour of a pixel at crossing v. */
     private static int colour(int col, int row, int cols, int rows, float v, float time) {
-        final float reached = reach[row * cols + col];
-        if (reached > v / FIRST_WAVE) {
-            return 0; // the quick wave is not here yet
+        if (v < 0.5F) { // black spreading from the spots
+            final float front = v * 2.0F, r = reach[row * cols + col];
+            return r > front ? 0 : 0xFF000000 | (front - r < 0.05F ? RIM : BLACK);
         }
-        // the slow front from the spots: past the last pixel (reach 1) with its edge just as the crossing ends
-        final float clearing = (v - CLEARING_START) / (1.0F - CLEARING_START) * (1.0F + CLEARING_EDGE) - reached;
-        final float strength = Mth.clamp(1.0F - clearing / CLEARING_EDGE, 0.0F, 1.0F);
-        final int flicker = (int) (time * 12.0F); // the strong pixels change about 12 times a second
-        if (noise(col * 211 + flicker, row * 89 + seed) < strength) {
-            final float r = noise(col * 53 + flicker, row * 197);
-            return r < 0.45F ? BLACK : r < 0.75F ? DEEP : r < 0.93F ? STRONG_VIOLET : BRIGHT;
+        // waves from the spots, each one passing a pixel takes a share of its black; the last has passed
+        // the furthest pixel (reach 1) just as the crossing ends
+        final float r = reach[row * cols + col];
+        final float lead = (v - 0.5F) * 2.0F * (1.0F + (WAVES - 1) * WAVE_GAP + WAVE_EDGE);
+        float passed = 0.0F;
+        for (int k = 0; k < WAVES; k++) {
+            passed += smooth((lead - k * WAVE_GAP - r) / WAVE_EDGE);
         }
-        // what stays: translucent purple, denser towards the edges, some pixels lighting up for a while
+        final float fade = passed / WAVES;
+        final int stays = stays(col, row, cols, rows, time);
+        final float alpha = Mth.lerp(fade, 1.0F, (stays >>> 24) / 255.0F);
+        return (int) (alpha * 255) << 24 | mix(BLACK, stays & 0xFFFFFF, fade);
+    }
+
+    private static float smooth(float t) {
+        final float c = Mth.clamp(t, 0.0F, 1.0F);
+        return c * c * (3 - 2 * c);
+    }
+
+    /** What stays in the shadow at a pixel. */
+    private static int stays(int col, int row, int cols, int rows, float time) {
+        // translucent purple, denser towards the edges, some pixels lighting up for a while
         final float ex = Math.abs((col + 0.5F) / cols * 2.0F - 1.0F), ey = Math.abs((row + 0.5F) / rows * 2.0F - 1.0F);
         final float edge = Mth.clamp((Math.max(ex, ey) - 0.55F) / 0.45F, 0.0F, 1.0F);
         float alpha = 0.06F + 0.12F * noise(col, row * 3 + seed) + 0.45F * edge * edge;

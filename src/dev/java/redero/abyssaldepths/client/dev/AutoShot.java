@@ -320,7 +320,7 @@ public final class AutoShot {
                     }
                     case 31 -> shoot(mc, "parallax_0_dir1"); // the crossing (1.6 s by default): black spots spreading
                     case 41 -> shoot(mc, "parallax_0_dir2"); // all black
-                    case 50 -> shoot(mc, "parallax_0_dir3"); // falling apart into purple pixels
+                    case 47 -> shoot(mc, "parallax_0_dir3"); // falling apart into purple pixels
                     case 70 -> shoot(mc, "parallax_1_dir0"); // the shadow: dark, drained, no zombie, purple pixels
                     case 80 -> {
                         command(server, "execute if entity @e[type=item,tag=parallax_test] run say parallax check: the diamond is still on the ground");
