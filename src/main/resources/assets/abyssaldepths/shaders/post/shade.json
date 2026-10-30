@@ -1,26 +1,17 @@
 {
   "targets": [
-    "swap"
+    "swap",
+    "world_depth"
   ],
   "passes": [
     {
-      "name": "color_convolve",
+      "name": "abyssaldepths:shade",
       "intarget": "minecraft:main",
       "outtarget": "swap",
-      "uniforms": [
+      "auxtargets": [
         {
-          "name": "Saturation",
-          "values": [
-            0.18
-          ]
-        },
-        {
-          "name": "ColorScale",
-          "values": [
-            0.62,
-            0.54,
-            0.66
-          ]
+          "name": "DepthSampler",
+          "id": "world_depth:depth"
         }
       ]
     },

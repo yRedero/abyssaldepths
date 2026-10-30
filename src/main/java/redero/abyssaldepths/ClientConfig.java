@@ -65,7 +65,23 @@ public final class ClientConfig {
             .translation("abyssaldepths.config.afterimage_fade")
             .defineInRange("afterimageFade", 250, 50, 2000);
 
+    private static final ModConfigSpec.IntValue PARALLAX_TRANSITION = BUILDER
+            .comment("How long Parallax's crossing into the shadow (and back) takes, in milliseconds.")
+            .translation("abyssaldepths.config.parallax_transition")
+            .defineInRange("parallaxTransition", 1600, 200, 6000);
+
+    private static final ModConfigSpec.EnumValue<ShadeVanishStyle> SHADE_VANISH = BUILDER
+            .comment("How a player stepping into the shadow (Parallax) vanishes for those who stay, and comes back:",
+                    "PIXELS: falls apart into black and purple pixels; ASH: darkens and rises away as ash;",
+                    "SLIDE: slides sideways out of the world, thinning to a line; SHADOW: fades, leaving a shadow",
+                    "on the ground for a moment; NONE: just gone.")
+            .translation("abyssaldepths.config.shade_vanish")
+            .defineEnum("shadeVanish", ShadeVanishStyle.PIXELS);
+
     public static final ModConfigSpec SPEC = BUILDER.build();
+
+    /** How a shade vanishes for those outside the shadow. */
+    public enum ShadeVanishStyle { PIXELS, ASH, SLIDE, SHADOW, NONE }
 
     private ClientConfig() {
     }
@@ -116,6 +132,14 @@ public final class ClientConfig {
 
     public static long afterimageFadeMillis() {
         return SPEC.isLoaded() ? AFTERIMAGE_FADE.get() : 250;
+    }
+
+    public static int parallaxTransitionMillis() {
+        return SPEC.isLoaded() ? PARALLAX_TRANSITION.get() : 1600;
+    }
+
+    public static ShadeVanishStyle shadeVanish() {
+        return SPEC.isLoaded() ? SHADE_VANISH.get() : ShadeVanishStyle.PIXELS;
     }
 
     public static int thermalScanChunks() {

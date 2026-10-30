@@ -32,7 +32,8 @@ import redero.abyssaldepths.network.EffectPayload;
  * attacking, picking up or dropping, no pressure plates, tripwires or vibrations, no pushing. Nothing can
  * touch a shade either: no damage (but the void and /kill), no creature sees or targets it, projectiles
  * fly through. Players who are not shades do not see shades or hear their steps; shades see each other
- * (there is only one shadow, so everyone in it can meet), and see the world dark and drained.
+ * (there is only one shadow, so everyone in it can meet), and see the world dark and drained, without
+ * its creatures and players (unless their artifact allows it: Parallax at full mastery).
  * <p>
  * The pushing, picking, block triggers, projectiles, item touching and sounds are in mixins
  * ({@code ShadeEntityMixin}, ...), which ask {@link #isShade(Entity)}. Clients learn the shades from

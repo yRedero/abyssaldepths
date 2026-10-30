@@ -25,7 +25,8 @@ and ambience.
   carried, and takes everything (blocks, chests, creatures, every player) back to them. *Interlude*
   slows everything around you to half speed while you leave afterimages behind. *Parallax* makes you a
   shade in the shadow of this world: unseen and untouchable, unable to touch anything, only to walk, and
-  to meet whoever else is in the shadow.
+  to meet whoever else is in the shadow (the world's creatures and players stay hidden from you until
+  its mastery is full).
 - **Ambience**: biome sounds, echo in the halls, dust, drips, gusts, fog tinted per biome, no game
   music in the layer.
 

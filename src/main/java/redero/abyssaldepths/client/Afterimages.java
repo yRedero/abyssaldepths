@@ -7,22 +7,12 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.model.PlayerModel;
-import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.RemotePlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.entity.EntityRendererProvider;
-import net.minecraft.client.renderer.entity.LivingEntityRenderer;
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.resources.PlayerSkin;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
@@ -30,7 +20,6 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import redero.abyssaldepths.AbyssalDepths;
 import redero.abyssaldepths.ClientConfig;
@@ -55,7 +44,6 @@ public final class Afterimages {
     private static final Map<UUID, ArrayDeque<Image>> IMAGES = new HashMap<>();
     private static final Map<UUID, Long> LAST = new HashMap<>();
     private static final Map<UUID, RemotePlayer> GHOSTS = new HashMap<>();
-    private static GhostRenderer renderer;
     private static ClientLevel ghostLevel;
 
     private Afterimages() {
@@ -110,7 +98,7 @@ public final class Afterimages {
     @SubscribeEvent
     public static void onRender(RenderLevelStageEvent event) {
         final Minecraft mc = Minecraft.getInstance();
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_ENTITIES || mc.level == null || renderer == null || !ClientConfig.afterimages()) {
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_ENTITIES || mc.level == null || !GhostRenderer.ready() || !ClientConfig.afterimages()) {
             return;
         }
         final long now = Util.getMillis();
@@ -138,10 +126,9 @@ public final class Afterimages {
                     continue;
                 }
                 pose(ghost, image);
-                FadingModel.alpha = alpha;
                 pose.pushPose();
                 pose.translate(image.pos().x - camera.x, image.pos().y - camera.y, image.pos().z - camera.z);
-                renderer.render(ghost, image.bodyYaw(), 1.0F, pose, buffers, LightTexture.FULL_BRIGHT);
+                GhostRenderer.draw(ghost, image.bodyYaw(), 1.0F, pose, buffers, alpha, TINT);
                 pose.popPose();
             }
         }
@@ -160,62 +147,5 @@ public final class Afterimages {
         ghost.walkAnimation.update(image.walkPos() - ghost.walkAnimation.position(), 1.0F);
         ghost.walkAnimation.setSpeed(image.walkSpeed());
         ghost.attackAnim = ghost.oAttackAnim = image.swing();
-    }
-
-    // ---- drawing ----------------------------------------------------------------
-
-    /** The player model drawn with the afterimage's alpha and tint. */
-    private static final class FadingModel extends PlayerModel<AbstractClientPlayer> {
-        static float alpha = 1.0F;
-
-        FadingModel(net.minecraft.client.model.geom.ModelPart root, boolean slim) {
-            super(root, slim);
-        }
-
-        @Override
-        public void renderToBuffer(PoseStack pose, VertexConsumer buffer, int light, int overlay, int colour) {
-            super.renderToBuffer(pose, buffer, light, overlay, (int) (alpha * 255) << 24 | TINT);
-        }
-    }
-
-    /** Draws a ghost: the owner's skin, translucent, no name, no armour or items (a silhouette of them). */
-    private static final class GhostRenderer extends LivingEntityRenderer<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>> {
-        private final PlayerModel<AbstractClientPlayer> wide, slim;
-
-        GhostRenderer(EntityRendererProvider.Context context) {
-            super(context, new FadingModel(context.bakeLayer(ModelLayers.PLAYER), false), 0.0F);
-            wide = model;
-            slim = new FadingModel(context.bakeLayer(ModelLayers.PLAYER_SLIM), true);
-        }
-
-        @Override
-        public void render(AbstractClientPlayer ghost, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
-            model = ghost.getSkin().model() == PlayerSkin.Model.SLIM ? slim : wide;
-            model.crouching = ghost.isCrouching();
-            super.render(ghost, yaw, partialTick, pose, buffers, light);
-        }
-
-        @Override
-        public ResourceLocation getTextureLocation(AbstractClientPlayer ghost) {
-            return ghost.getSkin().texture();
-        }
-
-        @Override
-        protected RenderType getRenderType(AbstractClientPlayer ghost, boolean bodyVisible, boolean translucent, boolean glowing) {
-            return RenderType.entityTranslucent(getTextureLocation(ghost));
-        }
-
-        @Override
-        protected boolean shouldShowName(AbstractClientPlayer ghost) {
-            return false;
-        }
-    }
-
-    @EventBusSubscriber(modid = AbyssalDepths.MODID, value = Dist.CLIENT)
-    public static final class Setup {
-        @SubscribeEvent
-        public static void onLayers(EntityRenderersEvent.AddLayers event) {
-            renderer = new GhostRenderer(event.getContext());
-        }
     }
 }

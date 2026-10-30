@@ -52,7 +52,7 @@ public final class AutoShot {
     private static final String SPOT_COMMANDS = System.getProperty("abyssaldepths.autoshot.spotCommands", "");
     private static final int SETTLE_TICKS = 220, TURN_TICKS = 15;
 
-    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, DONE }
+    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, VANISH, DONE }
 
     private static Step step = Step.TITLE;
     private static final Deque<String> BIOMES = new ArrayDeque<>();
@@ -141,6 +141,14 @@ public final class AutoShot {
                 }
                 spotsDone++;
                 biome = BIOMES.poll();
+                if (biome != null && biome.startsWith("vanish#")) {
+                    // not a place: how a shade vanishes and comes back, every style (a fake player on this client)
+                    if (biome.endsWith("#0")) {
+                        wait = 0;
+                        step = Step.VANISH;
+                    }
+                    return;
+                }
                 if (biome != null && biome.startsWith("parallax#")) {
                     // not a place: Parallax's shadow, checked through the log ("parallax check" lines)
                     if (biome.endsWith("#0")) {
@@ -240,6 +248,47 @@ public final class AutoShot {
                     command(server, "tp @s ~-0.3 ~ ~"); // walk sideways: the afterimages trail behind
                 }
             }
+            case VANISH -> {
+                final MinecraftServer server = mc.getSingleplayerServer();
+                final int t = ++wait;
+                if (t == 1) {
+                    command(server, "tp @s ~ ~40 ~ 0 15"); // facing south, a little down
+                } else if (t == 10) {
+                    command(server, "fill ~-4 ~-1 ~2 ~4 ~-1 ~9 stone");
+                } else if (t == 15) {
+                    fake = new net.minecraft.client.player.RemotePlayer(mc.level, new com.mojang.authlib.GameProfile(java.util.UUID.randomUUID(), "Shade"));
+                    fake.setPos(mc.player.getX(), mc.player.getY(), mc.player.getZ() + 4.0);
+                    fake.setYRot(180.0F);
+                    fake.yBodyRot = fake.yBodyRotO = fake.yHeadRot = fake.yHeadRotO = 180.0F; // facing the camera
+                    mc.level.addEntity(fake);
+                } else if (t >= 20 && t < 420) {
+                    // four styles, 100 ticks each: vanish, a shot halfway, come back, a shot halfway
+                    final int k = (t - 20) / 100, at = (t - 20) % 100;
+                    final redero.abyssaldepths.ClientConfig.ShadeVanishStyle style = redero.abyssaldepths.ClientConfig.ShadeVanishStyle.values()[k];
+                    final int half = new int[] {13, 18, 8, 23}[k]; // about 45 % of each style's time, in ticks
+                    if (at == 0) {
+                        setVanishStyle(style);
+                        redero.abyssaldepths.artifact.Shades.clientShade(fake.getId(), 1_000_000, mc.level.getGameTime());
+                    } else if (at == half) {
+                        shoot(mc, "vanish_" + k + "_dir0");
+                    } else if (at == 60) {
+                        redero.abyssaldepths.artifact.Shades.clientShade(fake.getId(), 0, mc.level.getGameTime());
+                    } else if (at == 60 + half) {
+                        shoot(mc, "vanish_" + k + "_dir1");
+                    }
+                } else if (t == 420) {
+                    // inside the shadow, the fake one a shade too: seen, in the shadow's look
+                    redero.abyssaldepths.artifact.Shades.clientShade(fake.getId(), 1_000_000, mc.level.getGameTime());
+                    command(server, "give @s abyssaldepths:parallax[abyssaldepths:artifact_active=true]");
+                } else if (t == 480) {
+                    shoot(mc, "vanish_4_dir0");
+                } else if (t == 485) {
+                    command(server, "clear @s abyssaldepths:parallax");
+                    fake.discard();
+                    setVanishStyle(redero.abyssaldepths.ClientConfig.ShadeVanishStyle.PIXELS);
+                    step = Step.NEXT;
+                }
+            }
             case PARALLAX -> {
                 final MinecraftServer server = mc.getSingleplayerServer();
                 final net.minecraft.server.level.ServerPlayer player = server.getPlayerList().getPlayers().get(0);
@@ -258,7 +307,7 @@ public final class AutoShot {
                     case 30 -> {
                         command(server, "effect clear @s");
                         command(server, "summon item ~ ~ ~ {Item:{id:\"minecraft:diamond\",count:1},PickupDelay:0,Tags:[\"parallax_test\"]}");
-                        command(server, "summon zombie ~4 ~ ~ {Tags:[\"parallax_test\"]}");
+                        command(server, "summon zombie ~1 ~ ~4 {PersistenceRequired:1b,Tags:[\"parallax_test\"]}"); // in view: hidden in the shadow
                     }
                     case 40 -> {
                         final net.minecraft.core.BlockPos gold = player.blockPosition().offset(2, 0, 2);
@@ -269,7 +318,10 @@ public final class AutoShot {
                         player.hurt(player.damageSources().generic(), 5.0F);
                         AbyssalDepths.LOGGER.info("parallax check: health {} -> {} after 5 damage", health, player.getHealth());
                     }
-                    case 50 -> shoot(mc, "parallax_0_dir1"); // the shadow: dark and drained
+                    case 31 -> shoot(mc, "parallax_0_dir1"); // the crossing (1.6 s by default): black spots spreading
+                    case 41 -> shoot(mc, "parallax_0_dir2"); // all black
+                    case 50 -> shoot(mc, "parallax_0_dir3"); // falling apart into purple pixels
+                    case 70 -> shoot(mc, "parallax_1_dir0"); // the shadow: dark, drained, no zombie, purple pixels
                     case 80 -> {
                         command(server, "execute if entity @e[type=item,tag=parallax_test] run say parallax check: the diamond is still on the ground");
                         command(server, "execute unless entity @e[type=item,tag=parallax_test] run say parallax check: the diamond was picked up");
@@ -280,8 +332,9 @@ public final class AutoShot {
                     }
                     case 90 -> AbyssalDepths.LOGGER.info("parallax check: after: shade on server {}, on client {}",
                             redero.abyssaldepths.artifact.Shades.isShade(player), redero.abyssaldepths.artifact.Shades.isShade(mc.player));
-                    case 95 -> shoot(mc, "parallax_0_dir2"); // back: colours again
-                    case 100 -> {
+                    case 88 -> shoot(mc, "parallax_1_dir1"); // leaving: the pixels turning black
+                    case 125 -> shoot(mc, "parallax_1_dir2"); // back: colours again
+                    case 130 -> {
                         command(server, "gamemode spectator");
                         step = Step.NEXT;
                     }
@@ -407,6 +460,21 @@ public final class AutoShot {
     private static void command(MinecraftServer server, String command) {
         server.execute(() -> server.getCommands().performPrefixedCommand(
                 server.getPlayerList().getPlayers().get(0).createCommandSourceStack().withPermission(4), command));
+    }
+
+    /** The fake player of the vanishing test. */
+    private static net.minecraft.client.player.RemotePlayer fake;
+
+    /** Sets the client config's vanishing style (for this run only, not saved). */
+    @SuppressWarnings("unchecked")
+    private static void setVanishStyle(redero.abyssaldepths.ClientConfig.ShadeVanishStyle style) {
+        try {
+            final java.lang.reflect.Field field = redero.abyssaldepths.ClientConfig.class.getDeclaredField("SHADE_VANISH");
+            field.setAccessible(true);
+            ((net.neoforged.neoforge.common.ModConfigSpec.EnumValue<redero.abyssaldepths.ClientConfig.ShadeVanishStyle>) field.get(null)).set(style);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private static void shoot(Minecraft mc, String name) {

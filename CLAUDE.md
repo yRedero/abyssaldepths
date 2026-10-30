@@ -16,7 +16,8 @@ NeoForge 21.1 / Minecraft 1.21.1 mod (ModDevGradle). Adds the thalan layer below
   (rooms, crossing), `entity/AbsentBody`. Reprise: `artifact/reprise` (change log via the LevelChunk and
   BlockEntity mixins, moments every 5 s, `Rewind`); check with `tools/autoshot.sh <round> reprise`.
   Toggled artifacts (Interlude, Parallax) extend `ToggleArtifactItem`. The shadow of this world (Parallax):
-  `Shades` (rules as events, the rest in the `Shade*Mixin`s, `client/ShadeView` for the drained view).
+  `Shades` (rules as events, the rest in the `Shade*Mixin`s), `client/ShadeView` (who sees whom, the
+  crossing, the post shader `shaders/program/shade.fsh`), `client/ShadeVanish` (vanishing for others).
 - `block/`, `mixin/`, `network/` (one server-to-client effect payload), config in `ClientConfig`.
 - `src/dev/java`: dev-only (AutoShot, LayerMap, TunnelLayerCheck); not in the jar.
 - `src/test/java`: JUnit regressions of the generation (`./gradlew test`).
