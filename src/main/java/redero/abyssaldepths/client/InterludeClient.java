@@ -8,10 +8,23 @@ import net.neoforged.neoforge.client.event.CalculatePlayerTurnEvent;
 import redero.abyssaldepths.AbyssalDepths;
 import redero.abyssaldepths.artifact.InterludeField;
 
-/** A player slowed by someone's Interlude turns their view slower too: by the pace they are slowed to. */
+/**
+ * Interlude on the client: a player slowed by someone's Interlude turns their view slower too (by the pace
+ * they are slowed to); every tick the fields are noted for the particles.
+ */
 @EventBusSubscriber(modid = AbyssalDepths.MODID, value = Dist.CLIENT)
 public final class InterludeClient {
     private InterludeClient() {
+    }
+
+    /** Every tick: the fields for the particles (see {@link InterludeField#clientSnapshot}). */
+    @SubscribeEvent
+    public static void onTick(net.neoforged.neoforge.client.event.ClientTickEvent.Post event) {
+        final Minecraft mc = Minecraft.getInstance();
+        if (mc.level != null) {
+            InterludeField.clientPrune(mc.level.getGameTime());
+            InterludeField.clientSnapshot(mc.level);
+        }
     }
 
     @SubscribeEvent

@@ -119,6 +119,8 @@ public final class ShadeVanish {
     private static ResourceLocation skin;
     /** Whether the fade being drawn is on the real player (else a still copy). */
     private static boolean drawingLive;
+    /** Players this client keeps updating (see {@link #keepTicking}). */
+    private static final Set<Integer> KEPT = new HashSet<>();
     /** Whether each player was hidden last tick. */
     private static final Map<Integer, Boolean> HIDDEN = new HashMap<>();
     private static boolean wasInShadow;
@@ -196,6 +198,38 @@ public final class ShadeVanish {
             }
         }
         HIDDEN.keySet().retainAll(present);
+        keepTicking(level, mc);
+    }
+
+    /**
+     * Players hidden by the shadow, or in a fade, keep being updated on this client: culling mods (Entity
+     * Culling's "tick culling") stop updating entities that are not drawn, which froze a hidden player's
+     * movement and turning; the vanishing then drew that frozen state and the head snapped once updates
+     * resumed. The vanilla "no culling" flag (which such mods honour) is set on them while it lasts.
+     */
+    private static void keepTicking(ClientLevel level, Minecraft mc) {
+        for (Player player : level.players()) {
+            if (player == mc.player) {
+                continue;
+            }
+            final boolean keep = ShadeView.seenHidden(player) || fading(player.getId());
+            if (keep) {
+                player.noCulling = true;
+                KEPT.add(player.getId());
+            } else if (KEPT.remove(player.getId())) {
+                player.noCulling = false; // players never have it otherwise
+            }
+        }
+        KEPT.removeIf(id -> level.getEntity(id) == null);
+    }
+
+    private static boolean fading(int entityId) {
+        for (Fade fade : FADES) {
+            if (fade.entityId() == entityId) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

@@ -30,7 +30,7 @@ public abstract class InterludeParticleMixin implements SlowedParticle {
 
     @Override
     public boolean abyssaldepths$skip() {
-        abyssaldepths$pace = ClientConfig.interludeParticles() ? InterludeField.clientPaceAt(level, x, y, z) : 1.0F;
+        abyssaldepths$pace = ClientConfig.interludeParticles() ? InterludeField.clientPaceAt(x, y, z) : 1.0F;
         if (abyssaldepths$pace >= 1.0F) {
             return false;
         }

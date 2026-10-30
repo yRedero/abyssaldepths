@@ -1,6 +1,9 @@
 package redero.abyssaldepths.client;
 
+import org.joml.Matrix4f;
+
 import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
@@ -36,7 +39,8 @@ import redero.abyssaldepths.artifact.Shades;
  * spots there are is in the client config. In the shadow only the shadow's sounds are heard ({@link #onSound}).
  * <p>
  * Behind the black the view changes: the shadow's own look, a post effect ({@code shaders/program/shade.fsh})
- * with purple outlines, drained and darkened colours and more; and other entities are hidden (but other
+ * with purple outlines, drained and darkened colours and more (the shades are drawn again over it, in their
+ * full colours: {@link #afterPost}); and other entities are hidden (but other
  * shades, and everything for a Parallax at full mastery, see {@link ParallaxItem#seesWorld}).
  */
 @EventBusSubscriber(modid = AbyssalDepths.MODID, value = Dist.CLIENT)
@@ -47,6 +51,9 @@ public final class ShadeView {
     /** The game mode seen last tick: changing it can leave the post effect broken, so it is loaded anew. */
     private static net.minecraft.world.level.GameType lastMode;
 
+    /** The level's matrices and partial tick of this frame, for drawing the shades again (afterPost). */
+    private static Matrix4f levelProjection, levelModelView;
+    private static float levelPartial;
     /** The effect's target holding a copy of the world's depth. */
     private static final String DEPTH_TARGET = "world_depth";
     /** One pixel of the crossing (GUI pixels, as in Reprise's cover). */
@@ -222,7 +229,61 @@ public final class ShadeView {
             final RenderTarget main = Minecraft.getInstance().getMainRenderTarget();
             depth.copyDepthFrom(main);
             main.bindWrite(false);
+            // kept for drawing the shades again after the effect (afterPost)
+            levelProjection = new Matrix4f(event.getProjectionMatrix());
+            levelModelView = new Matrix4f(event.getModelViewMatrix());
+            levelPartial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
         }
+    }
+
+    /**
+     * After the post effect, the shades are drawn once more over the drained picture, so they keep the full
+     * colour of their look (the drain is for the world, not for them). The world's depth is put back first
+     * (the copy the effect keeps), so the world still hides them where it is in front.
+     */
+    public static void afterPost() {
+        final Minecraft mc = Minecraft.getInstance();
+        final PostChain effect = ours();
+        final RenderTarget depth = effect == null ? null : effect.getTempTarget(DEPTH_TARGET);
+        if (depth == null || !inShadow() || mc.level == null || mc.player == null || levelProjection == null) {
+            return;
+        }
+        final java.util.List<AbstractClientPlayer> shades = new java.util.ArrayList<>();
+        for (AbstractClientPlayer player : mc.level.players()) {
+            final boolean own = player == mc.player;
+            if (Shades.isShade(player) && !hidden(player) && (!own || !mc.options.getCameraType().isFirstPerson()) && !player.isInvisible()) {
+                shades.add(player);
+            }
+        }
+        if (shades.isEmpty()) {
+            return;
+        }
+        final RenderTarget main = mc.getMainRenderTarget();
+        main.copyDepthFrom(depth);
+        main.bindWrite(false);
+        final Matrix4f projection = new Matrix4f(RenderSystem.getProjectionMatrix());
+        final com.mojang.blaze3d.vertex.VertexSorting sorting = RenderSystem.getVertexSorting();
+        RenderSystem.setProjectionMatrix(levelProjection, com.mojang.blaze3d.vertex.VertexSorting.DISTANCE_TO_ORIGIN);
+        final org.joml.Matrix4fStack modelView = RenderSystem.getModelViewStack();
+        modelView.pushMatrix();
+        modelView.set(levelModelView);
+        RenderSystem.applyModelViewMatrix();
+        RenderSystem.enableDepthTest();
+        final net.minecraft.world.phys.Vec3 camera = mc.gameRenderer.getMainCamera().getPosition();
+        final com.mojang.blaze3d.vertex.PoseStack pose = new com.mojang.blaze3d.vertex.PoseStack();
+        final net.minecraft.client.renderer.MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        final net.minecraft.client.renderer.entity.EntityRenderDispatcher dispatcher = mc.getEntityRenderDispatcher();
+        for (AbstractClientPlayer player : shades) {
+            final double x = Mth.lerp(levelPartial, player.xOld, player.getX()) - camera.x;
+            final double y = Mth.lerp(levelPartial, player.yOld, player.getY()) - camera.y;
+            final double z = Mth.lerp(levelPartial, player.zOld, player.getZ()) - camera.z;
+            final float yaw = Mth.lerp(levelPartial, player.yRotO, player.getYRot());
+            dispatcher.render(player, x, y, z, yaw, levelPartial, pose, buffers, dispatcher.getPackedLightCoords(player, levelPartial));
+        }
+        buffers.endBatch();
+        modelView.popMatrix();
+        RenderSystem.applyModelViewMatrix();
+        RenderSystem.setProjectionMatrix(projection, sorting);
     }
 
     /** Scatters the spots and works out, for every pixel, how soon the black reaches it. */

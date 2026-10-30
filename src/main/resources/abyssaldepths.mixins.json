@@ -22,6 +22,7 @@
     "FadeDrawMixin",
     "InterludeParticleEngineMixin",
     "InterludeParticleMixin",
+    "ShadeAfterPostMixin",
     "ShadeClientSoundMixin",
     "ShadeOwnSoundMixin",
     "ShadeParticleMixin",

@@ -147,19 +147,39 @@ public final class InterludeField {
     }
 
     /**
-     * Client: the pace at a place for what belongs to no one (particles): the strongest field of a holder
-     * outside the shadow reaching it, 1 if none.
+     * Client: the fields that reach what belongs to no one (particles), taken once a tick on the main thread
+     * ({@link #clientSnapshot}): x, y, z and strength of every active holder outside the shadow. Particles may
+     * tick on other threads (Particle Core ticks them asynchronously), so they only ever read this.
      */
-    public static float clientPaceAt(Level level, double x, double y, double z) {
-        if (CLIENT.isEmpty()) {
-            return 1.0F;
-        }
+    private static volatile float[] fields = new float[0];
+
+    /** Client, main thread, every tick: takes the snapshot of the fields for the particles. */
+    public static void clientSnapshot(Level level) {
         final long now = level.getGameTime();
-        float strongest = 0.0F;
+        final float[] out = new float[CLIENT.size() * 4];
+        int n = 0;
         for (Int2LongOpenHashMap.Entry e : CLIENT.int2LongEntrySet()) {
-            if (e.getLongValue() >= now && level.getEntity(e.getIntKey()) instanceof Player holder && !Shades.isShade(holder)
-                    && holder.distanceToSqr(x, y, z) < RADIUS * RADIUS) {
-                strongest = Math.max(strongest, strength(holder));
+            if (e.getLongValue() >= now && level.getEntity(e.getIntKey()) instanceof Player holder && !Shades.isShade(holder)) {
+                out[n++] = (float) holder.getX();
+                out[n++] = (float) holder.getY();
+                out[n++] = (float) holder.getZ();
+                out[n++] = strength(holder);
+            }
+        }
+        fields = java.util.Arrays.copyOf(out, n);
+    }
+
+    /**
+     * Client, any thread: the pace at a place for what belongs to no one (particles): the strongest field
+     * reaching it, 1 if none.
+     */
+    public static float clientPaceAt(double x, double y, double z) {
+        final float[] f = fields;
+        float strongest = 0.0F;
+        for (int i = 0; i < f.length; i += 4) {
+            final double dx = x - f[i], dy = y - f[i + 1], dz = z - f[i + 2];
+            if (dx * dx + dy * dy + dz * dz < RADIUS * RADIUS) {
+                strongest = Math.max(strongest, f[i + 3]);
             }
         }
         return 1.0F - strongest;
