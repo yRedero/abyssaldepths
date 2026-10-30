@@ -2,7 +2,7 @@
 
 // The shadow of this world (Parallax): outlines of everything glow purple (where the depth jumps: shapes,
 // creatures, the sky's edge; weaker where the colour jumps), the colours drained, dark and cold, the dark
-// leaning violet, the outlines pulsing slowly, colour fringes towards the edges, a vignette and grain.
+// leaning violet, the outlines breathing a little, colour fringes towards the edges, a vignette and grain.
 // Amount blends it in during the crossing.
 
 uniform sampler2D DiffuseSampler;
@@ -61,8 +61,8 @@ void main() {
     drained = pow(drained, vec3(1.2));
     drained += vec3(0.07, 0.01, 0.11) * (1.0 - l);
 
-    // the outlines pulse slowly, a wave running down the screen
-    float pulse = 0.8 + 0.2 * sin(Time * 6.2831853 + texCoord.y * 9.0);
+    // the outlines breathe a little, a wave running down the screen
+    float pulse = 0.95 + 0.05 * sin(Time * 6.2831853 + texCoord.y * 9.0);
     vec3 colour = drained + OUTLINE * glow * pulse * 0.6;
     colour = mix(colour, OUTLINE * 1.25 * pulse, edge);
 

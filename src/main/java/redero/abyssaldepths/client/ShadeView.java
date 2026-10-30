@@ -26,8 +26,9 @@ import redero.abyssaldepths.artifact.Shades;
  * How a shade sees the world, and the crossing into it.
  * <p>
  * The crossing runs from 0 (the world) to 1 (the shadow) in the time the client config gives: from spots
- * all over the screen waves of strong black and purple pixels run outwards, one after another, each
- * weaker than the one before, and leave translucent purple pixels behind, which stay while in the shadow
+ * all over the screen a quick wave of strong black and purple pixels runs outwards until they cover the
+ * screen; then, slower, a second front runs out from the same spots and turns them into translucent purple
+ * pixels, which stay while in the shadow
  * (denser at the edges, some of them lighting up now and then). Leaving runs the same backwards.
  * <p>
  * Meanwhile the shadow's own look fades in: a post effect ({@code shaders/program/shade.fsh}) with purple
@@ -43,9 +44,12 @@ public final class ShadeView {
     private static final int CELL = 10;
     /** On average one spot per this many pixels. */
     private static final int CELLS_PER_SPOT = 70;
-    /** The waves: how many, how far apart (in reach, 0 .. 1), how wide, and the tail settling after them. */
-    private static final int WAVES = 3;
-    private static final float WAVE_GAP = 0.16F, WAVE_WIDTH = 0.07F, WAVE_TAIL = 0.08F;
+    /**
+     * The two fronts, as parts of the crossing: the quick wave covers the screen in the first
+     * {@link #FIRST_WAVE}; the slow front clearing it starts at {@link #CLEARING_START}, and behind it the
+     * strong pixels thin out over {@link #CLEARING_EDGE} (in reach, 0 .. 1).
+     */
+    private static final float FIRST_WAVE = 0.3F, CLEARING_START = 0.25F, CLEARING_EDGE = 0.3F;
     /** The strong pixels of the waves (as Reprise's front, in the shadow's colours). */
     private static final int BLACK = 0xFF050307, DEEP = 0xFF2A0F45, STRONG_VIOLET = 0xFF5C2A93, BRIGHT = 0xFF8E52D6;
     /** The pixels that stay. */
@@ -115,7 +119,7 @@ public final class ShadeView {
         return current != null && current.getName().equals(EFFECT.toString()) ? current : null;
     }
 
-    /** Every frame: how far the shadow's look has faded in (most of it while the waves run). */
+    /** Every frame: how far the shadow's look has faded in (most of it while the pixels cover the screen). */
     @SubscribeEvent
     public static void onFrame(RenderFrameEvent.Pre event) {
         final PostChain effect = ours();
@@ -193,17 +197,13 @@ public final class ShadeView {
 
     /** The colour of a pixel at crossing v. */
     private static int colour(int col, int row, int cols, int rows, float v, float time) {
-        // the waves: past the last pixel (reach 1) just as the crossing ends
-        final float behind = v * (1.0F + (WAVES - 1) * WAVE_GAP + WAVE_WIDTH + WAVE_TAIL) - reach[row * cols + col];
-        if (behind < 0.0F) {
-            return 0; // not reached yet
+        final float reached = reach[row * cols + col];
+        if (reached > v / FIRST_WAVE) {
+            return 0; // the quick wave is not here yet
         }
-        float strength = 0.0F;
-        for (int k = 0; k < WAVES; k++) {
-            final float x = behind - k * WAVE_GAP;
-            final float band = x < 0.0F ? 0.0F : x < WAVE_WIDTH ? 1.0F : Math.max(0.0F, 1.0F - (x - WAVE_WIDTH) / WAVE_TAIL);
-            strength = Math.max(strength, band * (1.0F - 0.3F * k));
-        }
+        // the slow front from the spots: past the last pixel (reach 1) with its edge just as the crossing ends
+        final float clearing = (v - CLEARING_START) / (1.0F - CLEARING_START) * (1.0F + CLEARING_EDGE) - reached;
+        final float strength = Mth.clamp(1.0F - clearing / CLEARING_EDGE, 0.0F, 1.0F);
         final int flicker = (int) (time * 12.0F); // the strong pixels change about 12 times a second
         if (noise(col * 211 + flicker, row * 89 + seed) < strength) {
             final float r = noise(col * 53 + flicker, row * 197);
