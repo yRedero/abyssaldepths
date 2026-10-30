@@ -34,11 +34,11 @@ import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import redero.abyssaldepths.AbyssalDepths;
 import redero.abyssaldepths.ClientConfig;
-import redero.abyssaldepths.artifact.ParallaxField;
+import redero.abyssaldepths.artifact.InterludeField;
 
 /**
- * Parallax's afterimages: every few milliseconds (client config) a still copy of a player with an active
- * Parallax is left behind where they were, translucent and tinted, and fades out right away. Everyone
+ * Interlude's afterimages: every few milliseconds (client config) a still copy of a player with an active
+ * Interlude is left behind where they were, translucent and tinted, and fades out right away. Everyone
  * sees them, the holder too (in first person only those a little away from the camera).
  */
 @EventBusSubscriber(modid = AbyssalDepths.MODID, value = Dist.CLIENT)
@@ -74,7 +74,7 @@ public final class Afterimages {
             IMAGES.clear();
             ghostLevel = level;
         }
-        ParallaxField.clientPrune(level.getGameTime());
+        InterludeField.clientPrune(level.getGameTime());
         final long now = Util.getMillis(), fade = ClientConfig.afterimageFadeMillis();
         for (Iterator<ArrayDeque<Image>> it = IMAGES.values().iterator(); it.hasNext();) {
             final ArrayDeque<Image> images = it.next();
@@ -89,7 +89,7 @@ public final class Afterimages {
     private static void capture(ClientLevel level, long now) {
         final long interval = ClientConfig.afterimageIntervalMillis();
         for (Player player : level.players()) {
-            if (!ParallaxField.clientIsActive(player.getId(), level.getGameTime())) {
+            if (!InterludeField.clientIsActive(player.getId(), level.getGameTime())) {
                 continue;
             }
             final UUID id = player.getUUID();

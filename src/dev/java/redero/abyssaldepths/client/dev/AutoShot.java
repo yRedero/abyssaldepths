@@ -52,7 +52,7 @@ public final class AutoShot {
     private static final String SPOT_COMMANDS = System.getProperty("abyssaldepths.autoshot.spotCommands", "");
     private static final int SETTLE_TICKS = 220, TURN_TICKS = 15;
 
-    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, PARALLAX, DONE }
+    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, DONE }
 
     private static Step step = Step.TITLE;
     private static final Deque<String> BIOMES = new ArrayDeque<>();
@@ -141,11 +141,11 @@ public final class AutoShot {
                 }
                 spotsDone++;
                 biome = BIOMES.poll();
-                if (biome != null && biome.startsWith("parallax#")) {
-                    // not a place: Parallax's slowed time (measured in the log) and the afterimages (shots)
+                if (biome != null && biome.startsWith("interlude#")) {
+                    // not a place: Interlude's slowed time (measured in the log) and the afterimages (shots)
                     if (biome.endsWith("#0")) {
                         wait = 0;
-                        step = Step.PARALLAX;
+                        step = Step.INTERLUDE;
                     }
                     return;
                 }
@@ -201,7 +201,7 @@ public final class AutoShot {
                     step = Step.SETTLING;
                 }
             }
-            case PARALLAX -> {
+            case INTERLUDE -> {
                 final MinecraftServer server = mc.getSingleplayerServer();
                 final String sand = "summon falling_block ~3 ~10 ~6 {BlockState:{Name:\"minecraft:sand\"},Time:1,Tags:[\"%s\"]}";
                 switch (++wait) {
@@ -211,7 +211,7 @@ public final class AutoShot {
                         command(server, "data get entity @e[tag=normal,limit=1] Pos[1]"); // 20 ticks of falling, normal time
                         command(server, "kill @e[tag=normal]");
                     }
-                    case 35 -> command(server, "give @s abyssaldepths:parallax[abyssaldepths:artifact_active=true]");
+                    case 35 -> command(server, "give @s abyssaldepths:interlude[abyssaldepths:artifact_active=true]");
                     case 45 -> command(server, String.format(sand, "slowed"));
                     case 65 -> {
                         command(server, "data get entity @e[tag=slowed,limit=1] Pos[1]"); // 20 ticks, half of them skipped
@@ -219,7 +219,8 @@ public final class AutoShot {
                         mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
                         mc.player.setYRot(90.0F);
                     }
-                    case 120 -> shoot(mc, "parallax_0_dir0"); // the trail
+                    case 60 -> shoot(mc, "interlude_0_dir1"); // first person: the border while it runs
+                    case 120 -> shoot(mc, "interlude_0_dir0"); // the trail
                     case 125 -> {
                         mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
                         step = Step.NEXT;

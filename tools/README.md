@@ -20,7 +20,7 @@ generation; the last line of `grep "worldgen profile" game.log` is the average t
 The pseudo biomes `surface` (above the world spawn), `artifacts` (a screen with the artifact tooltips,
 three shots a quarter second apart for animations) and `haven` (Inner Haven's crossing: a body, the
 fade, the room, the way back) `reprise` (changes the world, rewinds, and checks in `game.log`: grep
-"reprise check" and "block data") and `parallax` (two falling sand blocks, normal and slowed: their
+"reprise check" and "block data") and `interlude` (two falling sand blocks, normal and slowed: their
 heights after 20 ticks in `game.log`; the afterimage trail in third person) can be listed like biomes, e.g. `tools/autoshot.sh tt artifacts`.
 
 Takes 3 to 6 minutes. Needs Python with Pillow.

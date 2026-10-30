@@ -17,17 +17,17 @@ import net.neoforged.neoforge.event.entity.item.ItemTossEvent;
 import redero.abyssaldepths.AbyssalDepths;
 
 /**
- * Parallax: right click switches it on and off. While it is on, everything around its holder runs at half
- * speed ({@link ParallaxField}), the holder leaves afterimages, and it uses up one charge every
+ * Interlude: right click switches it on and off. While it is on, everything around its holder runs at half
+ * speed ({@link InterludeField}), the holder leaves afterimages, and it uses up one charge every
  * {@link #DRAIN_TICKS}; when empty it switches off. While off, the charge comes back (one every 30 s).
  * It glows like an enchanted item while on.
  */
 @EventBusSubscriber(modid = AbyssalDepths.MODID)
-public class ParallaxItem extends ArtifactItem {
+public class InterludeItem extends ArtifactItem {
     /** One charge every two seconds while on: 20 seconds from full. */
     private static final int DRAIN_TICKS = 40;
 
-    public ParallaxItem(Properties properties, ArtifactRank rank, ArtifactFrame frame, int maxCharge, int regenTicks) {
+    public InterludeItem(Properties properties, ArtifactRank rank, ArtifactFrame frame, int maxCharge, int regenTicks) {
         super(properties, rank, frame, maxCharge, regenTicks);
     }
 
@@ -49,7 +49,7 @@ public class ParallaxItem extends ArtifactItem {
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         final ItemStack stack = player.getItemInHand(hand);
         if (!active(stack) && charge(stack) < 1) {
-            player.displayClientMessage(Component.translatable("abyssaldepths.parallax.no_charge"), true);
+            player.displayClientMessage(Component.translatable("abyssaldepths.interlude.no_charge"), true);
             return InteractionResultHolder.fail(stack);
         }
         if (!level.isClientSide) {
@@ -80,14 +80,14 @@ public class ParallaxItem extends ArtifactItem {
             return;
         }
         stack.remove(AbyssalDepths.CHARGE_TIME.get()); // no regeneration while it runs
-        ParallaxField.mark(player);
+        InterludeField.mark(player);
     }
 
     /** Thrown away: it stops. */
     @SubscribeEvent
     public static void onToss(ItemTossEvent event) {
         final ItemStack stack = event.getEntity().getItem();
-        if (stack.getItem() instanceof ParallaxItem && active(stack)) {
+        if (stack.getItem() instanceof InterludeItem && active(stack)) {
             setActive(stack, false);
         }
     }

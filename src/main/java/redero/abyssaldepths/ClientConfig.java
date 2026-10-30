@@ -53,7 +53,7 @@ public final class ClientConfig {
             .define("artifactTitleShimmer", true);
 
     private static final ModConfigSpec.BooleanValue AFTERIMAGES = BUILDER
-            .comment("Afterimages of players using Parallax.")
+            .comment("Afterimages of players using Interlude.")
             .translation("abyssaldepths.config.afterimages")
             .define("afterimages", true);
     private static final ModConfigSpec.IntValue AFTERIMAGE_INTERVAL = BUILDER

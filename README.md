@@ -22,7 +22,8 @@ and ambience.
 - **Artifacts**: ranked items (Lesser, Greater, Exalted, Primordial) with mastery and charge and their
   own tooltip. *Inner Haven* carries you into your inner self, a room of your own in the Inner Self
   dimension, while your body waits behind. *Reprise* remembers the last two minutes of the world while
-  carried, and takes everything (blocks, chests, creatures, every player) back to them.
+  carried, and takes everything (blocks, chests, creatures, every player) back to them. *Interlude*
+  slows everything around you to half speed while you leave afterimages behind.
 - **Ambience**: biome sounds, echo in the halls, dust, drips, gusts, fog tinted per biome, no game
   music in the layer.
 
