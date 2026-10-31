@@ -69,10 +69,32 @@ public class ConvergenceItem extends ToggleArtifactItem {
     @Override
     protected void playSwitch(Level level, Player player, boolean on) {
         playSwitch(level, player, on ? SoundEvents.RESPAWN_ANCHOR_CHARGE : SoundEvents.RESPAWN_ANCHOR_DEPLETE.value(), on ? 1.5F : 1.3F);
+        if (player instanceof ServerPlayer server) { // at once, for the layer to come on or go right away
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayersTrackingEntityAndSelf(server,
+                    new redero.abyssaldepths.network.EffectPayload("convergence/" + player.getId(), on ? 15 : 0));
+        }
     }
 
+    /** Tells everyone near (and the player) that they phase, for the layer seen on them ({@code client.ConvergenceLayer}). */
     @Override
     protected void whileActive(ServerPlayer player, ItemStack stack) {
+        if (player.serverLevel().getGameTime() % 10 == 0) {
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayersTrackingEntityAndSelf(player,
+                    new redero.abyssaldepths.network.EffectPayload("convergence/" + player.getId(), 15));
+        }
+    }
+
+    /** Client: entity ids of players phasing, with the client tick until which they do. */
+    private static final it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap CLIENT = new it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap();
+
+    /** Client: the entity phases for the next {@code ticks} ticks (0: no longer). */
+    public static void clientField(int entityId, int ticks, long clientTick) {
+        CLIENT.put(entityId, ticks > 0 ? clientTick + ticks : clientTick - 1);
+    }
+
+    /** Client: whether the entity shows as phasing now. */
+    public static boolean clientShows(Entity entity) {
+        return !CLIENT.isEmpty() && CLIENT.get(entity.getId()) >= entity.level().getGameTime();
     }
 
     /** The switched-on Convergence the player carries, or null. */

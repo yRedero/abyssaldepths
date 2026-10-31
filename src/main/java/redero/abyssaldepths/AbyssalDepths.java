@@ -271,7 +271,7 @@ public class AbyssalDepths {
 
     /** A force field round its holder while switched on; 10 charges, 1 back every minute. */
     public static final DeferredItem<AegisItem> AEGIS = ITEMS.register("aegis",
-            () -> new AegisItem(new Item.Properties(), ArtifactRank.EXALTED, ArtifactFrame.ZENITH, 10, 20 * 60));
+            () -> new AegisItem(new Item.Properties(), ArtifactRank.PRIMORDIAL, ArtifactFrame.ZENITH, 10, 20 * 60));
 
     /** Takes its holder home (bed, anchor or world spawn) after a short hold; 1 charge, back after 10 minutes (sooner with mastery). */
     public static final DeferredItem<RecallItem> RECALL = ITEMS.register("recall",

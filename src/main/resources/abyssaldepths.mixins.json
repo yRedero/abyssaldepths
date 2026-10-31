@@ -28,6 +28,7 @@
   },
   "client": [
     "ConvergenceLocalMixin",
+    "LivingRendererAccess",
     "FadeDrawMixin",
     "FirmamentPaceMixin",
     "InterludeParticleEngineMixin",

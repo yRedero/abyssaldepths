@@ -19,10 +19,27 @@ public final class ClientEffects {
                 final float strength = parts.length > 1 ? Integer.parseInt(parts[1]) / 100.0F : 0.5F;
                 InterludeField.clientActive(Integer.parseInt(parts[0]), payload.ticks(), mc.level.getGameTime(), strength);
             }
+        } else if (effect.startsWith("repulsion/")) {
+            final String[] p = effect.substring("repulsion/".length()).split("/");
+            RepulsionView.start(new net.minecraft.world.phys.Vec3(Double.parseDouble(p[0]), Double.parseDouble(p[1]), Double.parseDouble(p[2])),
+                    Float.parseFloat(p[3]));
+        } else if (effect.startsWith("aegis_press/")) {
+            AegisOverlay.press(effect.substring("aegis_press/".length()));
+        } else if (effect.startsWith("aegis_hit/")) {
+            final String[] p = effect.substring("aegis_hit/".length()).split("/");
+            AegisOverlay.hit(Double.parseDouble(p[0]), Double.parseDouble(p[1]), p.length > 2 ? Float.parseFloat(p[2]) : 1.0F);
+        } else if (effect.startsWith("convergence/")) {
+            final net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc.level != null) {
+                redero.abyssaldepths.artifact.ConvergenceItem.clientField(Integer.parseInt(effect.substring("convergence/".length())), payload.ticks(),
+                        mc.level.getGameTime());
+            }
         } else if (effect.startsWith("aegis/")) {
             final net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
             if (mc.level != null) {
-                redero.abyssaldepths.artifact.AegisItem.clientField(Integer.parseInt(effect.substring("aegis/".length())), payload.ticks(), mc.level.getGameTime());
+                final String[] parts = effect.substring("aegis/".length()).split("/");
+                redero.abyssaldepths.artifact.AegisItem.clientField(Integer.parseInt(parts[0]), parts.length > 1 ? Integer.parseInt(parts[1]) / 100.0F : 4.0F,
+                        payload.ticks(), mc.level.getGameTime());
             }
         } else if (effect.startsWith("shade/")) {
             final net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();

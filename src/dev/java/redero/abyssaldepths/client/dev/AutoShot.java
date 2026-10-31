@@ -31,6 +31,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import redero.abyssaldepths.AbyssalDepths;
+import redero.abyssaldepths.ClientConfig;
 import redero.abyssaldepths.worldgen.TunnelLayer;
 
 /**
@@ -52,7 +53,7 @@ public final class AutoShot {
     private static final String SPOT_COMMANDS = System.getProperty("abyssaldepths.autoshot.spotCommands", "");
     private static final int SETTLE_TICKS = 220, TURN_TICKS = 15;
 
-    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, VANISH, OBLIVION, NEWARTIFACTS, FIRMAMENT, SMALL, VARIANTS, DONE }
+    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, VANISH, OBLIVION, NEWARTIFACTS, FIRMAMENT, SMALL, LOOKS, VARIANTS, DONE }
 
     private static Step step = Step.TITLE;
     private static final Deque<String> BIOMES = new ArrayDeque<>();
@@ -149,6 +150,14 @@ public final class AutoShot {
                     if (biome.endsWith("#0")) {
                         wait = 0;
                         step = Step.VARIANTS;
+                    }
+                    return;
+                }
+                if (biome != null && biome.startsWith("looks#")) {
+                    // not a place: every look of Aegis's field and of Convergence's inside view ("looks check" lines)
+                    if (biome.endsWith("#0")) {
+                        wait = 0;
+                        step = Step.LOOKS;
                     }
                     return;
                 }
@@ -352,6 +361,174 @@ public final class AutoShot {
                     mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
                     redero.abyssaldepths.ClientConfig.setStyle("burst", "VOID");
                     redero.abyssaldepths.ClientConfig.setStyle("mark", "SIGIL");
+                    command(server, "gamemode spectator");
+                    step = Step.NEXT;
+                }
+            }
+            case LOOKS -> {
+                final MinecraftServer server = mc.getSingleplayerServer();
+                final int t = ++wait;
+                final ClientConfig.AegisLook[] aegis = ClientConfig.AegisLook.values();
+                final ClientConfig.ConvergenceLook[] convergence = ClientConfig.ConvergenceLook.values();
+                if (t == 1) {
+                    command(server, "gamemode survival");
+                    command(server, "tp @s ~ ~40 ~ 0 20");
+                    command(server, "effect give @s resistance 600 4 true");
+                    command(server, "time set noon");
+                } else if (t == 6) {
+                    command(server, "fill ~-8 ~-2 ~-8 ~8 ~8 ~14 air");
+                    command(server, "fill ~-8 ~-1 ~-8 ~8 ~-1 ~14 stone");
+                    command(server, "fill ~-3 ~ ~4 ~3 ~3 ~10 stone");
+                    server.execute(() -> tntAt = server.getPlayerList().getPlayers().get(0).blockPosition()); // the platform's middle
+                } else if (t == 12) {
+                    server.execute(() -> { // Aegis at no mastery: a small field, arrows slow
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        final net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(AbyssalDepths.AEGIS.get());
+                        p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, stack);
+                        stack.use(p.serverLevel(), p, net.minecraft.world.InteractionHand.MAIN_HAND);
+                        p.setYRot(180.0F);
+                    });
+                    mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+                } else if (t == 20) {
+                    server.execute(() -> {
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        final net.minecraft.world.entity.projectile.Arrow arrow = new net.minecraft.world.entity.projectile.Arrow(net.minecraft.world.entity.EntityType.ARROW,
+                                p.serverLevel());
+                        arrow.setPos(p.getX(), p.getY() + 1.0, p.getZ() - 6.0);
+                        arrow.setDeltaMovement(0, 0, 1.0);
+                        arrow.addTag("looks_arrow");
+                        p.serverLevel().addFreshEntity(arrow);
+                    });
+                } else if (t == 24) {
+                    server.execute(() -> {
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        String seen = "gone (it hit the player)";
+                        for (net.minecraft.world.entity.Entity e : p.serverLevel().getAllEntities()) {
+                            if (e.getTags().contains("looks_arrow")) {
+                                seen = String.format("at z %.1f from the player, speed %.2f (it flew in at 1)", e.getZ() - p.getZ(), e.getDeltaMovement().length());
+                                e.discard();
+                            }
+                        }
+                        AbyssalDepths.LOGGER.info("looks check aegis at 0 %: arrow {}", seen);
+                    });
+                    AbyssalDepths.LOGGER.info("looks check aegis at 0 %: radius on the client {}", redero.abyssaldepths.artifact.AegisItem.clientRadius(mc.player));
+                    server.execute(() -> redero.abyssaldepths.artifact.ArtifactItem.setMastery(server.getPlayerList().getPlayers().get(0).getMainHandItem(), 100));
+                } else if (t >= 30 && t < 30 + aegis.length * 10) {
+                    final int k = (t - 30) / 10;
+                    if ((t - 30) % 10 == 0) {
+                        ClientConfig.setStyle("aegis", aegis[k].name());
+                    } else if ((t - 30) % 10 == 6) {
+                        shoot(mc, "aegislooks_0_dir" + k);
+                    }
+                } else if (t == 80 || t == 86 || t == 92) {
+                    // the screen effects: shots at the holder from three sides
+                    mc.options.hideGui = false;
+                    mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+                    ClientConfig.setStyle("aegis_overlay", t == 80 ? "FRAME" : t == 86 ? "RIPPLES" : "HEX");
+                    if (t == 92) {
+                        return; // no shots this time: the zombie
+                    }
+                    server.execute(() -> {
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        for (double[] from : new double[][] {{-5, -2}, {6, 0}, {0, 6}}) {
+                            final net.minecraft.world.entity.projectile.Arrow arrow = new net.minecraft.world.entity.projectile.Arrow(net.minecraft.world.entity.EntityType.ARROW,
+                                    p.serverLevel());
+                            arrow.setPos(p.getX() + from[0], p.getY() + 1.0, p.getZ() + from[1]);
+                            arrow.setDeltaMovement(new net.minecraft.world.phys.Vec3(-from[0], 0, -from[1]).normalize().scale(1.5));
+                            p.serverLevel().addFreshEntity(arrow);
+                        }
+                    });
+                } else if (t == 84 || t == 89 || t == 95) {
+                    shoot(mc, "aegisoverlay_0_dir" + (t == 84 ? 0 : t == 89 ? 1 : 2));
+                    if (t == 89) { // a zombie kept in the field, in front and to the right (walled in), for the next frame
+                        command(server, "summon zombie ~2 ~ ~2 {NoAI:1b,PersistenceRequired:1b,Tags:[\"looks_press\"]}");
+                    }
+                } else if (t == 93) {
+                    command(server, "tp @e[tag=looks_press] ~1.5 ~ ~2");
+                } else if (t == 94) {
+                    ClientConfig.setStyle("aegis_overlay", "FRAME");
+                } else if (t == 97) {
+                    shoot(mc, "aegisoverlay_1_dir0");
+                    command(server, "kill @e[tag=looks_press]");
+                } else if (t == 96) {
+                    mc.options.hideGui = true;
+                    ClientConfig.setStyle("aegis_overlay", "FRAME");
+                    server.execute(() -> {
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        p.getMainHandItem().use(p.serverLevel(), p, net.minecraft.world.InteractionHand.MAIN_HAND); // off
+                        final net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(AbyssalDepths.CONVERGENCE.get());
+                        p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, stack);
+                        stack.use(p.serverLevel(), p, net.minecraft.world.InteractionHand.MAIN_HAND);
+                    });
+                    ClientConfig.setStyle("aegis", "PIXELS");
+                    mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+                } else if (t == 99) {
+                    command(server, "tp @s ~ ~ ~7 0 25"); // in the middle of the wall, facing south, a little down
+                } else if (t >= 100 && t < 100 + convergence.length * 10) {
+                    final int k = (t - 100) / 10;
+                    if ((t - 100) % 10 == 0) {
+                        ClientConfig.setStyle("convergence", convergence[k].name());
+                    } else if ((t - 100) % 10 == 6) {
+                        shoot(mc, "convlooks_0_dir" + k);
+                    }
+                } else if (t == 152) {
+                    ClientConfig.setStyle("convergence", "PIXEL_EDGES");
+                    command(server, "tp @s ~ ~ ~-2.4 180 45"); // at the wall's edge, looking out and down
+                } else if (t == 160) {
+                    shoot(mc, "convlooks_1_dir0");
+                    command(server, "tp @s ~ ~ ~ 180 -30");
+                } else if (t == 166) {
+                    shoot(mc, "convlooks_1_dir1"); // looking up and out
+                    command(server, "tp @s ~ ~-0.6 ~-1.2 90 10"); // on the ground beside the wall, sunk a little: no view
+                } else if (t == 172) {
+                    shoot(mc, "convlooks_1_dir2");
+                    command(server, "tp @s " + tntAt.getX() + ".5 " + tntAt.getY() + " " + (tntAt.getZ() - 4) + ".5 0 15"); // out in the open, the camera facing the player: the layer on them
+                    mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_FRONT);
+                } else if (t == 175) {
+                    shoot(mc, "convlayer_0_dir0");
+                    ClientConfig.setStyle("convergence_layer", "OVER");
+                } else if (t == 178) {
+                    shoot(mc, "convlayer_0_dir1");
+                    ClientConfig.setStyle("convergence_layer", "SKIN");
+                } else if (t >= 180 && t < 300) {
+                    // the layer coming on, in each style: off, on again, a shot halfway
+                    final ClientConfig.ConvergenceApply[] applies = ClientConfig.ConvergenceApply.values();
+                    final int k = (t - 180) / 30, at = (t - 180) % 30; // off, gone, on again, a shot halfway
+                    if (at == 0) {
+                        ClientConfig.setStyle("convergence_apply", applies[k].name());
+                    }
+                    if (at == 0 || at == 18) {
+                        server.execute(() -> {
+                            final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                            p.getMainHandItem().use(p.serverLevel(), p, net.minecraft.world.InteractionHand.MAIN_HAND);
+                        });
+                    } else if (at == 26) {
+                        shoot(mc, "convapply_0_dir" + k);
+                    }
+                } else if (t == 300) {
+                    ClientConfig.setStyle("convergence_apply", "DISSOLVE");
+                    server.execute(() -> {
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        p.getMainHandItem().use(p.serverLevel(), p, net.minecraft.world.InteractionHand.MAIN_HAND);
+                    });
+                    command(server, "tp @s " + tntAt.getX() + ".5 " + tntAt.getY() + " " + (tntAt.getZ() - 2) + ".5 0 30"); // back on the platform, facing the wall
+                    mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+                } else if (t >= 310 && t < 310 + ClientConfig.RepulsionWave.values().length * 25) {
+                    final ClientConfig.RepulsionWave[] waves = ClientConfig.RepulsionWave.values();
+                    final int k = (t - 310) / 25;
+                    if ((t - 310) % 25 == 0) {
+                        ClientConfig.setStyle("repulsion", waves[k].name());
+                    } else if ((t - 310) % 25 == 2) {
+                        server.execute(() -> {
+                            final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                            redero.abyssaldepths.artifact.RepulsionItem.wave(p.serverLevel(), p, 6.0F, 1.2F);
+                        });
+                    } else if ((t - 310) % 25 == 7) {
+                        shoot(mc, "repulsionlooks_0_dir" + k);
+                    }
+                } else if (t > 310 + ClientConfig.RepulsionWave.values().length * 25) {
+                    ClientConfig.setStyle("repulsion", "SHOCK");
+                    mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
                     command(server, "gamemode spectator");
                     step = Step.NEXT;
                 }

@@ -125,7 +125,7 @@ public final class LayerCommands {
     }
 
     /** Crosses into the inner self or back, as if Inner Haven had been used (no charge needed). */
-    /** {@code /abyssaldepths style mark|burst <name>}: sets that client option of the one using it. */
+    /** {@code /abyssaldepths style mark|burst|aegis|aegis_overlay|convergence|convergence_apply|convergence_layer|repulsion <name>}: sets that client option of the one using it. */
     private static LiteralArgumentBuilder<CommandSourceStack> styles() {
         final LiteralArgumentBuilder<CommandSourceStack> style = Commands.literal("style");
         final LiteralArgumentBuilder<CommandSourceStack> mark = Commands.literal("mark"), burst = Commands.literal("burst");
@@ -135,7 +135,30 @@ public final class LayerCommands {
         for (ClientConfig.UndertowBurst value : ClientConfig.UndertowBurst.values()) {
             burst.then(Commands.literal(value.name().toLowerCase(java.util.Locale.ROOT)).executes(c -> send(c, "style/burst/" + value.name())));
         }
-        return style.then(mark).then(burst);
+        final LiteralArgumentBuilder<CommandSourceStack> aegis = Commands.literal("aegis"), convergence = Commands.literal("convergence");
+        for (ClientConfig.AegisLook value : ClientConfig.AegisLook.values()) {
+            aegis.then(Commands.literal(value.name().toLowerCase(java.util.Locale.ROOT)).executes(c -> send(c, "style/aegis/" + value.name())));
+        }
+        for (ClientConfig.ConvergenceLook value : ClientConfig.ConvergenceLook.values()) {
+            convergence.then(Commands.literal(value.name().toLowerCase(java.util.Locale.ROOT)).executes(c -> send(c, "style/convergence/" + value.name())));
+        }
+        final LiteralArgumentBuilder<CommandSourceStack> repulsion = Commands.literal("repulsion");
+        for (ClientConfig.RepulsionWave value : ClientConfig.RepulsionWave.values()) {
+            repulsion.then(Commands.literal(value.name().toLowerCase(java.util.Locale.ROOT)).executes(c -> send(c, "style/repulsion/" + value.name())));
+        }
+        final LiteralArgumentBuilder<CommandSourceStack> aegisOverlay = Commands.literal("aegis_overlay");
+        for (ClientConfig.AegisOverlay value : ClientConfig.AegisOverlay.values()) {
+            aegisOverlay.then(Commands.literal(value.name().toLowerCase(java.util.Locale.ROOT)).executes(c -> send(c, "style/aegis_overlay/" + value.name())));
+        }
+        final LiteralArgumentBuilder<CommandSourceStack> apply = Commands.literal("convergence_apply");
+        for (ClientConfig.ConvergenceApply value : ClientConfig.ConvergenceApply.values()) {
+            apply.then(Commands.literal(value.name().toLowerCase(java.util.Locale.ROOT)).executes(c -> send(c, "style/convergence_apply/" + value.name())));
+        }
+        final LiteralArgumentBuilder<CommandSourceStack> fit = Commands.literal("convergence_layer");
+        for (ClientConfig.ConvergenceLayerFit value : ClientConfig.ConvergenceLayerFit.values()) {
+            fit.then(Commands.literal(value.name().toLowerCase(java.util.Locale.ROOT)).executes(c -> send(c, "style/convergence_layer/" + value.name())));
+        }
+        return style.then(mark).then(burst).then(aegis).then(aegisOverlay).then(convergence).then(apply).then(fit).then(repulsion);
     }
 
     private static int form(CommandContext<CommandSourceStack> context, InnerSelf.Form form) throws CommandSyntaxException {

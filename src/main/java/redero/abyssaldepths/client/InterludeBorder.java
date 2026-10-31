@@ -71,7 +71,7 @@ public final class InterludeBorder {
     }
 
     /** Depth at a place of the edge: 1 to 2 pixels, drifting, with a rare short spike further in. */
-    private static float depth(int seed, float time) {
+    static float depth(int seed, float time) {
         float depth = 0.8F + 1.3F * smoothNoise(seed, time * 0.9F);
         final int beat = (int) Math.floor(time * 2.5F); // spikes come and go in steps of 0.4 s
         if (noise(seed, beat) > 0.94F) {
@@ -92,14 +92,14 @@ public final class InterludeBorder {
     }
 
     /** Smooth value noise over time for one place: 0 .. 1. */
-    private static float smoothNoise(int seed, float t) {
+    static float smoothNoise(int seed, float t) {
         final int i = (int) Math.floor(t);
         final float f = t - i, u = f * f * (3 - 2 * f);
         return Mth.lerp(u, noise(seed, i), noise(seed, i + 1));
     }
 
     /** A fixed random value 0 .. 1. */
-    private static float noise(int a, int b) {
+    static float noise(int a, int b) {
         long h = a * 0x9E3779B97F4A7C15L ^ b * 0xC2B2AE3D27D4EB4FL;
         h ^= h >>> 31;
         h *= 0xBF58476D1CE4E5B9L;

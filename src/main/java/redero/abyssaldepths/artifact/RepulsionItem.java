@@ -72,13 +72,10 @@ public class RepulsionItem extends ArtifactItem {
             entity.hurtMarked = true; // sent to the clients (a player moves themselves)
             thrown++;
         }
-        // the wave: a ring of gusts running out, a burst at the middle
-        level.sendParticles(ParticleTypes.GUST_EMITTER_SMALL, centre.x, user.getY() + 0.5, centre.z, 1, 0, 0, 0, 0);
-        for (int i = 0; i < 48; i++) {
-            final float a = i * Mth.TWO_PI / 48;
-            level.sendParticles(ParticleTypes.CLOUD, centre.x + Mth.cos(a) * 0.8, user.getY() + 0.4, centre.z + Mth.sin(a) * 0.8, 0,
-                    Mth.cos(a), 0.02, Mth.sin(a), radius * 0.09);
-        }
+        // the wave, drawn by each client in its own look (client.RepulsionView)
+        net.neoforged.neoforge.network.PacketDistributor.sendToPlayersNear(level, null, centre.x, centre.y, centre.z, 96.0,
+                new redero.abyssaldepths.network.EffectPayload(String.format(java.util.Locale.ROOT, "repulsion/%.3f/%.3f/%.3f/%.2f", user.getX(), user.getY(),
+                        user.getZ(), radius), 0));
         level.playSound(null, user.blockPosition(), SoundEvents.WIND_CHARGE_BURST.value(), SoundSource.PLAYERS, 1.2F, 0.7F);
         return thrown;
     }

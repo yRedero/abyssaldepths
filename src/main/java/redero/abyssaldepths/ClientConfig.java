@@ -99,6 +99,42 @@ public final class ClientConfig {
                     "SHATTER (big shards tumbling out), RINGS (shockwaves one after another), STARBURST (rays of pixels).")
             .translation("abyssaldepths.config.undertow_burst")
             .defineEnum("undertowBurst", UndertowBurst.VOID);
+    private static final ModConfigSpec.EnumValue<AegisLook> AEGIS_LOOK = BUILDER
+            .comment("Aegis's force field: PIXELS (a shell of square pixels, thick at the rim, flickering), RINGS (rings of pixels",
+                    "stacked up the sphere, a bright band running up them), RUNES (glyphs circling at two heights over a ring on the",
+                    "ground), SHARDS (pixel shards drifting round on the sphere), BUBBLE (a smooth sphere with a fine grid).")
+            .translation("abyssaldepths.config.aegis_look")
+            .defineEnum("aegisLook", AegisLook.PIXELS);
+    private static final ModConfigSpec.EnumValue<AegisOverlay> AEGIS_OVERLAY = BUILDER
+            .comment("Aegis's screen effect for its holder: FRAME (a thin ragged frame of blue pixels like Interlude's, leaping far in",
+                    "by a hit's speed and by how close and hard anything in the field presses), HEX (a honeycomb of pixel hexagons along the screen's edges, a light running",
+                    "round them, faster under pressure, flashing on the side of a hit), RIPPLES (nothing while quiet, pixel ripples running",
+                    "in from the side of each hit), NONE.")
+            .translation("abyssaldepths.config.aegis_overlay")
+            .defineEnum("aegisOverlay", AegisOverlay.FRAME);
+    private static final ModConfigSpec.EnumValue<ConvergenceLook> CONVERGENCE_LOOK = BUILDER
+            .comment("How the blocks round a player phasing with Convergence show inside a wall: PIXEL_EDGES (their edges dotted",
+                    "with pixels), OUTLINE (thin lines), DITHER (a faint checker of pixels in their colour), CORNERS (pixel brackets",
+                    "at their corners), NONE (not at all).")
+            .translation("abyssaldepths.config.convergence_look")
+            .defineEnum("convergenceLook", ConvergenceLook.PIXEL_EDGES);
+    private static final ModConfigSpec.EnumValue<ConvergenceLayerFit> CONVERGENCE_LAYER = BUILDER
+            .comment("How a player phasing with Convergence is tinted: SKIN (their skin's own pixels tinted, the band running down",
+                    "them), OVER (a see-through layer a little out from the skin, like a second skin over it).")
+            .translation("abyssaldepths.config.convergence_layer")
+            .defineEnum("convergenceLayer", ConvergenceLayerFit.SKIN);
+    private static final ModConfigSpec.EnumValue<ConvergenceApply> CONVERGENCE_APPLY = BUILDER
+            .comment("How the layer on a player phasing with Convergence comes on and goes: DISSOLVE (pixel by pixel at random, like",
+                    "Parallax's dissolve, each flaring light as it comes), SWEEP (down from the head), RISE (up from the feet), GLITCH",
+                    "(in flickering blocks), NONE (at once).")
+            .translation("abyssaldepths.config.convergence_apply")
+            .defineEnum("convergenceApply", ConvergenceApply.DISSOLVE);
+    private static final ModConfigSpec.EnumValue<RepulsionWave> REPULSION_WAVE = BUILDER
+            .comment("Repulsion's pressure wave: SHOCK (three thin rings one after another), RING (a ring of pixels running out over",
+                    "the ground), DOME (a dome of pixels swelling), BURST (rays of pixels shooting out), GUST (the game's",
+                    "own gusts and clouds).")
+            .translation("abyssaldepths.config.repulsion_wave")
+            .defineEnum("repulsionWave", RepulsionWave.SHOCK);
     private static final ModConfigSpec.IntValue PARALLAX_SPOTS = BUILDER
             .comment("How many black spots open on the screen when crossing into the shadow (Parallax).")
             .translation("abyssaldepths.config.parallax_spots")
@@ -134,6 +170,18 @@ public final class ClientConfig {
 
     /** Undertow's burst. */
     public enum UndertowBurst { PIXELS, SHATTER, RINGS, STARBURST, VOID }
+
+    public enum AegisLook { PIXELS, RINGS, RUNES, SHARDS, BUBBLE }
+
+    public enum AegisOverlay { FRAME, HEX, RIPPLES, NONE }
+
+    public enum ConvergenceLook { PIXEL_EDGES, OUTLINE, DITHER, CORNERS, NONE }
+
+    public enum RepulsionWave { SHOCK, RING, DOME, BURST, GUST }
+
+    public enum ConvergenceApply { DISSOLVE, SWEEP, RISE, GLITCH, NONE }
+
+    public enum ConvergenceLayerFit { SKIN, OVER }
 
     /** The waiting sign of Reprise. */
     public enum RepriseWait { CIRCLE, SQUARE, CLOCK, CLOCK_TICKING }
@@ -251,6 +299,30 @@ public final class ClientConfig {
         return SPEC.isLoaded() ? UNDERTOW_BURST.get() : UndertowBurst.VOID;
     }
 
+    public static AegisLook aegisLook() {
+        return SPEC.isLoaded() ? AEGIS_LOOK.get() : AegisLook.PIXELS;
+    }
+
+    public static AegisOverlay aegisOverlay() {
+        return SPEC.isLoaded() ? AEGIS_OVERLAY.get() : AegisOverlay.FRAME;
+    }
+
+    public static ConvergenceLook convergenceLook() {
+        return SPEC.isLoaded() ? CONVERGENCE_LOOK.get() : ConvergenceLook.PIXEL_EDGES;
+    }
+
+    public static ConvergenceLayerFit convergenceLayer() {
+        return SPEC.isLoaded() ? CONVERGENCE_LAYER.get() : ConvergenceLayerFit.SKIN;
+    }
+
+    public static ConvergenceApply convergenceApply() {
+        return SPEC.isLoaded() ? CONVERGENCE_APPLY.get() : ConvergenceApply.DISSOLVE;
+    }
+
+    public static RepulsionWave repulsionWave() {
+        return SPEC.isLoaded() ? REPULSION_WAVE.get() : RepulsionWave.SHOCK;
+    }
+
     /** Sets a style option by its config name (the style command) and saves it; false if unknown. */
     public static boolean setStyle(String option, String value) {
         if (!SPEC.isLoaded()) {
@@ -260,6 +332,12 @@ public final class ClientConfig {
             switch (option) {
                 case "mark" -> WAYPOINT_MARK.set(WaypointMark.valueOf(value));
                 case "burst" -> UNDERTOW_BURST.set(UndertowBurst.valueOf(value));
+                case "aegis" -> AEGIS_LOOK.set(AegisLook.valueOf(value));
+                case "aegis_overlay" -> AEGIS_OVERLAY.set(AegisOverlay.valueOf(value));
+                case "convergence" -> CONVERGENCE_LOOK.set(ConvergenceLook.valueOf(value));
+                case "repulsion" -> REPULSION_WAVE.set(RepulsionWave.valueOf(value));
+                case "convergence_apply" -> CONVERGENCE_APPLY.set(ConvergenceApply.valueOf(value));
+                case "convergence_layer" -> CONVERGENCE_LAYER.set(ConvergenceLayerFit.valueOf(value));
                 default -> {
                     return false;
                 }
@@ -267,7 +345,11 @@ public final class ClientConfig {
         } catch (IllegalArgumentException e) {
             return false;
         }
-        SPEC.save();
+        try {
+            SPEC.save();
+        } catch (RuntimeException e) { // the file busy (another game on the same folder): the choice holds until restart
+            redero.abyssaldepths.AbyssalDepths.LOGGER.warn("Could not save the client config: {}", e.toString());
+        }
         return true;
     }
 
