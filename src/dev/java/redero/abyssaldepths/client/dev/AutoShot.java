@@ -659,11 +659,15 @@ public final class AutoShot {
                     mc.setScreen(new redero.abyssaldepths.client.ArtifactShowcaseScreen().show(id, 100));
                 } else if (wait >= 32 && wait < 72 && (wait - 32) % 10 == 6) {
                     Screenshot.grab(mc.gameDirectory, "autoshot_showcase_0_dir" + (wait - 32) / 10 + ".png", mc.getMainRenderTarget(), msg -> { });
+                } else if (wait >= 32 + 40 + 100 && wait < 32 + 40 + 100 + 48 && (wait - 172) % 4 == 0) {
+                    Screenshot.grab(mc.gameDirectory, "autoshot_snake_" + (wait - 172) / 4 / 4 + "_dir" + (wait - 172) / 4 % 4 + ".png", mc.getMainRenderTarget(), msg -> { });
                 } else if (wait == 75) {
                     mc.setScreen(new redero.abyssaldepths.client.WaypointScreen("minecraft:overworld|120|64|-35|42|107;minecraft:the_nether|8|70|-2|900|2;minecraft:overworld|-310|71|88|7300|3"));
                 } else if (wait == 97) {
                     Screenshot.grab(mc.gameDirectory, "autoshot_showcase_1_dir0.png", mc.getMainRenderTarget(), msg -> { });
-                } else if (wait > 100) {
+                } else if (wait == 101) {
+                    mc.setScreen(new redero.abyssaldepths.client.ArtifactShowcaseScreen());
+                } else if (wait > 225) {
                     mc.setScreen(null);
                     step = Step.NEXT;
                 }

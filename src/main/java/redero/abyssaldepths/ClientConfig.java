@@ -79,10 +79,14 @@ public final class ClientConfig {
             .defineInRange("parallaxTransition", 1600, 200, 6000);
 
     private static final ModConfigSpec.EnumValue<RepriseWait> REPRISE_WAIT = BUILDER
-            .comment("What turns in the middle while Reprise is still rewinding: CIRCLE, SQUARE (a snake round a",
-                    "square that closes on itself), CLOCK (sweeping backwards), CLOCK_TICKING (jumping back mark by mark).")
+            .comment("What turns in the middle while Reprise is still rewinding: CIRCLE, SQUARE (a snake running",
+                    "round a square), CLOCK (sweeping backwards), CLOCK_TICKING (jumping back mark by mark).")
             .translation("abyssaldepths.config.reprise_wait")
-            .defineEnum("repriseWait", RepriseWait.CIRCLE);
+            .defineEnum("repriseWait", RepriseWait.SQUARE);
+    private static final ModConfigSpec.IntValue REPRISE_SNAKE = BUILDER
+            .comment("How many pixels long the snake of Reprise's SQUARE waiting sign is (the square has 24 round).")
+            .translation("abyssaldepths.config.reprise_snake")
+            .defineInRange("repriseSnakeLength", 8, 2, 23);
     private static final ModConfigSpec.EnumValue<WaypointMark> WAYPOINT_MARK = BUILDER
             .comment("How Inner Haven's remembered places are marked on the ground: SIGIL (turning rings), BEACON (a column of",
                     "rising pixels), RUNES (a ring of glyphs lighting up in turn), RIFT (a dark tear with pixels spiralling in), HALO (a",
@@ -228,7 +232,11 @@ public final class ClientConfig {
     }
 
     public static RepriseWait repriseWait() {
-        return SPEC.isLoaded() ? REPRISE_WAIT.get() : RepriseWait.CIRCLE;
+        return SPEC.isLoaded() ? REPRISE_WAIT.get() : RepriseWait.SQUARE;
+    }
+
+    public static int repriseSnakeLength() {
+        return SPEC.isLoaded() ? REPRISE_SNAKE.get() : 8;
     }
 
     public static boolean shadeFullColour() {

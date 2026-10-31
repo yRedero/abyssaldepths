@@ -165,38 +165,20 @@ public final class RepriseCover {
     }
 
     /**
-     * A square border of crimson pixels with a snake running round it, clockwise: its head races ahead until
-     * it meets its tail and the border is whole for a moment (lit up), then the tail races after the head
-     * until the snake is short again. Head and tail only ever go forward: it goes round and round.
+     * A square border of crimson pixels with a snake running round it, clockwise, for ever: always the same
+     * length (client config) and speed, the head bright, the body even, the tail fading in steps.
      */
     private static void square(GuiGraphics g, int x, int y, float time) {
-        final int side = 7, size = 5, gap = 1, cells = 4 * (side - 1);
-        // steady speeds: both ends always crawl on (0.15 a tick); in the first 45 % of a cycle the head is
-        // faster (it catches up with the tail all round), then the border is whole for a moment, then the tail
-        // is faster for 45 % (the snake short again)
-        final float period = 120.0F, crawl = 0.15F, shortest = 5.0F, stretch = cells - shortest;
-        final int cycle = (int) Math.floor(time / period);
-        final float c = time / period - cycle;
-        final float grown = cycle + Mth.clamp(c / 0.45F, 0.0F, 1.0F), shrunk = cycle + Mth.clamp((c - 0.55F) / 0.45F, 0.0F, 1.0F);
-        final float head = time * crawl + shortest + stretch * grown, tail = time * crawl + stretch * shrunk;
-        final float length = head - tail;
-        final boolean closed = length >= cells - 0.01F;
+        final int side = 7, size = 5, gap = 1, cells = 4 * (side - 1), length = ClientConfig.repriseSnakeLength();
+        final float head = time * 0.4F; // pixels round per tick
+        final int lead = (int) Math.floor(head);
         final int origin = -(side * (size + gap) - gap) / 2;
-        for (int i = 0; i < cells; i++) {
-            final float behind = ((head - i) % cells + cells) % cells; // 0 = the head
-            if (!closed && behind > length) {
-                continue;
-            }
-            // in steps, like pixels: the head bright, the body even, only the last pixel dim (whole: all bright)
-            final float light = closed || behind < 1.0F ? 1.0F : length - behind < 1.0F ? 0.45F : 0.75F;
-            final int[] at = squareCell(i, side);
+        for (int k = 0; k < length; k++) { // k = 0 is the head
+            final float light = k == 0 ? 1.0F : k < length - 2 ? 0.75F : k == length - 2 ? 0.45F : 0.25F;
+            final int[] at = squareCell(Math.floorMod(lead - k, cells), side);
             final int px = x + origin + at[0] * (size + gap), py = y + origin + at[1] * (size + gap);
             g.fill(px, py, px + size, py + size, (int) (light * 255) << 24 | (CRIMSON & 0xFFFFFF));
         }
-    }
-
-    private static float smooth(float t) {
-        return t * t * (3 - 2 * t);
     }
 
     /** The cell of the border at a place along it (clockwise from the top left corner). */

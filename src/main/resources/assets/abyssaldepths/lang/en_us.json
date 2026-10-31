@@ -22,6 +22,7 @@
   "abyssaldepths.config.parallax_spots": "Parallax crossing spots",
   "abyssaldepths.config.parallax_transition": "Parallax crossing time (ms)",
   "abyssaldepths.config.particles": "Ambient particles",
+  "abyssaldepths.config.reprise_snake": "Reprise snake length",
   "abyssaldepths.config.reprise_wait": "Reprise waiting sign",
   "abyssaldepths.config.reverb": "Cave echo",
   "abyssaldepths.config.shade_full_colour": "Shades in full colour",
