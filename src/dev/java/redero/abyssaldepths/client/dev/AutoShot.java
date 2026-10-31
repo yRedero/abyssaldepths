@@ -52,7 +52,7 @@ public final class AutoShot {
     private static final String SPOT_COMMANDS = System.getProperty("abyssaldepths.autoshot.spotCommands", "");
     private static final int SETTLE_TICKS = 220, TURN_TICKS = 15;
 
-    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, VANISH, OBLIVION, NEWARTIFACTS, FIRMAMENT, VARIANTS, DONE }
+    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, VANISH, OBLIVION, NEWARTIFACTS, FIRMAMENT, SMALL, VARIANTS, DONE }
 
     private static Step step = Step.TITLE;
     private static final Deque<String> BIOMES = new ArrayDeque<>();
@@ -149,6 +149,14 @@ public final class AutoShot {
                     if (biome.endsWith("#0")) {
                         wait = 0;
                         step = Step.VARIANTS;
+                    }
+                    return;
+                }
+                if (biome != null && biome.startsWith("small#")) {
+                    // not a place: Anchor, Repulsion, Aegis, Convergence, Recall used and checked ("small check" lines)
+                    if (biome.endsWith("#0")) {
+                        wait = 0;
+                        step = Step.SMALL;
                     }
                     return;
                 }
@@ -344,6 +352,141 @@ public final class AutoShot {
                     mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
                     redero.abyssaldepths.ClientConfig.setStyle("burst", "VOID");
                     redero.abyssaldepths.ClientConfig.setStyle("mark", "SIGIL");
+                    command(server, "gamemode spectator");
+                    step = Step.NEXT;
+                }
+            }
+            case SMALL -> {
+                final MinecraftServer server = mc.getSingleplayerServer();
+                final int t = ++wait;
+                if (t == 1) {
+                    command(server, "gamemode survival");
+                    command(server, "tp @s ~ ~40 ~ 0 20");
+                    command(server, "effect give @s resistance 600 4 true");
+                    command(server, "effect give @s saturation 600 1 true");
+                } else if (t == 6) {
+                    command(server, "fill ~-12 ~-2 ~-12 ~12 ~8 ~16 air");
+                    command(server, "fill ~-12 ~-1 ~-12 ~12 ~-1 ~16 stone");
+                    command(server, "spawnpoint @s ~ ~ ~-6");
+                } else if (t == 12) {
+                    // Anchor: a blow does not move the player
+                    server.execute(() -> {
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        use(p, AbyssalDepths.ANCHOR.get(), 0);
+                        p.knockback(2.0, 1.0, 0.0);
+                        AbyssalDepths.LOGGER.info("small check anchor: anchored {}, knockback resistance {}, motion after a blow {}",
+                                p.hasEffect(AbyssalDepths.ANCHORED), p.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.KNOCKBACK_RESISTANCE),
+                                p.getDeltaMovement().horizontalDistance());
+                        p.removeEffect(AbyssalDepths.ANCHORED);
+                    });
+                    for (int i = 0; i < 3; i++) {
+                        command(server, "summon zombie ~" + (i * 2 - 2) + " ~ ~3 {PersistenceRequired:1b,Tags:[\"small_test\"]}");
+                    }
+                } else if (t == 20) {
+                    smallCheck(server, "repulsion before");
+                    server.execute(() -> use(server.getPlayerList().getPlayers().get(0), AbyssalDepths.REPULSION.get(), 0));
+                } else if (t == 22) {
+                    shoot(mc, "small_0_dir0"); // the wave
+                } else if (t == 35) {
+                    smallCheck(server, "repulsion after");
+                    command(server, "tp @e[tag=small_test] ~ ~ ~2");
+                } else if (t == 40) {
+                    // Aegis, mastered: zombies close by are pushed out, an arrow flies back
+                    server.execute(() -> {
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        final net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(AbyssalDepths.AEGIS.get());
+                        redero.abyssaldepths.artifact.ArtifactItem.setMastery(stack, 100);
+                        p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, stack);
+                        stack.use(p.serverLevel(), p, net.minecraft.world.InteractionHand.MAIN_HAND);
+                    });
+                    command(server, "summon skeleton ~ ~ ~12 {NoAI:1b,PersistenceRequired:1b,Tags:[\"small_shooter\"]}");
+                    mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+                } else if (t == 60) {
+                    server.execute(() -> {
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        for (net.minecraft.world.entity.Entity e : p.serverLevel().getAllEntities()) {
+                            if (e.getTags().contains("small_shooter")) {
+                                final net.minecraft.world.entity.projectile.Arrow arrow = new net.minecraft.world.entity.projectile.Arrow(p.serverLevel(),
+                                        (net.minecraft.world.entity.LivingEntity) e, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.ARROW), null);
+                                arrow.setPos(p.getX(), p.getY() + 1.0, p.getZ() + 7.0);
+                                arrow.setDeltaMovement(0, 0, -2.0);
+                                arrow.addTag("small_arrow");
+                                p.serverLevel().addFreshEntity(arrow);
+                            }
+                        }
+                    });
+                } else if (t == 62) {
+                    shoot(mc, "small_0_dir1"); // the field
+                    AbyssalDepths.LOGGER.info("small check aegis client: holds {}", redero.abyssaldepths.artifact.AegisItem.clientHolds(mc.player));
+                } else if (t == 66) {
+                    smallCheck(server, "aegis");
+                    server.execute(() -> {
+                        for (net.minecraft.world.entity.Entity e : server.getPlayerList().getPlayers().get(0).serverLevel().getAllEntities()) {
+                            if (e.getTags().contains("small_arrow")) {
+                                AbyssalDepths.LOGGER.info("small check aegis arrow: motion z {} (it flew in at -2), owner {}",
+                                        String.format("%.2f", e.getDeltaMovement().z), ((net.minecraft.world.entity.projectile.Projectile) e).getOwner() instanceof ServerPlayer);
+                            }
+                        }
+                    });
+                } else if (t == 70) {
+                    command(server, "kill @e[tag=small_test]");
+                    command(server, "kill @e[tag=small_shooter]");
+                    command(server, "clear @s abyssaldepths:aegis");
+                    // Convergence: a wall in front, walk into it
+                    command(server, "fill ~-3 ~ ~2 ~3 ~3 ~8 stone");
+                    mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+                    server.execute(() -> {
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        final net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(AbyssalDepths.CONVERGENCE.get());
+                        p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, stack);
+                        stack.use(p.serverLevel(), p, net.minecraft.world.InteractionHand.MAIN_HAND);
+                        p.setYRot(0.0F);
+                        p.setXRot(10.0F);
+                    });
+                } else if (t == 76) {
+                    mc.player.setYRot(0.0F);
+                    mc.player.setXRot(10.0F);
+                    mc.options.keyUp.setDown(true);
+                } else if (t == 100) {
+                    mc.options.keyUp.setDown(false);
+                    shoot(mc, "small_1_dir0"); // inside the wall
+                    AbyssalDepths.LOGGER.info("small check convergence: client z {} y {} pose {} in wall {}", String.format("%.2f", mc.player.getZ()),
+                            String.format("%.2f", mc.player.getY()), mc.player.getPose(), !mc.level.noCollision(mc.player, mc.player.getBoundingBox().deflate(0.01)));
+                    server.execute(() -> {
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        AbyssalDepths.LOGGER.info("small check convergence: server z {} health {}", String.format("%.2f", p.getZ()), p.getHealth());
+                    });
+                } else if (t == 104) {
+                    mc.player.setXRot(-20.0F);
+                } else if (t == 106) {
+                    shoot(mc, "small_1_dir1"); // inside, looking up a little
+                } else if (t == 110) {
+                    server.execute(() -> { // switched off inside: out into the open
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        p.getMainHandItem().use(p.serverLevel(), p, net.minecraft.world.InteractionHand.MAIN_HAND);
+                    });
+                } else if (t == 115) {
+                    server.execute(() -> {
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        AbyssalDepths.LOGGER.info("small check convergence off: server z {} y {} in wall {}", String.format("%.2f", p.getZ()), String.format("%.2f", p.getY()),
+                                !p.level().noCollision(p, p.getBoundingBox().deflate(0.01)));
+                        
+                        final net.minecraft.world.item.ItemStack recall = new net.minecraft.world.item.ItemStack(AbyssalDepths.RECALL.get());
+                        p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, recall);
+                    });
+                } else if (t == 120) {
+                    command(server, "tp @s ~ ~ ~-12");
+                } else if (t == 125) {
+                    mc.options.keyUse.setDown(true);
+                    mc.gameMode.useItem(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND);
+                } else if (t == 200) {
+                    mc.options.keyUse.setDown(false);
+                    server.execute(() -> {
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        AbyssalDepths.LOGGER.info("small check recall: at {} spawn {} charge {}", p.blockPosition().toShortString(),
+                                p.getRespawnPosition() == null ? "none" : p.getRespawnPosition().toShortString(), AbyssalDepths.RECALL.get().charge(p.getMainHandItem()));
+                    });
+                } else if (t > 205) {
                     command(server, "gamemode spectator");
                     step = Step.NEXT;
                 }
@@ -793,6 +936,29 @@ public final class AutoShot {
     private static void command(MinecraftServer server, String command) {
         server.execute(() -> server.getCommands().performPrefixedCommand(
                 server.getPlayerList().getPlayers().get(0).createCommandSourceStack().withPermission(4), command));
+    }
+
+    /** Uses an artifact (charged, at this mastery) as the player would, from the main hand. */
+    private static void use(ServerPlayer p, redero.abyssaldepths.artifact.ArtifactItem item, int mastery) {
+        final net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(item);
+        redero.abyssaldepths.artifact.ArtifactItem.setMastery(stack, mastery);
+        p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, stack);
+        stack.use(p.serverLevel(), p, net.minecraft.world.InteractionHand.MAIN_HAND);
+        p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.item.ItemStack.EMPTY);
+    }
+
+    /** Logs how far the small artifacts' test zombies are from the player. */
+    private static void smallCheck(MinecraftServer server, String when) {
+        server.execute(() -> {
+            final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+            final java.util.List<String> d = new java.util.ArrayList<>();
+            for (net.minecraft.world.entity.Entity e : p.serverLevel().getAllEntities()) {
+                if (e.getTags().contains("small_test")) {
+                    d.add(String.format("%.1f", e.distanceTo(p)));
+                }
+            }
+            AbyssalDepths.LOGGER.info("small check {}: zombies at {}", when, d);
+        });
     }
 
     /** Logs distance to a point and health of the test's creatures. */

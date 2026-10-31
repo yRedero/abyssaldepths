@@ -19,6 +19,11 @@ public final class ClientEffects {
                 final float strength = parts.length > 1 ? Integer.parseInt(parts[1]) / 100.0F : 0.5F;
                 InterludeField.clientActive(Integer.parseInt(parts[0]), payload.ticks(), mc.level.getGameTime(), strength);
             }
+        } else if (effect.startsWith("aegis/")) {
+            final net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc.level != null) {
+                redero.abyssaldepths.artifact.AegisItem.clientField(Integer.parseInt(effect.substring("aegis/".length())), payload.ticks(), mc.level.getGameTime());
+            }
         } else if (effect.startsWith("shade/")) {
             final net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
             if (mc.level != null) {

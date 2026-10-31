@@ -21,6 +21,9 @@ NeoForge 21.1 / Minecraft 1.21.1 mod (ModDevGradle). Adds the thalan layer below
   crossing, the post shader `shaders/program/shade.fsh`), `client/ShadeVanish` (vanishing for others). Firmament: `Firmament` works out the blocks under its
   users on every side from the synced item use; only the user's own client collides (`FirmamentCollideMixin`),
   others see the outline (`client/FirmamentView`); check with `tools/autoshot.sh <round> firmament`.
+  Convergence (walking through blocks): `ConvergenceItem.collide` via `ConvergenceMixin`, both sides alike;
+  the wall view in `client/ConvergenceView`. Anchor, Aegis, Recall, Repulsion: check them all with
+  `tools/autoshot.sh <round> small`.
 - `block/`, `mixin/`, `network/` (one server-to-client effect payload), config in `ClientConfig`.
 - `src/dev/java`: dev-only (AutoShot, LayerMap, TunnelLayerCheck); not in the jar.
 - `src/test/java`: JUnit regressions of the generation (`./gradlew test`).

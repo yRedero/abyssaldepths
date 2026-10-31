@@ -5,11 +5,15 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "BlockEntityMixin",
+    "ConvergenceMixin",
+    "ConvergencePlayerMixin",
+    "ConvergenceServerMixin",
     "FirmamentCollideMixin",
     "FirmamentFloatMixin",
     "LevelChunkMixin",
     "MineshaftStructureMixin",
     "OverworldBiomeBuilderMixin",
+    "ServerPlayerAccess",
     "ShadeCreatureSoundMixin",
     "ShadeEntityMixin",
     "ShadeLivingMixin",
@@ -23,6 +27,7 @@
     "defaultRequire": 1
   },
   "client": [
+    "ConvergenceLocalMixin",
     "FadeDrawMixin",
     "FirmamentPaceMixin",
     "InterludeParticleEngineMixin",

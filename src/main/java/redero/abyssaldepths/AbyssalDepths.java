@@ -60,8 +60,13 @@ import redero.abyssaldepths.artifact.ArtifactItem;
 import redero.abyssaldepths.artifact.ArtifactRank;
 import redero.abyssaldepths.artifact.InnerHavenItem;
 import redero.abyssaldepths.artifact.InterludeItem;
+import redero.abyssaldepths.artifact.AegisItem;
+import redero.abyssaldepths.artifact.AnchorItem;
+import redero.abyssaldepths.artifact.ConvergenceItem;
 import redero.abyssaldepths.artifact.CounterweightItem;
 import redero.abyssaldepths.artifact.FirmamentItem;
+import redero.abyssaldepths.artifact.RecallItem;
+import redero.abyssaldepths.artifact.RepulsionItem;
 import redero.abyssaldepths.artifact.MirageItem;
 import redero.abyssaldepths.artifact.OblivionItem;
 import redero.abyssaldepths.artifact.SeveranceItem;
@@ -114,6 +119,15 @@ public class AbyssalDepths {
     public static final DeferredHolder<MobEffect, MobEffect> VEILED = MOB_EFFECTS.register("veiled",
             () -> new MobEffect(net.minecraft.world.effect.MobEffectCategory.BENEFICIAL, 0x8E52D6) {
             });
+    /** Anchor under way: no knockback (the resistances cover explosions; Anchor cancels the rest). */
+    public static final DeferredHolder<MobEffect, MobEffect> ANCHORED = MOB_EFFECTS.register("anchored",
+            () -> new MobEffect(net.minecraft.world.effect.MobEffectCategory.BENEFICIAL, 0x727D87) {
+            }.addAttributeModifier(net.minecraft.world.entity.ai.attributes.Attributes.KNOCKBACK_RESISTANCE,
+                    net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(MODID, "anchored"), 1.0,
+                    net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_VALUE)
+                    .addAttributeModifier(net.minecraft.world.entity.ai.attributes.Attributes.EXPLOSION_KNOCKBACK_RESISTANCE,
+                            net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(MODID, "anchored_explosion"), 1.0,
+                            net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_VALUE));
     /** Ticks a player has spent in the thalan layer without Deep Pressure, see {@link DeepPressure}. */
     public static final Supplier<AttachmentType<Integer>> TICKS_BELOW = ATTACHMENT_TYPES.register("ticks_below",
             () -> AttachmentType.builder(() -> 0).serialize(Codec.INT).build());
@@ -246,6 +260,26 @@ public class AbyssalDepths {
     /** Leaves a decoy likeness that draws the creatures; 2 charges, 1 back every 3 minutes. */
     public static final DeferredItem<MirageItem> MIRAGE = ITEMS.register("mirage",
             () -> new MirageItem(new Item.Properties(), ArtifactRank.EXALTED, ArtifactFrame.HOLLOW, 2, 20 * 60 * 3));
+
+    /** Makes its holder immovable for a while (no knockback); 3 charges, 1 back every 2 minutes. */
+    public static final DeferredItem<AnchorItem> ANCHOR = ITEMS.register("anchor",
+            () -> new AnchorItem(new Item.Properties(), ArtifactRank.LESSER, ArtifactFrame.HOLLOW, 3, 20 * 60 * 2));
+
+    /** Lets its holder walk through blocks while switched on; 10 charges, 1 back every minute. */
+    public static final DeferredItem<ConvergenceItem> CONVERGENCE = ITEMS.register("convergence",
+            () -> new ConvergenceItem(new Item.Properties(), ArtifactRank.EXALTED, ArtifactFrame.HOLLOW, 10, 20 * 60));
+
+    /** A force field round its holder while switched on; 10 charges, 1 back every minute. */
+    public static final DeferredItem<AegisItem> AEGIS = ITEMS.register("aegis",
+            () -> new AegisItem(new Item.Properties(), ArtifactRank.EXALTED, ArtifactFrame.ZENITH, 10, 20 * 60));
+
+    /** Takes its holder home (bed, anchor or world spawn) after a short hold; 1 charge, back after 10 minutes (sooner with mastery). */
+    public static final DeferredItem<RecallItem> RECALL = ITEMS.register("recall",
+            () -> new RecallItem(new Item.Properties(), ArtifactRank.LESSER, ArtifactFrame.HOLLOW, 1, 20 * 60 * 10));
+
+    /** A pressure wave throwing everything around away; 5 charges, 1 back every 30 s. */
+    public static final DeferredItem<RepulsionItem> REPULSION = ITEMS.register("repulsion",
+            () -> new RepulsionItem(new Item.Properties(), ArtifactRank.GREATER, ArtifactFrame.ZENITH, 5, 20 * 30));
 
     /** Bears its holder on the air while right click is held (one charge a hold); 5 charges, 1 back every minute. */
     public static final DeferredItem<FirmamentItem> FIRMAMENT = ITEMS.register("firmament",
