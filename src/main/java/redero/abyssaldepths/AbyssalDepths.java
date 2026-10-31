@@ -61,6 +61,7 @@ import redero.abyssaldepths.artifact.ArtifactRank;
 import redero.abyssaldepths.artifact.InnerHavenItem;
 import redero.abyssaldepths.artifact.InterludeItem;
 import redero.abyssaldepths.artifact.CounterweightItem;
+import redero.abyssaldepths.artifact.FirmamentItem;
 import redero.abyssaldepths.artifact.MirageItem;
 import redero.abyssaldepths.artifact.OblivionItem;
 import redero.abyssaldepths.artifact.SeveranceItem;
@@ -245,6 +246,10 @@ public class AbyssalDepths {
     /** Leaves a decoy likeness that draws the creatures; 2 charges, 1 back every 3 minutes. */
     public static final DeferredItem<MirageItem> MIRAGE = ITEMS.register("mirage",
             () -> new MirageItem(new Item.Properties(), ArtifactRank.EXALTED, ArtifactFrame.HOLLOW, 2, 20 * 60 * 3));
+
+    /** Bears its holder on the air while right click is held (one charge a hold); 5 charges, 1 back every minute. */
+    public static final DeferredItem<FirmamentItem> FIRMAMENT = ITEMS.register("firmament",
+            () -> new FirmamentItem(new Item.Properties(), ArtifactRank.EXALTED, ArtifactFrame.ZENITH, 5, 20 * 60));
 
     /** Makes its holder a shade in the shadow of this world while switched on; 10 charges, 1 used every 6 s, 1 back every minute. */
     public static final DeferredItem<ParallaxItem> PARALLAX = ITEMS.register("parallax",

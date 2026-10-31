@@ -18,7 +18,9 @@ NeoForge 21.1 / Minecraft 1.21.1 mod (ModDevGradle). Adds the thalan layer below
   Toggled artifacts (Interlude, Parallax) extend `ToggleArtifactItem`; mastery milestones (every 25 %,
   `ArtifactItem.milestone`) set their strength and show in the tooltip (`powerLine`). The shadow of this world (Parallax, Oblivion):
   `Shades` (rules as events, the rest in the `Shade*Mixin`s), `client/ShadeView` (who sees whom, the
-  crossing, the post shader `shaders/program/shade.fsh`), `client/ShadeVanish` (vanishing for others).
+  crossing, the post shader `shaders/program/shade.fsh`), `client/ShadeVanish` (vanishing for others). Firmament: `Firmament` works out the blocks under its
+  users on every side from the synced item use; only the user's own client collides (`FirmamentCollideMixin`),
+  others see the outline (`client/FirmamentView`); check with `tools/autoshot.sh <round> firmament`.
 - `block/`, `mixin/`, `network/` (one server-to-client effect payload), config in `ClientConfig`.
 - `src/dev/java`: dev-only (AutoShot, LayerMap, TunnelLayerCheck); not in the jar.
 - `src/test/java`: JUnit regressions of the generation (`./gradlew test`).

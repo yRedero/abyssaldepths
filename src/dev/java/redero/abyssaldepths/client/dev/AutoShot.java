@@ -52,7 +52,7 @@ public final class AutoShot {
     private static final String SPOT_COMMANDS = System.getProperty("abyssaldepths.autoshot.spotCommands", "");
     private static final int SETTLE_TICKS = 220, TURN_TICKS = 15;
 
-    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, VANISH, OBLIVION, NEWARTIFACTS, VARIANTS, DONE }
+    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, VANISH, OBLIVION, NEWARTIFACTS, FIRMAMENT, VARIANTS, DONE }
 
     private static Step step = Step.TITLE;
     private static final Deque<String> BIOMES = new ArrayDeque<>();
@@ -60,6 +60,8 @@ public final class AutoShot {
     private static CompletableFuture<BlockPos> found;
     private static int wait, shot, spotsDone;
     private static boolean reloaded;
+    /** Where the TNT checks put their stone (under it). */
+    private static BlockPos tntAt = BlockPos.ZERO;
 
     private AutoShot() {
     }
@@ -147,6 +149,14 @@ public final class AutoShot {
                     if (biome.endsWith("#0")) {
                         wait = 0;
                         step = Step.VARIANTS;
+                    }
+                    return;
+                }
+                if (biome != null && biome.startsWith("firmament#")) {
+                    // not a place: Firmament held in the air: hovering, climbing, walking, letting go ("firmament check" lines)
+                    if (biome.endsWith("#0")) {
+                        wait = 0;
+                        step = Step.FIRMAMENT;
                     }
                     return;
                 }
@@ -334,6 +344,77 @@ public final class AutoShot {
                     mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
                     redero.abyssaldepths.ClientConfig.setStyle("burst", "VOID");
                     redero.abyssaldepths.ClientConfig.setStyle("mark", "SIGIL");
+                    command(server, "gamemode spectator");
+                    step = Step.NEXT;
+                }
+            }
+            case FIRMAMENT -> {
+                final MinecraftServer server = mc.getSingleplayerServer();
+                final int t = ++wait;
+                if (t == 1) {
+                    command(server, "gamemode survival");
+                    server.execute(() -> {
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        final net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(AbyssalDepths.FIRMAMENT.get());
+                        redero.abyssaldepths.artifact.ArtifactItem.setMastery(stack, 50); // a soft landing
+                        p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, stack);
+                        p.setHealth(p.getMaxHealth());
+                    });
+                } else if (t == 5) {
+                    mc.options.keyUse.setDown(true);
+                    mc.gameMode.useItem(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND);
+                } else if (t == 8) {
+                    command(server, "tp @s ~ ~40 ~ 0 35");
+                    mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+                } else if (t == 10) {
+                    command(server, "fill ~-6 ~-12 ~-6 ~6 ~4 ~16 air");
+                    command(server, "fill ~-6 ~-12 ~-6 ~6 ~-12 ~16 stone");
+                } else if (t == 40 || t == 75 || t == 100 || t == 104 || t == 160) {
+                    final String when = t == 40 ? "hovering" : t == 75 ? "after climbing" : t == 100 ? "after walking" : t == 104 ? "let go" : "landed";
+                    AbyssalDepths.LOGGER.info("firmament check {}: client y {} x {} z {} onGround {} using {}", when, String.format("%.2f", mc.player.getY()),
+                            String.format("%.2f", mc.player.getX()), String.format("%.2f", mc.player.getZ()), mc.player.onGround(), mc.player.isUsingItem());
+                    server.execute(() -> {
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        AbyssalDepths.LOGGER.info("firmament check {}: server y {} health {} charge {} connected {}", when, String.format("%.2f", p.getY()), p.getHealth(),
+                                AbyssalDepths.FIRMAMENT.get().charge(p.getMainHandItem()), !p.hasDisconnected());
+                    });
+                    if (t == 40) {
+                        shoot(mc, "firmament_0_dir0");
+                        mc.options.keyJump.setDown(true);
+                    } else if (t == 75) {
+                        mc.options.keyJump.setDown(false);
+                        mc.options.keyUp.setDown(true);
+                    } else if (t == 100) {
+                        mc.options.keyUp.setDown(false);
+                        shoot(mc, "firmament_0_dir1");
+                        mc.options.keyUse.setDown(false);
+                    } else if (t == 104) {
+                        shoot(mc, "firmament_0_dir2"); // the steps fading
+                    }
+                } else if (t == 170 || t == 230) {
+                    // TNT lit by the player, who then crosses into the shadow (it should still blow up the world);
+                    // then TNT sent into the shadow by Oblivion (it should not)
+                    final boolean oblivion = t == 230;
+                    server.execute(() -> {
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        tntAt = p.blockPosition().offset(oblivion ? -4 : 4, 0, 0);
+                        p.serverLevel().setBlockAndUpdate(tntAt.above(), net.minecraft.world.level.block.Blocks.STONE.defaultBlockState());
+                        final net.minecraft.world.entity.item.PrimedTnt tnt = new net.minecraft.world.entity.item.PrimedTnt(p.serverLevel(),
+                                tntAt.getX() + 0.5, tntAt.getY(), tntAt.getZ() + 1.5, oblivion ? null : p);
+                        tnt.setFuse(40);
+                        p.serverLevel().addFreshEntity(tnt);
+                        if (oblivion) {
+                            AbyssalDepths.LOGGER.info("firmament check tnt oblivion sent {}", redero.abyssaldepths.artifact.OblivionItem.cast(p));
+                        }
+                    });
+                } else if (t > 170 && t < 220) {
+                    server.execute(() -> redero.abyssaldepths.artifact.Shades.mark(server.getPlayerList().getPlayers().get(0)));
+                } else if (t == 225 || t == 285) {
+                    final String when = t == 225 ? "lit, then parallax (stone should be gone)" : "oblivion (stone should stay)";
+                    server.execute(() -> AbyssalDepths.LOGGER.info("firmament check tnt {}: stone there {}", when,
+                            server.getPlayerList().getPlayers().get(0).serverLevel().getBlockState(tntAt.above()).is(net.minecraft.world.level.block.Blocks.STONE)));
+                } else if (t > 290) {
+                    mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
                     command(server, "gamemode spectator");
                     step = Step.NEXT;
                 }

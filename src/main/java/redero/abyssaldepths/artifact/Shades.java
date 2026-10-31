@@ -331,11 +331,15 @@ public final class Shades {
         }
     }
 
-    /** What a shade sets off (a creeper, a fireball) does not explode in the world. */
+    /**
+     * What explodes in the shadow (a shade creeper, a shade's fireball, TNT sent there) does not explode in
+     * the world. Judged by what explodes, not by who set it off: TNT lit in the world stays in the world when
+     * the one who lit it crosses into the shadow (only without a thing exploding counts who caused it).
+     */
     @SubscribeEvent
     public static void onExplosion(net.neoforged.neoforge.event.level.ExplosionEvent.Start event) {
         final Entity direct = event.getExplosion().getDirectSourceEntity();
-        if (isShade(direct) || isShade(event.getExplosion().getIndirectSourceEntity())) {
+        if (direct != null ? isShade(direct) : isShade(event.getExplosion().getIndirectSourceEntity())) {
             event.setCanceled(true);
         }
     }

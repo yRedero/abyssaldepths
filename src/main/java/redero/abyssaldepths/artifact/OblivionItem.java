@@ -43,7 +43,7 @@ public class OblivionItem extends ArtifactItem {
     }
 
     /**
-     * Sends everything alive around the user into the shadow (not the user, armour stands, spectators);
+     * Sends everything alive around the user, and lit TNT, into the shadow (not the user, armour stands, spectators);
      * returns who went, with their time, for the test command.
      */
     public static List<String> cast(ServerPlayer user) {
@@ -56,6 +56,13 @@ public class OblivionItem extends ArtifactItem {
             level.sendParticles(ParticleTypes.SQUID_INK, entity.getX(), entity.getY() + entity.getBbHeight() / 2, entity.getZ(), 12,
                     entity.getBbWidth() / 2, entity.getBbHeight() / 3, entity.getBbWidth() / 2, 0.02);
             sent.add(entity.getType().getDescription().getString() + " " + ticks / 20 + " s");
+        }
+        // lit TNT goes too: it bursts in the shadow, harming nothing in the world
+        for (net.minecraft.world.entity.item.PrimedTnt tnt : level.getEntitiesOfClass(net.minecraft.world.entity.item.PrimedTnt.class,
+                user.getBoundingBox().inflate(RADIUS), e -> e.distanceToSqr(user) <= RADIUS * RADIUS)) {
+            Shades.sendAway(tnt, TICKS);
+            level.sendParticles(ParticleTypes.SQUID_INK, tnt.getX(), tnt.getY() + 0.5, tnt.getZ(), 12, 0.3, 0.3, 0.3, 0.02);
+            sent.add("tnt " + TICKS / 20 + " s");
         }
         // a ring running out to where it reaches, and a deep boom
         for (int ring = 1; ring <= 4; ring++) {

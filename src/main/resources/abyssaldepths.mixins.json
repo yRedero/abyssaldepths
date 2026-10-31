@@ -5,6 +5,8 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "BlockEntityMixin",
+    "FirmamentCollideMixin",
+    "FirmamentFloatMixin",
     "LevelChunkMixin",
     "MineshaftStructureMixin",
     "OverworldBiomeBuilderMixin",
@@ -22,6 +24,7 @@
   },
   "client": [
     "FadeDrawMixin",
+    "FirmamentPaceMixin",
     "InterludeParticleEngineMixin",
     "InterludeParticleMixin",
     "MirageHandMixin",
