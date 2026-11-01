@@ -326,6 +326,9 @@ public final class FractureScreen {
                     phase = Phase.WASHING;
                     phaseTicks = 0;
                     target = level = previousLevel = 0.0F; // the cracks are spent
+                    if (mc.player != null) {
+                        FractureView.cracks(mc.player.getId(), 0.0F); // and gone from their body too
+                    }
                     if (!intoTrial) {
                         TrialHud.out(passed); // how it went, as the world shows again
                         if (passed && mc.player != null) {

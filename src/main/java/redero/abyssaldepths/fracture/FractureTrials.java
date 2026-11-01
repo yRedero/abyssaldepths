@@ -181,6 +181,8 @@ public final class FractureTrials {
             PacketDistributor.sendToPlayersTrackingEntityAndSelf(player, new EffectPayload("fracture_dying/" + player.getId(), 0));
         }
         PacketDistributor.sendToPlayer(player, new EffectPayload("trial_out/" + (passed ? 1 : 0), 0));
+        // the control lost in the trial (shown as corruption on their screen and body) is over with it
+        PacketDistributor.sendToPlayersTrackingEntityAndSelf(player, new EffectPayload("corruption/" + player.getId() + "/0", 0));
         if (!passed) {
             Scars.set(player, Scars.of(player) + 1);
             // the death a moment later: just after a move between worlds a player cannot be hurt

@@ -565,6 +565,10 @@ public final class AutoShot {
                                     p.getMaxHealth(), p.getInventory().countItem(net.minecraft.world.item.Items.DIAMOND));
                         });
                     }
+                    if (fractureBack >= 0 && t - fractureBack == 150) {
+                        AbyssalDepths.LOGGER.info("fracture check {}: left on the own body {}, on the screen {}", trials[fractureTrial],
+                                redero.abyssaldepths.client.FractureView.cracksOf(mc.player.getId()), redero.abyssaldepths.client.FractureScreen.corruptionLevel());
+                    }
                     if (fractureBack >= 0 && t - fractureBack == 160) {
                         redero.abyssaldepths.fracture.FractureTrials.unharmed = false;
                         fractureTrial++;

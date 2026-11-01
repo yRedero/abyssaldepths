@@ -89,6 +89,11 @@ public final class FractureView {
         }
     }
 
+    /** How far corruption has come in an entity, as this client has it (0 .. 1). */
+    public static float cracksOf(int entityId) {
+        return CRACKS.isEmpty() ? 0.0F : CRACKS.get(entityId);
+    }
+
     /** How far corruption has come in an entity (from the server). */
     public static void cracks(int entityId, float value) {
         if (value <= 0.0F) {
