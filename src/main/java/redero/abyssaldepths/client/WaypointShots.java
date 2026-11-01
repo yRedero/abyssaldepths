@@ -35,10 +35,30 @@ public final class WaypointShots {
         return mc.gameDirectory.toPath().resolve("abyssaldepths").resolve("waypoints").resolve(world.replaceAll("[^A-Za-z0-9._-]", "_")).resolve(player);
     }
 
-    /** Takes the picture of the place being left (render thread), filed under its key. */
+    /** The frame of the moment Inner Haven was used (before its light fills the screen), and when. */
+    private static NativeImage held;
+    private static long heldAt;
+
+    /** Keeps the frame of this moment, for the picture of the place being left (Inner Haven just used). */
+    public static void hold() {
+        final Minecraft mc = Minecraft.getInstance();
+        if (held != null) {
+            held.close();
+        }
+        held = Screenshot.takeScreenshot(mc.getMainRenderTarget());
+        heldAt = net.minecraft.Util.getMillis();
+    }
+
+    /**
+     * Files the picture of the place being left under its key (render thread): the frame kept as Inner Haven
+     * was used, if it is recent, else the screen now.
+     */
     public static void capture(long key) {
         final Minecraft mc = Minecraft.getInstance();
-        try (NativeImage full = Screenshot.takeScreenshot(mc.getMainRenderTarget()); NativeImage small = new NativeImage(WIDTH, HEIGHT, false)) {
+        final boolean kept = held != null && net.minecraft.Util.getMillis() - heldAt < 10_000;
+        final NativeImage source = kept ? held : Screenshot.takeScreenshot(mc.getMainRenderTarget());
+        held = null;
+        try (NativeImage full = source; NativeImage small = new NativeImage(WIDTH, HEIGHT, false)) {
             // the middle 16:9 of the frame, scaled down
             final int w = full.getWidth(), h = full.getHeight();
             final int cw = Math.min(w, h * 16 / 9), ch = Math.min(h, w * 9 / 16);

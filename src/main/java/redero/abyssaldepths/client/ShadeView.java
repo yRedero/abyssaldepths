@@ -161,7 +161,8 @@ public final class ShadeView {
             final float step = 50.0F / ClientConfig.parallaxTransitionMillis();
             crossing = Mth.clamp(crossing + (shade ? step : -step), 0.0F, 1.0F);
         }
-        seesWorld = mc.player != null && ParallaxItem.seesWorld(mc.player);
+        // seeing the world lasts through the crossing back out (else all of it would vanish before the crossing)
+        seesWorld = mc.player != null && (ParallaxItem.seesWorld(mc.player) || seesWorld && crossing > 0.0F);
         Shades.clientViewInShadow = inShadow();
         if (inShadow() && previous < 0.5F) {
             // what plays in the world stops at the crossing (not the players' sounds: Parallax's own switch)

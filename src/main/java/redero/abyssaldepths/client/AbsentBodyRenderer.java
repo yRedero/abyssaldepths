@@ -56,6 +56,14 @@ public class AbsentBodyRenderer extends LivingEntityRenderer<AbsentBody, PlayerM
         pose.popPose();
     }
 
+    /** Bodies dissolving away (their player came back elsewhere): only their dissolve is drawn now. */
+    public static final java.util.Set<Integer> GONE = new java.util.HashSet<>();
+
+    @Override
+    public boolean shouldRender(AbsentBody body, net.minecraft.client.renderer.culling.Frustum frustum, double x, double y, double z) {
+        return !GONE.contains(body.getId()) && super.shouldRender(body, frustum, x, y, z);
+    }
+
     @Override
     public ResourceLocation getTextureLocation(AbsentBody body) {
         return skin(body).texture();
@@ -73,6 +81,7 @@ public class AbsentBodyRenderer extends LivingEntityRenderer<AbsentBody, PlayerM
             event.registerEntityRenderer(AbyssalDepths.ABSENT_BODY.get(), AbsentBodyRenderer::new);
             event.registerEntityRenderer(AbyssalDepths.SEAT.get(), net.minecraft.client.renderer.entity.NoopRenderer::new); // the mat's seat: nothing to see
             event.registerEntityRenderer(AbyssalDepths.UNDERTOW_ENTITY.get(), UndertowRenderer::new); // the event horizon
+            event.registerEntityRenderer(AbyssalDepths.EMPYREAN_BEAM.get(), EmpyreanRenderer::new); // the column of light
             // Mirage's decoy: the same likeness as the absent body
             event.registerEntityRenderer(AbyssalDepths.MIRAGE_DECOY.get(), context -> (net.minecraft.client.renderer.entity.EntityRenderer) new AbsentBodyRenderer(context));
         }

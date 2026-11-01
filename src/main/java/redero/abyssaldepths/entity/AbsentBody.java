@@ -89,10 +89,18 @@ public class AbsentBody extends LivingEntity {
             // the owner is back in this world, logged out, or gone for good: the body is no longer needed (it
             // is left again when they go into the inner self anew)
             final Player owner = owner().map(id -> level().getServer().getPlayerList().getPlayer(id)).orElse(null);
-            if (shouldVanish(owner)) {
+            if (fadeUntil >= 0 ? level().getGameTime() >= fadeUntil : shouldVanish(owner)) {
                 discard();
             }
         }
+    }
+
+    /** Server: when it goes, dissolving (its player came back elsewhere); -1 while it waits. */
+    private long fadeUntil = -1;
+
+    /** It dissolves away for those who see it (they are told so), and is gone after so many ticks. */
+    public void fadeAway(int ticks) {
+        fadeUntil = level().getGameTime() + ticks;
     }
 
     /** The server's word on the head is ignored: it is turned here (see {@link #tick}). */

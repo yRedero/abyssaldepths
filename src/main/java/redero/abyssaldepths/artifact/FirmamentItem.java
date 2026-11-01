@@ -1,85 +1,106 @@
 package redero.abyssaldepths.artifact;
 
+import it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResultHolder;
-import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.level.Level;
+import net.neoforged.neoforge.network.PacketDistributor;
+import redero.abyssaldepths.network.EffectPayload;
 
 /**
- * Firmament: while right click is held, a block of air under its holder's feet bears them
- * ({@link Firmament}): they walk on it, jump to climb, let go to fall. One charge a hold; a hold lasts up
- * to {@link #SECONDS} and the blocks left behind stay for {@link #TRAIL}, both longer with the mastery, and
- * from {@link #SOFT_LANDING} on the fall after letting go does no harm. Five charges, one back a minute.
+ * Firmament: right click switches it on and off; it works from anywhere in the inventory. While on, a block
+ * of air under its holder's feet bears them ({@link Firmament}): they walk on it, jump to climb, sneak (or
+ * switch it off) to fall. A charge lasts {@link #SECONDS}, longer with the mastery, and the blocks left
+ * behind stay for {@link #TRAIL}; from {@link #SOFT_LANDING} on the fall after letting go does no harm, and
+ * mastered it gives Speed II while on. Switching it on takes a charge at once, then one each {@link #SECONDS}
+ * ({@link #chargesOnSwitch}); switching it off needs no rest. Five charges, one back a minute (not while on). The clients learn who has it on from {@code firmament/<entity id>/<milestone>} effects.
  */
-public class FirmamentItem extends ArtifactItem {
-    /** Seconds a hold lasts and ticks a block left behind stays, per milestone (0 .. 4). */
+public class FirmamentItem extends ToggleArtifactItem {
+    /** Seconds a charge lasts and ticks a block left behind stays, per milestone (0 .. 4). */
     static final int[] SECONDS = {5, 10, 15, 20, 30}, TRAIL = {20, 30, 40, 50, 60};
     /** The milestone from which the fall after letting go is soft. */
     static final int SOFT_LANDING = 2;
+    /** Client: other players with it on (until which tick), and its milestone. */
+    private static final Int2LongOpenHashMap CLIENT = new Int2LongOpenHashMap();
+    private static final it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap CLIENT_MILESTONE = new it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap();
 
     public FirmamentItem(Properties properties, ArtifactRank rank, ArtifactFrame frame, int maxCharge, int regenTicks) {
-        super(properties, rank, frame, maxCharge, regenTicks);
+        super(properties, rank, frame, maxCharge, regenTicks, 100);
     }
 
     @Override
     public Component powerLine(ItemStack stack) {
         final int m = milestone(stack);
-        return Component.translatable(m >= SOFT_LANDING ? "item.abyssaldepths.firmament.power_soft" : "item.abyssaldepths.firmament.power",
-                SECONDS[m], TRAIL[m] / 20.0F);
+        return Component.translatable(m >= 4 ? "item.abyssaldepths.firmament.power_speed" : m >= SOFT_LANDING ? "item.abyssaldepths.firmament.power_soft"
+                : "item.abyssaldepths.firmament.power", SECONDS[m], TRAIL[m] / 20.0F);
     }
 
     @Override
-    protected int cooldownTicks() {
-        return 20;
-    }
-
-    @Override
-    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
-        final ItemStack stack = player.getItemInHand(hand);
-        if (charge(stack) < 1) {
-            player.displayClientMessage(Component.translatable("abyssaldepths.firmament.no_charge"), true);
-            return InteractionResultHolder.fail(stack);
-        }
-        if (!level.isClientSide) {
-            setCharge(stack, charge(stack) - 1);
-            level.playSound(null, player.blockPosition(), SoundEvents.BEACON_ACTIVATE, SoundSource.PLAYERS, 0.6F, 1.8F);
-        }
-        player.startUsingItem(hand);
-        return InteractionResultHolder.consume(stack);
-    }
-
-    @Override
-    public int getUseDuration(ItemStack stack, LivingEntity entity) {
+    protected int drainTicks(ItemStack stack) {
         return SECONDS[milestone(stack)] * 20;
     }
 
     @Override
-    public UseAnim getUseAnimation(ItemStack stack) {
-        return UseAnim.NONE;
+    protected boolean chargesOnSwitch() {
+        return true;
+    }
+
+    /** Switching off is free to do again at once; only switching on rests. */
+    @Override
+    protected boolean restsAfter(boolean on) {
+        return on;
     }
 
     @Override
-    public void releaseUsing(ItemStack stack, Level level, LivingEntity entity, int timeLeft) {
-        end(level, entity);
+    protected String noChargeKey() {
+        return "abyssaldepths.firmament.no_charge";
     }
 
-    /** The hold ran out. */
     @Override
-    public ItemStack finishUsingItem(ItemStack stack, Level level, LivingEntity entity) {
-        end(level, entity);
-        return stack;
+    protected void playSwitch(Level level, Player player, boolean on) {
+        playSwitch(level, player, on ? SoundEvents.BEACON_ACTIVATE : SoundEvents.BEACON_DEACTIVATE, 1.8F);
+        if (player instanceof ServerPlayer server) {
+            PacketDistributor.sendToPlayersTrackingEntityAndSelf(server, new EffectPayload("firmament/" + player.getId() + "/0", on ? 15 : 0));
+        }
     }
 
-    private void end(Level level, LivingEntity entity) {
-        if (!level.isClientSide && entity instanceof Player player) {
-            level.playSound(null, player.blockPosition(), SoundEvents.BEACON_DEACTIVATE, SoundSource.PLAYERS, 0.5F, 1.8F);
-            rest(player);
+    @Override
+    protected void whileActive(ServerPlayer player, ItemStack stack) {
+        final int m = milestone(stack);
+        if (player.serverLevel().getGameTime() % 10 == 0) {
+            PacketDistributor.sendToPlayersTrackingEntityAndSelf(player, new EffectPayload("firmament/" + player.getId() + "/" + m, 15));
+        }
+        if (m >= 4) {
+            player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 30, 1, true, false, true));
+        }
+    }
+
+    /** The milestone of the Firmament the player has on (0 .. 4), or -1 if none is on. */
+    static int onMilestone(Player player) {
+        if (player.level().isClientSide && !player.isLocalPlayer()) { // others' inventories are not known here
+            return !CLIENT.isEmpty() && CLIENT.get(player.getId()) >= player.level().getGameTime() ? CLIENT_MILESTONE.get(player.getId()) : -1;
+        }
+        final Inventory inventory = player.getInventory();
+        for (int i = 0; i < inventory.getContainerSize(); i++) {
+            final ItemStack stack = inventory.getItem(i);
+            if (stack.getItem() instanceof FirmamentItem && active(stack)) {
+                return milestone(stack);
+            }
+        }
+        return -1;
+    }
+
+    /** Client: another player has it on, at this milestone, for the next {@code ticks} ticks (0: no longer). */
+    public static void clientOn(int entityId, int milestone, int ticks, long clientTick) {
+        CLIENT.put(entityId, ticks > 0 ? clientTick + ticks : clientTick - 1);
+        if (ticks > 0) {
+            CLIENT_MILESTONE.put(entityId, milestone);
         }
     }
 }

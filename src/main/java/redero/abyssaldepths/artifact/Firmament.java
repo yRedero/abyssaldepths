@@ -27,12 +27,12 @@ import redero.abyssaldepths.AbyssalDepths;
 
 /**
  * The blocks Firmament holds under its users' feet. Each side (the server, every client) works them out
- * by itself from the players it knows: while a player holds Firmament ({@link FirmamentItem}, the use is
- * synced to everyone), the free block under their feet becomes one of theirs, and the ones they left stay
+ * by itself from the players it knows: while a player has Firmament on ({@link FirmamentItem}; the clients
+ * learn it of others from the server) and is not sneaking, the free block under their feet becomes one of theirs, and the ones they left stay
  * for a trail of a second or more. Only the user stands on them, on their own client
  * ({@link #addShapes}, the movement is the client's); the server knows them so it does not take the user
  * for flying ({@link #holdsUp}); the other players see their top outline ({@code client.FirmamentView}).
- * Let go, the blocks give way at once and only fade out.
+ * Switched off, or sneaking, the blocks give way at once and only fade out.
  */
 public final class Firmament {
     /** A player's blocks: packed position to the game tick it goes. */
@@ -88,13 +88,13 @@ public final class Firmament {
         final Level level = player.level();
         final Map<Integer, Platform> side = side(level);
         Platform platform = side.get(player.getId());
-        final boolean using = player.isUsingItem() && player.getUseItem().getItem() instanceof FirmamentItem && !player.isSpectator();
+        final int m = player.isSpectator() ? -1 : FirmamentItem.onMilestone(player);
+        final boolean using = m >= 0 && !player.isShiftKeyDown(); // sneaking: the blocks give way, to go down
         if (using) {
             if (platform == null || platform.level != level) {
                 platform = new Platform(level);
                 side.put(player.getId(), platform);
             }
-            final int m = ArtifactItem.milestone(player.getUseItem());
             platform.trail = FirmamentItem.TRAIL[m];
             platform.softLanding = m >= FirmamentItem.SOFT_LANDING;
             platform.held = true;

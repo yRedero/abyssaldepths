@@ -129,6 +129,21 @@ public final class ClientConfig {
                     "(in flickering blocks), NONE (at once).")
             .translation("abyssaldepths.config.convergence_apply")
             .defineEnum("convergenceApply", ConvergenceApply.DISSOLVE);
+    private static final ModConfigSpec.EnumValue<OblivionLook> OBLIVION_LOOK = BUILDER
+            .comment("How Oblivion charges up while held: INK (rings of black pixels rushing in to its user from where it reaches),",
+                    "ECLIPSE (a black pixel sun swelling above its user, the world darkening, dark streams drawn up into it), GRASP",
+                    "(pixel shadow fingers rising round its user and closing over them), TORN (black cracks running over the screens of",
+                    "those near, shattering when it is cast).")
+            .translation("abyssaldepths.config.oblivion_look")
+            .defineEnum("oblivionLook", OblivionLook.INK);
+    private static final ModConfigSpec.EnumValue<EmpyreanBeamLook> EMPYREAN_BEAM = BUILDER
+            .comment("Empyrean's beam, in pixels: CATHEDRAL (a radiant core, six beams falling slantwise round it out of lights in",
+                    "the sky), RADIANT (a white core in bands of gold and rose), HALO (a white and gold core with four thin beams circling",
+                    "it), CRIMSON (a deep red beam in rose and dark, throbbing), SPIRAL (a radiant core with two strands of pixels winding",
+                    "down round it), JUDGEMENT (falling out of a great sigil turning in the sky), RIFT (a black core rimmed with white,",
+                    "violet motes drawn in), SUPERNOVA (bursting open to twice its width, rays of light over the ground).")
+            .translation("abyssaldepths.config.empyrean_beam")
+            .defineEnum("empyreanBeam", EmpyreanBeamLook.CATHEDRAL);
     private static final ModConfigSpec.EnumValue<RepulsionWave> REPULSION_WAVE = BUILDER
             .comment("Repulsion's pressure wave: SHOCK (three thin rings one after another), RING (a ring of pixels running out over",
                     "the ground), DOME (a dome of pixels swelling), BURST (rays of pixels shooting out), GUST (the game's",
@@ -178,6 +193,10 @@ public final class ClientConfig {
     public enum ConvergenceLook { PIXEL_EDGES, OUTLINE, DITHER, CORNERS, NONE }
 
     public enum RepulsionWave { SHOCK, RING, DOME, BURST, GUST }
+
+    public enum OblivionLook { INK, ECLIPSE, GRASP, TORN }
+
+    public enum EmpyreanBeamLook { CATHEDRAL, RADIANT, HALO, CRIMSON, SPIRAL, JUDGEMENT, RIFT, SUPERNOVA }
 
     public enum ConvergenceApply { DISSOLVE, SWEEP, RISE, GLITCH, NONE }
 
@@ -319,6 +338,14 @@ public final class ClientConfig {
         return SPEC.isLoaded() ? CONVERGENCE_APPLY.get() : ConvergenceApply.DISSOLVE;
     }
 
+    public static EmpyreanBeamLook empyreanBeam() {
+        return SPEC.isLoaded() ? EMPYREAN_BEAM.get() : EmpyreanBeamLook.CATHEDRAL;
+    }
+
+    public static OblivionLook oblivionLook() {
+        return SPEC.isLoaded() ? OBLIVION_LOOK.get() : OblivionLook.INK;
+    }
+
     public static RepulsionWave repulsionWave() {
         return SPEC.isLoaded() ? REPULSION_WAVE.get() : RepulsionWave.SHOCK;
     }
@@ -336,6 +363,8 @@ public final class ClientConfig {
                 case "aegis_overlay" -> AEGIS_OVERLAY.set(AegisOverlay.valueOf(value));
                 case "convergence" -> CONVERGENCE_LOOK.set(ConvergenceLook.valueOf(value));
                 case "repulsion" -> REPULSION_WAVE.set(RepulsionWave.valueOf(value));
+                case "oblivion" -> OBLIVION_LOOK.set(OblivionLook.valueOf(value));
+                case "empyrean" -> EMPYREAN_BEAM.set(EmpyreanBeamLook.valueOf(value));
                 case "convergence_apply" -> CONVERGENCE_APPLY.set(ConvergenceApply.valueOf(value));
                 case "convergence_layer" -> CONVERGENCE_LAYER.set(ConvergenceLayerFit.valueOf(value));
                 default -> {

@@ -44,6 +44,20 @@ public abstract class ToggleArtifactItem extends ArtifactItem {
         return drainTicks;
     }
 
+    /** Whether a rest follows switching it on (or off); both by default. */
+    protected boolean restsAfter(boolean on) {
+        return true;
+    }
+
+    /**
+     * Whether switching on takes a charge at once and then one every {@link #drainTicks} counted from then
+     * (it runs out at the end of its last charge); otherwise one is used every {@link #drainTicks} of the
+     * world's clock.
+     */
+    protected boolean chargesOnSwitch() {
+        return false;
+    }
+
     /** The message when it is used without charge. */
     protected abstract String noChargeKey();
 
@@ -77,8 +91,18 @@ public abstract class ToggleArtifactItem extends ArtifactItem {
         if (!level.isClientSide) {
             final boolean on = !active(stack);
             setActive(stack, on);
+            if (chargesOnSwitch()) {
+                if (on) { // the first charge at once; the time it ran from kept where the regeneration keeps its own
+                    setCharge(stack, charge(stack) - 1);
+                    stack.set(AbyssalDepths.CHARGE_TIME.get(), level.getGameTime());
+                } else {
+                    stack.remove(AbyssalDepths.CHARGE_TIME.get()); // the regeneration starts afresh
+                }
+            }
             playSwitch(level, player, on);
-            rest(player);
+            if (restsAfter(on)) {
+                rest(player);
+            }
         }
         return InteractionResultHolder.sidedSuccess(stack, level.isClientSide);
     }
@@ -91,6 +115,23 @@ public abstract class ToggleArtifactItem extends ArtifactItem {
             return;
         }
         if (level.isClientSide || !(entity instanceof ServerPlayer player)) {
+            return;
+        }
+        if (chargesOnSwitch()) {
+            final Long since = stack.get(AbyssalDepths.CHARGE_TIME.get());
+            if (since == null) {
+                stack.set(AbyssalDepths.CHARGE_TIME.get(), level.getGameTime());
+            } else if (level.getGameTime() - since >= drainTicks(stack)) {
+                if (charge(stack) <= 0) { // the last charge ran out
+                    setActive(stack, false);
+                    stack.remove(AbyssalDepths.CHARGE_TIME.get());
+                    playSwitch(level, player, false);
+                    return;
+                }
+                setCharge(stack, charge(stack) - 1);
+                stack.set(AbyssalDepths.CHARGE_TIME.get(), since + drainTicks(stack));
+            }
+            whileActive(player, stack);
             return;
         }
         if (level.getGameTime() % drainTicks(stack) == 0) {

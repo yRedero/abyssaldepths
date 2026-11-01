@@ -21,7 +21,7 @@ import redero.abyssaldepths.AbyssalDepths;
 public final class HavenFade {
     private static final int COLOUR = 0xF4F2EC;
     private static float alpha, previous, step;
-    /** Waiting to fade in: until the world is loaded and no screen is open any more, then a moment longer. */
+    /** Waiting to fade in: until the world is loaded and no loading screen is up any more, then a moment longer. */
     private static boolean holding;
     private static int settle;
     private static final int SETTLE_TICKS = 10;
@@ -53,7 +53,11 @@ public final class HavenFade {
         final Minecraft mc = Minecraft.getInstance();
         previous = alpha;
         if (holding) {
-            final boolean ready = mc.level != null && mc.player != null && mc.screen == null && mc.levelRenderer.hasRenderedAllSections();
+            // ready: the world there, no loading screen up (other screens, the chat say, do not hold it), all drawn
+            final boolean loading = mc.screen instanceof net.minecraft.client.gui.screens.ReceivingLevelScreen
+                    || mc.screen instanceof net.minecraft.client.gui.screens.LevelLoadingScreen || mc.screen instanceof net.minecraft.client.gui.screens.ProgressScreen
+                    || mc.screen instanceof net.minecraft.client.gui.screens.GenericMessageScreen;
+            final boolean ready = mc.level != null && mc.player != null && !loading && mc.levelRenderer.hasRenderedAllSections();
             settle = ready ? settle + 1 : 0;
             if (settle > SETTLE_TICKS) {
                 holding = false; // the new place is there and settled: start clearing

@@ -30,7 +30,6 @@
     "ConvergenceLocalMixin",
     "LivingRendererAccess",
     "FadeDrawMixin",
-    "FirmamentPaceMixin",
     "InterludeParticleEngineMixin",
     "InterludeParticleMixin",
     "MirageHandMixin",

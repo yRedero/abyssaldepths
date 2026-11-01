@@ -50,7 +50,7 @@ public final class WaypointScreen extends Screen {
             return;
         }
         final int alpha = (int) (Mth.clamp((fade - 0.6F) / 0.4F, 0.0F, 1.0F) * 255);
-        g.drawCenteredString(font, title, width / 2, tile(0)[1] - 26, alpha << 24 | (INK & 0xFFFFFF));
+        centred(g, title, width / 2, tile(0)[1] - 26, alpha << 24 | (INK & 0xFFFFFF));
         for (int i = 0; i < places.length; i++) {
             final int[] at = tile(i);
             final boolean hover = mouseX >= at[0] && mouseX < at[0] + TILE_W + 2 * FRAME && mouseY >= at[1] && mouseY < at[1] + TILE_H + 2 * FRAME;
@@ -60,16 +60,16 @@ public final class WaypointScreen extends Screen {
                 g.blit(picture, at[0] + FRAME, at[1] + FRAME, 0, 0, TILE_W, TILE_H, TILE_W, TILE_H);
             } else {
                 g.fill(at[0] + FRAME, at[1] + FRAME, at[0] + FRAME + TILE_W, at[1] + FRAME + TILE_H, 0xFF201418);
-                g.drawCenteredString(font, "?", at[0] + FRAME + TILE_W / 2, at[1] + FRAME + TILE_H / 2 - 4, 0xFF6A5050);
+                centred(g, "?", at[0] + FRAME + TILE_W / 2, at[1] + FRAME + TILE_H / 2 - 4, 0xFF6A5050);
             }
             final int cx = at[0] + FRAME + TILE_W / 2, below = at[1] + TILE_H + 2 * FRAME + 4;
-            g.drawCenteredString(font, Component.translatable("abyssaldepths.waypoints.coords", places[i][1], places[i][2], places[i][3]), cx, below, INK);
+            centred(g, Component.translatable("abyssaldepths.waypoints.coords", places[i][1], places[i][2], places[i][3]), cx, below, INK);
             final Component second = i == 0 ? Component.translatable("abyssaldepths.waypoints.body")
                     : Component.translatable("abyssaldepths.waypoints.where", dimension(places[i][0]), ago(Long.parseLong(places[i][4])));
-            g.drawCenteredString(font, second, cx, below + 11, FAINT);
+            centred(g, second, cx, below + 11, FAINT);
         }
         if (places.length == 0) {
-            g.drawCenteredString(font, Component.translatable("abyssaldepths.waypoints.none"), width / 2, height / 2, INK);
+            centred(g, Component.translatable("abyssaldepths.waypoints.none"), width / 2, height / 2, INK);
         }
     }
 
@@ -121,5 +121,11 @@ public final class WaypointScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    /** Text centred on x, without the game's drop shadow (it doubles the letters on the white). */
+    private void centred(GuiGraphics g, Object text, int x, int y, int colour) {
+        final Component line = text instanceof Component c ? c : Component.literal(String.valueOf(text));
+        g.drawString(font, line, x - font.width(line) / 2, y, colour, false);
     }
 }

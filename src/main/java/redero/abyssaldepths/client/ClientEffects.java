@@ -23,6 +23,25 @@ public final class ClientEffects {
             final String[] p = effect.substring("repulsion/".length()).split("/");
             RepulsionView.start(new net.minecraft.world.phys.Vec3(Double.parseDouble(p[0]), Double.parseDouble(p[1]), Double.parseDouble(p[2])),
                     Float.parseFloat(p[3]));
+        } else if (effect.startsWith("haven_body/")) { // the body left behind dissolves (its player came back elsewhere)
+            final net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc.level != null && mc.level.getEntity(Integer.parseInt(effect.substring("haven_body/".length()))) instanceof net.minecraft.world.entity.LivingEntity body) {
+                AbsentBodyRenderer.GONE.add(body.getId());
+                ShadeVanish.creature(body, false);
+            }
+        } else if (effect.startsWith("haven_appear/")) { // a player back from the inner self, appearing where they chose
+            final net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc.level != null && mc.level.getEntity(Integer.parseInt(effect.substring("haven_appear/".length()))) instanceof net.minecraft.client.player.AbstractClientPlayer player) {
+                ShadeVanish.appear(player);
+            }
+        } else if (effect.startsWith("haven_placed/")) {
+            redero.abyssaldepths.artifact.InnerSelf.clientPlaced(effect.substring("haven_placed/".length()));
+        } else if (effect.startsWith("firmament/")) {
+            final net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc.level != null) {
+                final String[] p = effect.substring("firmament/".length()).split("/");
+                redero.abyssaldepths.artifact.FirmamentItem.clientOn(Integer.parseInt(p[0]), Integer.parseInt(p[1]), payload.ticks(), mc.level.getGameTime());
+            }
         } else if (effect.startsWith("aegis_press/")) {
             AegisOverlay.press(effect.substring("aegis_press/".length()));
         } else if (effect.startsWith("aegis_hit/")) {

@@ -153,6 +153,21 @@ public final class ShadeVanish {
         }
     }
 
+    /**
+     * A player arriving somewhere out of nothing (back from the inner self at a remembered place): they appear
+     * for this client in the configured vanishing, backwards.
+     */
+    public static void appear(AbstractClientPlayer player) {
+        final Minecraft mc = Minecraft.getInstance();
+        final ShadeVanishStyle style = ClientConfig.shadeVanish();
+        if (mc.player == null || player == mc.player || style == ShadeVanishStyle.NONE || player.distanceToSqr(mc.player) > RANGE * RANGE) {
+            return;
+        }
+        FADES.removeIf(fade -> fade.entityId() == player.getId());
+        FADES.add(new Fade(player.getId(), Mode.APPEAR, Util.getMillis(), Fade.duration(style), style, player, player.position(), player.getBbWidth(),
+                player.getBbHeight(), seeds++));
+    }
+
     /** Whether the entity is still appearing (and only its fade is drawn). */
     static boolean appearing(Entity entity) {
         for (Fade fade : FADES) {

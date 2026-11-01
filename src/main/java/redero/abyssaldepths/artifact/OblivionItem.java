@@ -98,18 +98,9 @@ public class OblivionItem extends ArtifactItem {
         return UseAnim.NONE;
     }
 
-    /** While it is held: darkness gathers in towards the holder. */
-    @Override
-    public void onUseTick(Level level, LivingEntity entity, ItemStack stack, int remaining) {
-        if (!level.isClientSide) {
-            return;
-        }
-        final float progress = 1.0F - remaining / (float) USE_TICKS;
-        for (int i = 0; i < 2 + (int) (progress * 6); i++) {
-            final double a = level.random.nextDouble() * 2 * Math.PI, d = 2.0 + level.random.nextDouble() * 3.0;
-            final double x = entity.getX() + Math.cos(a) * d, z = entity.getZ() + Math.sin(a) * d, y = entity.getY() + level.random.nextDouble() * 2.0;
-            level.addParticle(ParticleTypes.SQUID_INK, x, y, z, -Math.cos(a) * 0.15 * (1 + progress), 0.0, -Math.sin(a) * 0.15 * (1 + progress));
-        }
+    /** Ticks it is held before it is cast (its charging up is drawn by the clients, {@code client.OblivionView}). */
+    public static int useTicks() {
+        return USE_TICKS;
     }
 
     @Override

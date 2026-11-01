@@ -58,6 +58,9 @@ public class InnerHavenItem extends ArtifactItem {
         if (!level.isClientSide && InnerSelf.travelling(player)) {
             return InteractionResultHolder.fail(stack);
         }
+        if (level.isClientSide && level.dimension() != InnerSelf.DIMENSION) {
+            redero.abyssaldepths.client.WaypointShots.hold(); // the picture of the place: now, before the light gathers
+        }
         player.startUsingItem(hand);
         return InteractionResultHolder.consume(stack);
     }

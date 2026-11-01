@@ -64,6 +64,7 @@ import redero.abyssaldepths.artifact.AegisItem;
 import redero.abyssaldepths.artifact.AnchorItem;
 import redero.abyssaldepths.artifact.ConvergenceItem;
 import redero.abyssaldepths.artifact.CounterweightItem;
+import redero.abyssaldepths.artifact.EmpyreanItem;
 import redero.abyssaldepths.artifact.FirmamentItem;
 import redero.abyssaldepths.artifact.RecallItem;
 import redero.abyssaldepths.artifact.RepulsionItem;
@@ -131,6 +132,11 @@ public class AbyssalDepths {
     /** Ticks a player has spent in the thalan layer without Deep Pressure, see {@link DeepPressure}. */
     public static final Supplier<AttachmentType<Integer>> TICKS_BELOW = ATTACHMENT_TYPES.register("ticks_below",
             () -> AttachmentType.builder(() -> 0).serialize(Codec.INT).build());
+
+    /** A player's mastery of each kind of artifact (item id to percent), theirs for good ({@code artifact.ArtifactOwnership}). */
+    public static final Supplier<AttachmentType<java.util.Map<String, Integer>>> MASTERIES = ATTACHMENT_TYPES.register("masteries",
+            () -> AttachmentType.<java.util.Map<String, Integer>>builder(() -> new java.util.HashMap<>())
+                    .serialize(Codec.unboundedMap(Codec.STRING, Codec.INT).xmap(java.util.HashMap::new, map -> map)).copyOnDeath().build());
 
     // ambience of the thalan layer, played by the biome; files in assets/abyssaldepths/sounds.json
     public static final DeferredHolder<SoundEvent, SoundEvent> AMBIENT_LOOP = sound("ambient.thalan_layer.loop");
@@ -261,6 +267,10 @@ public class AbyssalDepths {
     public static final DeferredItem<MirageItem> MIRAGE = ITEMS.register("mirage",
             () -> new MirageItem(new Item.Properties(), ArtifactRank.EXALTED, ArtifactFrame.HOLLOW, 2, 20 * 60 * 3));
 
+    /** Calls a column of light down from the sky (locks onto a creature when mastered); 2 charges, 1 back every 15 minutes (sooner with mastery). */
+    public static final DeferredItem<EmpyreanItem> EMPYREAN = ITEMS.register("empyrean",
+            () -> new EmpyreanItem(new Item.Properties(), ArtifactRank.PRIMORDIAL, ArtifactFrame.ZENITH, 2, 20 * 60 * 15));
+
     /** Makes its holder immovable for a while (no knockback); 3 charges, 1 back every 2 minutes. */
     public static final DeferredItem<AnchorItem> ANCHOR = ITEMS.register("anchor",
             () -> new AnchorItem(new Item.Properties(), ArtifactRank.LESSER, ArtifactFrame.HOLLOW, 3, 20 * 60 * 2));
@@ -290,10 +300,25 @@ public class AbyssalDepths {
             () -> new ParallaxItem(new Item.Properties(), ArtifactRank.EXALTED, ArtifactFrame.HOLLOW, 10, 20 * 60));
 
     /** The walls of the rooms of the inner self: pure white, can not be broken. */
-    public static final DeferredBlock<Block> HAVEN_WALL = withItem(BLOCKS.registerSimpleBlock("haven_wall",
-            BlockBehaviour.Properties.of().mapColor(MapColor.SNOW).strength(-1.0F, 3600000.0F).noLootTable()
-                    .isValidSpawn((state, level, pos, type) -> false).pushReaction(PushReaction.BLOCK)
-                    .lightLevel(state -> 0).emissiveRendering((state, level, pos) -> true)));
+    public static final DeferredBlock<Block> HAVEN_WALL = withItem(BLOCKS.registerBlock("haven_wall", properties -> new Block(properties) {
+                /** Not drawn: through it shows the sky, as if the haven went on. */
+                @Override
+                protected net.minecraft.world.level.block.RenderShape getRenderShape(net.minecraft.world.level.block.state.BlockState state) {
+                    return net.minecraft.world.level.block.RenderShape.INVISIBLE;
+                }
+
+                @Override
+                protected boolean propagatesSkylightDown(net.minecraft.world.level.block.state.BlockState state, net.minecraft.world.level.BlockGetter level, net.minecraft.core.BlockPos pos) {
+                    return true;
+                }
+
+                @Override
+                protected float getShadeBrightness(net.minecraft.world.level.block.state.BlockState state, net.minecraft.world.level.BlockGetter level, net.minecraft.core.BlockPos pos) {
+                    return 1.0F;
+                }
+            }, BlockBehaviour.Properties.of().mapColor(MapColor.SNOW).strength(-1.0F, 3600000.0F).noLootTable().noOcclusion()
+                    .isValidSpawn((state, level, pos, type) -> false).pushReaction(PushReaction.BLOCK).isViewBlocking((state, level, pos) -> false)
+                    .isSuffocating((state, level, pos) -> false)));
 
     /** A mat to sit on; at the heart of the island inner self. */
     public static final DeferredBlock<MeditationMatBlock> MEDITATION_MAT = withItem(BLOCKS.registerBlock("meditation_mat", MeditationMatBlock::new,
@@ -308,6 +333,10 @@ public class AbyssalDepths {
     public static final DeferredHolder<EntityType<?>, EntityType<UndertowEntity>> UNDERTOW_ENTITY = ENTITY_TYPES.register("undertow",
             () -> EntityType.Builder.<UndertowEntity>of(UndertowEntity::new, MobCategory.MISC).sized(0.5F, 0.5F).noSummon().clientTrackingRange(8)
                     .build("undertow"));
+    /** Empyrean's column of light. */
+    public static final DeferredHolder<EntityType<?>, EntityType<redero.abyssaldepths.entity.EmpyreanBeam>> EMPYREAN_BEAM = ENTITY_TYPES.register("empyrean_beam",
+            () -> EntityType.Builder.<redero.abyssaldepths.entity.EmpyreanBeam>of(redero.abyssaldepths.entity.EmpyreanBeam::new, MobCategory.MISC).sized(0.5F, 0.5F)
+                    .noSummon().clientTrackingRange(16).updateInterval(1).build("empyrean_beam"));
     /** Mirage's decoy: a likeness of its player. */
     public static final DeferredHolder<EntityType<?>, EntityType<MirageDecoy>> MIRAGE_DECOY = ENTITY_TYPES.register("mirage_decoy",
             () -> EntityType.Builder.<MirageDecoy>of(MirageDecoy::new, MobCategory.MISC).sized(0.6F, 1.8F).noSummon().clientTrackingRange(10)

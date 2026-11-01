@@ -87,6 +87,23 @@ public final class Shades {
         hideBossBars(entity);
     }
 
+    /** Whether the entity was sent into the shadow for a while (by Oblivion); on the client, whether it is a shade at all. */
+    public static boolean sentAway(Entity entity) {
+        return entity.level().isClientSide ? isShade(entity) : SENT.containsKey(entity.getUUID());
+    }
+
+    /** Brings back at once what was sent into the shadow (Parallax used by someone Oblivion sent there). */
+    public static void bringBack(Entity entity) {
+        if (SENT.remove(entity.getUUID()) == null || !(entity.level() instanceof net.minecraft.server.level.ServerLevel level)) {
+            return;
+        }
+        if (!SERVER.containsKey(entity.getUUID())) {
+            send(entity.getId(), 0);
+        }
+        loseTargets(level, entity);
+        showBossBars(entity);
+    }
+
     // ---- boss bars: a boss in the shadow shows its bar only to shades -----------------------
 
     /** Per entity class: its fields holding a boss bar (the Wither's, any modded boss's). */
@@ -271,8 +288,16 @@ public final class Shades {
                     send(player.getId(), CLIENT_TICKS);
                 }
             }
-            for (Sent sent : SENT.values()) {
-                send(sent.id(), (int) Math.min(Integer.MAX_VALUE, sent.until() - now));
+            for (Map.Entry<UUID, Sent> entry : SENT.entrySet()) {
+                // by the entity's id now: it changes when the creature is loaded again (its chunk unloaded and back)
+                final Sent sent = entry.getValue();
+                final net.minecraft.server.level.ServerLevel level = server.getLevel(sent.dimension());
+                final Entity entity = level == null ? null : level.getEntity(entry.getKey());
+                final int id = entity != null ? entity.getId() : sent.id();
+                if (id != sent.id()) {
+                    entry.setValue(new Sent(sent.dimension(), id, sent.until()));
+                }
+                send(id, (int) Math.min(Integer.MAX_VALUE, sent.until() - now));
             }
         }
     }

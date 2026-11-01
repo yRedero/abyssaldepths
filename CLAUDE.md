@@ -24,6 +24,8 @@ NeoForge 21.1 / Minecraft 1.21.1 mod (ModDevGradle). Adds the thalan layer below
   Convergence (walking through blocks): `ConvergenceItem.collide` via `ConvergenceMixin`, both sides alike;
   the wall view in `client/ConvergenceView`. Anchor, Aegis, Recall, Repulsion: check them all with
   `tools/autoshot.sh <round> small`; their looks (config `aegisLook`, `aegisOverlay`, `convergenceLook`, `convergenceApply`, `convergenceLayer`, `repulsionWave`; the Convergence layer on the player in `client/ConvergenceLayer`) with `looks`.
+  Mastery belongs to the player (`artifact/ArtifactOwnership`, attachment `MASTERIES`), written onto every
+  copy they carry; one of each artifact per inventory.
 - `block/`, `mixin/`, `network/` (one server-to-client effect payload), config in `ClientConfig`.
 - `src/dev/java`: dev-only (AutoShot, LayerMap, TunnelLayerCheck); not in the jar.
 - `src/test/java`: JUnit regressions of the generation (`./gradlew test`).

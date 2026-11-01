@@ -119,13 +119,13 @@ public final class LayerCommands {
             context.getSource().sendFailure(Component.literal("Hold an artifact in your main hand"));
             return 0;
         }
-        ArtifactItem.setMastery(held, percent);
+        redero.abyssaldepths.artifact.ArtifactOwnership.setMastery(player, held, percent); // the player's, for every copy
         context.getSource().sendSuccess(() -> Component.literal("Mastery set to " + percent + " %"), false);
         return 1;
     }
 
     /** Crosses into the inner self or back, as if Inner Haven had been used (no charge needed). */
-    /** {@code /abyssaldepths style mark|burst|aegis|aegis_overlay|convergence|convergence_apply|convergence_layer|repulsion <name>}: sets that client option of the one using it. */
+    /** {@code /abyssaldepths style mark|burst|aegis|aegis_overlay|convergence|convergence_apply|convergence_layer|repulsion|oblivion|empyrean <name>}: sets that client option of the one using it. */
     private static LiteralArgumentBuilder<CommandSourceStack> styles() {
         final LiteralArgumentBuilder<CommandSourceStack> style = Commands.literal("style");
         final LiteralArgumentBuilder<CommandSourceStack> mark = Commands.literal("mark"), burst = Commands.literal("burst");
@@ -158,7 +158,16 @@ public final class LayerCommands {
         for (ClientConfig.ConvergenceLayerFit value : ClientConfig.ConvergenceLayerFit.values()) {
             fit.then(Commands.literal(value.name().toLowerCase(java.util.Locale.ROOT)).executes(c -> send(c, "style/convergence_layer/" + value.name())));
         }
-        return style.then(mark).then(burst).then(aegis).then(aegisOverlay).then(convergence).then(apply).then(fit).then(repulsion);
+        final LiteralArgumentBuilder<CommandSourceStack> oblivion = Commands.literal("oblivion");
+        for (ClientConfig.OblivionLook value : ClientConfig.OblivionLook.values()) {
+            oblivion.then(Commands.literal(value.name().toLowerCase(java.util.Locale.ROOT)).executes(c -> send(c, "style/oblivion/" + value.name())));
+        }
+        final LiteralArgumentBuilder<CommandSourceStack> empyrean = Commands.literal("empyrean");
+        for (ClientConfig.EmpyreanBeamLook value : ClientConfig.EmpyreanBeamLook.values()) {
+            empyrean.then(Commands.literal(value.name().toLowerCase(java.util.Locale.ROOT)).executes(c -> send(c, "style/empyrean/" + value.name())));
+        }
+        return style.then(mark).then(burst).then(aegis).then(aegisOverlay).then(convergence).then(apply).then(fit).then(repulsion).then(oblivion)
+                .then(empyrean);
     }
 
     private static int form(CommandContext<CommandSourceStack> context, InnerSelf.Form form) throws CommandSyntaxException {

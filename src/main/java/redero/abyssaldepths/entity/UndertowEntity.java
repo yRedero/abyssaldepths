@@ -74,6 +74,14 @@ public class UndertowEntity extends Entity {
                 && (owner == null || !Shades.apart(owner, entity));
     }
 
+    /** The burst reaches players too (not its owner, nor spectators or the creative), unlike the pull. */
+    private boolean bursts(LivingEntity entity, Entity owner) {
+        if (entity instanceof Player player) {
+            return player.isAlive() && player != owner && !player.isSpectator() && !player.isCreative() && (owner == null || !Shades.apart(owner, player));
+        }
+        return pulls(entity, owner);
+    }
+
     @Override
     public void tick() {
         super.tick();
@@ -112,7 +120,7 @@ public class UndertowEntity extends Entity {
     /** The burst: hurts and throws back what is near, no blocks broken; its look is the clients' ({@link #BURST}). */
     private void burst(ServerLevel level, Entity owner) {
         final double radius = BURST_RADIUS * size();
-        for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, getBoundingBox().inflate(radius), e -> pulls(e, owner))) {
+        for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, getBoundingBox().inflate(radius), e -> bursts(e, owner))) {
             final double distance = entity.position().distanceTo(position());
             if (distance > radius) {
                 continue;

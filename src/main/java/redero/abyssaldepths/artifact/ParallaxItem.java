@@ -12,7 +12,8 @@ import net.minecraft.world.level.Level;
  * and to meet everyone else in the shadow. It uses up its charge (a full one lasts 60 s, up to 200 s with
  * the mastery milestones, {@link #SECONDS}); when empty it switches off. While off, the charge comes back
  * (one a minute). A shade sees nothing of the world's creatures and players (only other shades) until its
- * Parallax is at full mastery.
+ * Parallax is at full mastery. Sent into the shadow by Oblivion, using Parallax leads its holder out of it
+ * again (for a charge).
  */
 public class ParallaxItem extends ToggleArtifactItem {
     public ParallaxItem(Properties properties, ArtifactRank rank, ArtifactFrame frame, int maxCharge, int regenTicks) {
@@ -36,6 +37,26 @@ public class ParallaxItem extends ToggleArtifactItem {
 
     /** Seconds a full charge lasts, per milestone (0 .. 4). */
     static final int[] SECONDS = {60, 95, 130, 165, 200};
+
+    /** Sent into the shadow by someone's Oblivion: Parallax leads out of it (a charge), instead of switching on. */
+    @Override
+    public net.minecraft.world.InteractionResultHolder<ItemStack> use(Level level, Player player, net.minecraft.world.InteractionHand hand) {
+        final ItemStack stack = player.getItemInHand(hand);
+        if (!active(stack) && Shades.sentAway(player)) {
+            if (charge(stack) < 1) {
+                player.displayClientMessage(net.minecraft.network.chat.Component.translatable(noChargeKey()), true);
+                return net.minecraft.world.InteractionResultHolder.fail(stack);
+            }
+            if (!level.isClientSide) {
+                Shades.bringBack(player);
+                setCharge(stack, charge(stack) - 1);
+                playSwitch(level, player, false);
+                rest(player);
+            }
+            return net.minecraft.world.InteractionResultHolder.sidedSuccess(stack, level.isClientSide);
+        }
+        return super.use(level, player, hand);
+    }
 
     @Override
     protected void whileActive(ServerPlayer player, ItemStack stack) {

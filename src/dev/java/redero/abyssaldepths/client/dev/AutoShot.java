@@ -53,7 +53,7 @@ public final class AutoShot {
     private static final String SPOT_COMMANDS = System.getProperty("abyssaldepths.autoshot.spotCommands", "");
     private static final int SETTLE_TICKS = 220, TURN_TICKS = 15;
 
-    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, VANISH, OBLIVION, NEWARTIFACTS, FIRMAMENT, SMALL, LOOKS, VARIANTS, DONE }
+    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, VANISH, OBLIVION, NEWARTIFACTS, FIRMAMENT, SMALL, LOOKS, EMPYREAN, MARKS, WAKE, VARIANTS, DONE }
 
     private static Step step = Step.TITLE;
     private static final Deque<String> BIOMES = new ArrayDeque<>();
@@ -150,6 +150,30 @@ public final class AutoShot {
                     if (biome.endsWith("#0")) {
                         wait = 0;
                         step = Step.VARIANTS;
+                    }
+                    return;
+                }
+                if (biome != null && biome.startsWith("wake#")) {
+                    // not a place: into the inner self, Inner Haven lost there, waking by holding sneak ("wake check" lines)
+                    if (biome.endsWith("#0")) {
+                        wait = 0;
+                        step = Step.WAKE;
+                    }
+                    return;
+                }
+                if (biome != null && biome.startsWith("marks#")) {
+                    // not a place: a mastered Parallax shade, creatures of the world marked, one sent into the shadow; leaving ("marks check" lines)
+                    if (biome.endsWith("#0")) {
+                        wait = 0;
+                        step = Step.MARKS;
+                    }
+                    return;
+                }
+                if (biome != null && biome.startsWith("empyrean#")) {
+                    // not a place: Empyrean's beam on creatures in the open, under ten blocks of stone, locked on ("empyrean check" lines)
+                    if (biome.endsWith("#0")) {
+                        wait = 0;
+                        step = Step.EMPYREAN;
                     }
                     return;
                 }
@@ -337,7 +361,7 @@ public final class AutoShot {
                         final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
                         AbyssalDepths.LOGGER.info("artifact check severance hunger: food before {}", p.getFoodData().getFoodLevel());
                         final net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(AbyssalDepths.SEVERANCE.get());
-                        redero.abyssaldepths.artifact.ArtifactItem.setMastery(stack, 100);
+                        redero.abyssaldepths.artifact.ArtifactOwnership.setMastery(p, stack, 100);
                         AbyssalDepths.SEVERANCE.get().setCharge(stack, 3);
                         p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, stack);
                         stack.use(p.serverLevel(), p, net.minecraft.world.InteractionHand.MAIN_HAND);
@@ -361,6 +385,167 @@ public final class AutoShot {
                     mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
                     redero.abyssaldepths.ClientConfig.setStyle("burst", "VOID");
                     redero.abyssaldepths.ClientConfig.setStyle("mark", "SIGIL");
+                    command(server, "gamemode spectator");
+                    step = Step.NEXT;
+                }
+            }
+            case WAKE -> {
+                final MinecraftServer server = mc.getSingleplayerServer();
+                final int t = ++wait;
+                if (t == 1) {
+                    command(server, "gamemode survival");
+                    command(server, "abyssaldepths innerhaven");
+                } else if (t == 80) {
+                    command(server, "clear @s abyssaldepths:inner_haven");
+                    AbyssalDepths.LOGGER.info("wake check in: {}", mc.level.dimension().location());
+                } else if (t == 90) {
+                    mc.options.keyShift.setDown(true);
+                } else if (t == 200) {
+                    mc.options.keyShift.setDown(false);
+                } else if (t == 210) {
+                    AbyssalDepths.LOGGER.info("wake check after holding sneak: {}", mc.level.dimension().location());
+                    command(server, "gamemode spectator");
+                    step = Step.NEXT;
+                }
+            }
+            case MARKS -> {
+                final MinecraftServer server = mc.getSingleplayerServer();
+                final int t = ++wait;
+                if (t == 1) {
+                    command(server, "gamemode survival");
+                    command(server, "tp @s ~ ~40 ~ 0 15");
+                    command(server, "effect give @s resistance 600 4 true");
+                    command(server, "time set noon");
+                } else if (t == 6) {
+                    command(server, "fill ~-8 ~-2 ~-4 ~8 ~8 ~14 air");
+                    command(server, "fill ~-8 ~-1 ~-4 ~8 ~-1 ~14 stone");
+                    command(server, "summon zombie ~-2 ~ ~5 {NoAI:1b,PersistenceRequired:1b,Tags:[\"marks_test\"],CustomName:'\"sent\"'}");
+                    command(server, "summon zombie ~2 ~ ~5 {NoAI:1b,PersistenceRequired:1b,Tags:[\"marks_test\"],CustomName:'\"stays\"'}");
+                    command(server, "summon iron_golem ~0 ~ ~8 {NoAI:1b,PersistenceRequired:1b,Tags:[\"marks_test\"],CustomName:'\"golem\"'}");
+                } else if (t == 8) {
+                    server.execute(() -> { // the golem sent into the shadow before the player goes there (Oblivion first)
+                        for (net.minecraft.world.entity.Entity e : server.getPlayerList().getPlayers().get(0).serverLevel().getAllEntities()) {
+                            if (e.getCustomName() != null && e.getCustomName().getString().equals("golem")) {
+                                redero.abyssaldepths.artifact.Shades.sendAway(e, 600);
+                            }
+                        }
+                    });
+                    mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+                } else if (t == 10) {
+                    server.execute(() -> { // Parallax mastered, switched on
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        final net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(AbyssalDepths.PARALLAX.get());
+                        p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, stack);
+                        redero.abyssaldepths.artifact.ArtifactOwnership.setMastery(p, stack, 100);
+                        stack.use(p.serverLevel(), p, net.minecraft.world.InteractionHand.MAIN_HAND);
+                    });
+                } else if (t == 70 || t == 90 || t >= 112 && t <= 140 && t % 4 == 0) {
+                    final String when = t == 70 ? "in the shadow" : t == 90 ? "one sent" : "leaving, tick " + (t - 110);
+                    for (net.minecraft.world.entity.Entity e : mc.level.entitiesForRendering()) {
+                        if (e.getCustomName() != null && java.util.List.of("sent", "stays", "golem").contains(e.getCustomName().getString())) {
+                            AbyssalDepths.LOGGER.info("marks check {}: {} shade {} hidden {} marked {} (view in shadow {})", when, e.getCustomName().getString(),
+                                    redero.abyssaldepths.artifact.Shades.isShade(e), redero.abyssaldepths.client.ShadeView.hidden(e),
+                                    redero.abyssaldepths.artifact.Shades.clientViewInShadow && !redero.abyssaldepths.artifact.Shades.isShade(e)
+                                            && !redero.abyssaldepths.client.ShadeView.hidden(e),
+                                    redero.abyssaldepths.artifact.Shades.clientViewInShadow);
+                        }
+                    }
+                    if (t == 70) {
+                        shoot(mc, "marks_0_dir0");
+                    } else if (t == 90) {
+                        shoot(mc, "marks_0_dir1");
+                    } else if (t == 116) {
+                        shoot(mc, "marks_0_dir2"); // leaving: the world should still be there
+                    }
+                } else if (t == 80) {
+                    server.execute(() -> { // the left one sent into the shadow, as Oblivion does
+                        for (net.minecraft.world.entity.Entity e : server.getPlayerList().getPlayers().get(0).serverLevel().getAllEntities()) {
+                            if (e.getCustomName() != null && e.getCustomName().getString().equals("sent")) {
+                                redero.abyssaldepths.artifact.Shades.sendAway(e, 400);
+                            }
+                        }
+                    });
+                } else if (t == 110) {
+                    server.execute(() -> { // Parallax off: leaving the shadow
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        p.getMainHandItem().use(p.serverLevel(), p, net.minecraft.world.InteractionHand.MAIN_HAND);
+                    });
+                } else if (t > 145) {
+                    command(server, "kill @e[tag=marks_test]");
+                    mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+                    command(server, "gamemode spectator");
+                    step = Step.NEXT;
+                }
+            }
+            case EMPYREAN -> {
+                final MinecraftServer server = mc.getSingleplayerServer();
+                final int t = ++wait;
+                final String tough = "{NoAI:1b,PersistenceRequired:1b,Tags:[\"empyrean_test\"],Health:300f,attributes:[{id:\"minecraft:generic.max_health\",base:300}]";
+                if (t == 1) {
+                    command(server, "gamemode survival");
+                    command(server, "tp @s ~ ~40 ~ 0 15");
+                    command(server, "effect give @s resistance 600 4 true");
+                    command(server, "time set noon");
+                } else if (t == 6) {
+                    command(server, "fill ~-10 ~-2 ~-4 ~10 ~14 ~20 air");
+                    command(server, "fill ~-10 ~-1 ~-4 ~10 ~-1 ~20 stone");
+                    command(server, "fill ~3 ~3 ~7 ~5 ~12 ~9 stone"); // ten blocks over the second
+                    command(server, "summon zombie ~ ~ ~8 " + tough + ",CustomName:'\"open\"'}");
+                    command(server, "summon zombie ~4 ~ ~8 " + tough + ",CustomName:'\"covered\"'}");
+                    command(server, "summon zombie ~-6 ~ ~10 " + tough + ",CustomName:'\"locked\"'}");
+                    mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+                } else if (t == 15) {
+                    server.execute(() -> {
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        for (net.minecraft.world.entity.Entity e : p.serverLevel().getAllEntities()) {
+                            if (e.getTags().contains("empyrean_test") && e.getCustomName() != null) {
+                                final String name = e.getCustomName().getString();
+                                if (name.equals("locked")) { // mastered, right clicked on: locked
+                                    final net.minecraft.world.phys.Vec3 look = e.position().add(0, 1.2, 0).subtract(p.getEyePosition());
+                                    p.setYRot((float) Math.toDegrees(Math.atan2(-look.x, look.z)));
+                                    p.setXRot((float) -Math.toDegrees(Math.atan2(look.y, Math.sqrt(look.x * look.x + look.z * look.z))));
+                                    final net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(AbyssalDepths.EMPYREAN.get());
+                                    p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, stack);
+                                    redero.abyssaldepths.artifact.ArtifactOwnership.setMastery(p, stack, 100);
+                                    stack.use(p.serverLevel(), p, net.minecraft.world.InteractionHand.MAIN_HAND);
+                                } else { // the open and the covered: a 0 % beam each (40 in all)
+                                    final redero.abyssaldepths.entity.EmpyreanBeam beam = new redero.abyssaldepths.entity.EmpyreanBeam(AbyssalDepths.EMPYREAN_BEAM.get(),
+                                            p.serverLevel());
+                                    beam.moveTo(e.getX(), e.getY(), e.getZ());
+                                    beam.start(p, 40.0F, null);
+                                    p.serverLevel().addFreshEntity(beam);
+                                }
+                            }
+                        }
+                    });
+                } else if (t == 25) {
+                    command(server, "tp @e[name=locked] ~-3 ~ ~12"); // it runs: the locked beam follows
+                } else if (t == 28) {
+                    shoot(mc, "empyrean_0_dir0"); // the warning
+                } else if (t >= 46 && t < 46 + 8 * 4) { // each style burning: set, a shot two ticks later
+                    final int k = (t - 46) / 4;
+                    if ((t - 46) % 4 == 0) {
+                        redero.abyssaldepths.ClientConfig.setStyle("empyrean", redero.abyssaldepths.ClientConfig.EmpyreanBeamLook.values()[k].name());
+                    } else if ((t - 46) % 4 == 2) {
+                        shoot(mc, "empyreanlooks_" + k / 4 + "_dir" + k % 4);
+                    }
+                } else if (t == 79) {
+                    redero.abyssaldepths.ClientConfig.setStyle("empyrean", "CATHEDRAL");
+                    mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+                    mc.player.setXRot(-60.0F);
+                } else if (t == 81) {
+                    shoot(mc, "empyrean_0_dir2"); // looking up the column
+                } else if (t == 100) {
+                    server.execute(() -> {
+                        for (net.minecraft.world.entity.Entity e : server.getPlayerList().getPlayers().get(0).serverLevel().getAllEntities()) {
+                            if (e.getTags().contains("empyrean_test") && e instanceof net.minecraft.world.entity.LivingEntity living) {
+                                AbyssalDepths.LOGGER.info("empyrean check {}: health {} of 300 (lost {})", e.getCustomName().getString(),
+                                        String.format("%.1f", living.getHealth()), String.format("%.1f", 300 - living.getHealth()));
+                            }
+                        }
+                    });
+                } else if (t > 105) {
+                    command(server, "kill @e[tag=empyrean_test]");
                     command(server, "gamemode spectator");
                     step = Step.NEXT;
                 }
@@ -412,7 +597,10 @@ public final class AutoShot {
                         AbyssalDepths.LOGGER.info("looks check aegis at 0 %: arrow {}", seen);
                     });
                     AbyssalDepths.LOGGER.info("looks check aegis at 0 %: radius on the client {}", redero.abyssaldepths.artifact.AegisItem.clientRadius(mc.player));
-                    server.execute(() -> redero.abyssaldepths.artifact.ArtifactItem.setMastery(server.getPlayerList().getPlayers().get(0).getMainHandItem(), 100));
+                    server.execute(() -> {
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        redero.abyssaldepths.artifact.ArtifactOwnership.setMastery(p, p.getMainHandItem(), 100);
+                    });
                 } else if (t >= 30 && t < 30 + aegis.length * 10) {
                     final int k = (t - 30) / 10;
                     if ((t - 30) % 10 == 0) {
@@ -572,7 +760,7 @@ public final class AutoShot {
                     server.execute(() -> {
                         final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
                         final net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(AbyssalDepths.AEGIS.get());
-                        redero.abyssaldepths.artifact.ArtifactItem.setMastery(stack, 100);
+                        redero.abyssaldepths.artifact.ArtifactOwnership.setMastery(p, stack, 100);
                         p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, stack);
                         stack.use(p.serverLevel(), p, net.minecraft.world.InteractionHand.MAIN_HAND);
                     });
@@ -676,13 +864,17 @@ public final class AutoShot {
                     server.execute(() -> {
                         final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
                         final net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(AbyssalDepths.FIRMAMENT.get());
-                        redero.abyssaldepths.artifact.ArtifactItem.setMastery(stack, 50); // a soft landing
+                        redero.abyssaldepths.artifact.ArtifactOwnership.setMastery(p, stack, 100); // a soft landing, Speed II
                         p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, stack);
                         p.setHealth(p.getMaxHealth());
                     });
-                } else if (t == 5) {
-                    mc.options.keyUse.setDown(true);
-                    mc.gameMode.useItem(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND);
+                } else if (t == 5) { // switched on, then put away in the inventory: it works from there
+                    server.execute(() -> {
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        p.getMainHandItem().use(p.serverLevel(), p, net.minecraft.world.InteractionHand.MAIN_HAND);
+                        p.getInventory().setItem(20, p.getMainHandItem().copy());
+                        p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.item.ItemStack.EMPTY);
+                    });
                 } else if (t == 8) {
                     command(server, "tp @s ~ ~40 ~ 0 35");
                     mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
@@ -695,8 +887,9 @@ public final class AutoShot {
                             String.format("%.2f", mc.player.getX()), String.format("%.2f", mc.player.getZ()), mc.player.onGround(), mc.player.isUsingItem());
                     server.execute(() -> {
                         final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
-                        AbyssalDepths.LOGGER.info("firmament check {}: server y {} health {} charge {} connected {}", when, String.format("%.2f", p.getY()), p.getHealth(),
-                                AbyssalDepths.FIRMAMENT.get().charge(p.getMainHandItem()), !p.hasDisconnected());
+                        AbyssalDepths.LOGGER.info("firmament check {}: server y {} health {} charge {} speed {} connected {}", when, String.format("%.2f", p.getY()), p.getHealth(),
+                                AbyssalDepths.FIRMAMENT.get().charge(p.getInventory().getItem(20)), p.hasEffect(net.minecraft.world.effect.MobEffects.MOVEMENT_SPEED),
+                                !p.hasDisconnected());
                     });
                     if (t == 40) {
                         shoot(mc, "firmament_0_dir0");
@@ -707,7 +900,14 @@ public final class AutoShot {
                     } else if (t == 100) {
                         mc.options.keyUp.setDown(false);
                         shoot(mc, "firmament_0_dir1");
-                        mc.options.keyUse.setDown(false);
+                        server.execute(() -> { // switched off from the inventory slot (as the item's own use would)
+                            final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                            final net.minecraft.world.item.ItemStack stack = p.getInventory().getItem(20);
+                            p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, stack);
+                            stack.use(p.serverLevel(), p, net.minecraft.world.InteractionHand.MAIN_HAND);
+                            p.getInventory().setItem(20, stack);
+                            p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.item.ItemStack.EMPTY);
+                        });
                     } else if (t == 104) {
                         shoot(mc, "firmament_0_dir2"); // the steps fading
                     }
@@ -788,7 +988,7 @@ public final class AutoShot {
                     server.execute(() -> {
                         final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
                         final net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(AbyssalDepths.SEVERANCE.get());
-                        redero.abyssaldepths.artifact.ArtifactItem.setMastery(stack, 100);
+                        redero.abyssaldepths.artifact.ArtifactOwnership.setMastery(p, stack, 100);
                         AbyssalDepths.SEVERANCE.get().setCharge(stack, 3);
                         p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, stack);
                         stack.use(p.serverLevel(), p, net.minecraft.world.InteractionHand.MAIN_HAND);
@@ -857,6 +1057,32 @@ public final class AutoShot {
                     oblivionCheck(server, "after 31 s");
                 } else if (t == cast + 20 * 31 + 5) {
                     command(server, "kill @e[tag=oblivion_test]");
+                    mc.options.hideGui = false; // the screen effects show on the GUI layer
+                } else if (t > cast + 20 * 31 + 5 && t <= cast + 20 * 31 + 5 + 4 * 40) {
+                    // every style of the cast: zombies round, cast, shots early and late
+                    final int at = t - (cast + 20 * 31 + 6), k = at / 40, in = at % 40;
+                    final redero.abyssaldepths.ClientConfig.OblivionLook look = redero.abyssaldepths.ClientConfig.OblivionLook.values()[k];
+                    if (in == 0) { // the charge-up, held as a player would
+                        redero.abyssaldepths.ClientConfig.setStyle("oblivion", look.name());
+                        mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+                        server.execute(() -> {
+                            final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                            p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, new net.minecraft.world.item.ItemStack(AbyssalDepths.OBLIVION.get()));
+                        });
+                    } else if (in == 3) {
+                        mc.options.keyUse.setDown(true);
+                        mc.gameMode.useItem(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND);
+                    } else if (in == 18 || in == 34) {
+                        shoot(mc, "oblivionlooks_" + (in == 18 ? 0 : 1) + "_dir" + k); // halfway; just cast
+                    } else if (in == 37) {
+                        mc.options.keyUse.setDown(false);
+                        mc.player.getCooldowns().removeCooldown(AbyssalDepths.OBLIVION.get());
+                        server.execute(() -> server.getPlayerList().getPlayers().get(0).getCooldowns().removeCooldown(AbyssalDepths.OBLIVION.get()));
+                    }
+                } else if (t > cast + 20 * 31 + 5 + 4 * 40) {
+                    redero.abyssaldepths.ClientConfig.setStyle("oblivion", "INK");
+                    mc.options.hideGui = true;
+                    mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
                     step = Step.NEXT;
                 }
             }
@@ -1118,7 +1344,7 @@ public final class AutoShot {
     /** Uses an artifact (charged, at this mastery) as the player would, from the main hand. */
     private static void use(ServerPlayer p, redero.abyssaldepths.artifact.ArtifactItem item, int mastery) {
         final net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(item);
-        redero.abyssaldepths.artifact.ArtifactItem.setMastery(stack, mastery);
+        redero.abyssaldepths.artifact.ArtifactOwnership.setMastery(p, stack, mastery);
         p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, stack);
         stack.use(p.serverLevel(), p, net.minecraft.world.InteractionHand.MAIN_HAND);
         p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.item.ItemStack.EMPTY);

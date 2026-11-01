@@ -15,6 +15,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -120,6 +121,10 @@ public final class InnerSelf {
     private static final ResourceLocation SOFT = ResourceLocation.fromNamespaceAndPath(AbyssalDepths.MODID, "haven_soft_fall");
     /** Players sinking down softly, with the game time it ends. */
     private static final Map<UUID, Long> SINKING = new HashMap<>();
+    /** Ticks a body left behind takes to dissolve when its player comes back elsewhere. */
+    private static final int BODY_FADE_TICKS = 36;
+    /** Players come back at a remembered place, with the game time those near are told to see them appear. */
+    private static final Map<UUID, Long> APPEARING = new HashMap<>();
 
     private InnerSelf() {
     }
@@ -158,6 +163,17 @@ public final class InnerSelf {
             rescueFallen(server);
             flight(server);
         }
+        wakeWithout(server);
+        APPEARING.entrySet().removeIf(entry -> { // a moment after the move, once those there know of them
+            if (entry.getValue() > now) {
+                return false;
+            }
+            final ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
+            if (player != null) {
+                PacketDistributor.sendToPlayersTrackingEntity(player, new EffectPayload("haven_appear/" + player.getId(), 0));
+            }
+            return true;
+        });
         if (PENDING.isEmpty()) {
             return;
         }
@@ -199,8 +215,10 @@ public final class InnerSelf {
                 final ServerLevel bodyLevel = server.getLevel(ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(back.getString("dim"))));
                 if (bodyLevel != null) {
                     for (AbsentBody body : bodyLevel.getEntities(AbyssalDepths.ABSENT_BODY.get(), b -> b.owner().filter(player.getUUID()::equals).isPresent())) {
-                        body.discard();
+                        body.fadeAway(BODY_FADE_TICKS); // it dissolves for those who see it, then it is gone
+                        PacketDistributor.sendToPlayersTrackingEntity(body, new EffectPayload("haven_body/" + body.getId(), 0));
                     }
+                    APPEARING.put(player.getUUID(), server.overworld().getGameTime() + 3); // and they appear where they chose
                 }
             }
             // taking the body's place as it is seen: turned like it (head and body), a little above it
@@ -305,11 +323,21 @@ public final class InnerSelf {
         return new Vec3(origin.getX() + half, FLOOR_Y, origin.getZ() + half + (form == Form.ISLANDS ? 2.0 : 0.0));
     }
 
+    /** How far from its middle a player's place reaches: a ring of haven wall there keeps them in it. */
+    static final int BOUND = 50;
+
+    /** The middle of a player's place (the mat of the islands, the room's middle). */
+    private static Vec3 middle(int index) {
+        final BlockPos origin = origin(index);
+        return new Vec3(origin.getX() + ROOM / 2 + WALL + 0.5, FLOOR_Y, origin.getZ() + ROOM / 2 + WALL + 0.5);
+    }
+
     /** Builds the place of the form (anything there before is cleared first), with that many small islands. */
     private static void build(ServerLevel level, int index, Form form, int islands) {
         clear(level, origin(index));
         if (form == Form.ISLANDS) {
             InnerIslands.build(level, origin(index).offset(ROOM / 2 + WALL, WALL, ROOM / 2 + WALL), index, islands);
+            ring(level, BlockPos.containing(middle(index)));
         } else {
             build(level, origin(index));
         }
@@ -399,7 +427,145 @@ public final class InnerSelf {
         return false;
     }
 
-    /** Who fell off their islands comes back to where they arrive. */
+    /** The ring round the islands: haven wall (not drawn, the sky shows through), from far below to high above. */
+    private static void ring(ServerLevel level, BlockPos middle) {
+        final BlockState wall = AbyssalDepths.HAVEN_WALL.get().defaultBlockState();
+        final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int dz = -BOUND - 1; dz <= BOUND + 1; dz++) {
+            for (int dx = -BOUND - 1; dx <= BOUND + 1; dx++) {
+                final double d = Math.sqrt(dx * dx + dz * dz);
+                if (d < BOUND - 0.5 || d > BOUND + 0.7) {
+                    continue; // a band thick enough to have no gaps at the diagonals
+                }
+                for (int y = FLOOR_Y - FALL_LIMIT - 4; y < FLOOR_Y + 80; y++) {
+                    level.setBlock(pos.set(middle.getX() + dx, y, middle.getZ() + dz), wall, 2 | 16);
+                }
+            }
+        }
+    }
+
+    /** A block set down by a player in the inner self: theirs to take again. */
+    @SubscribeEvent
+    public static void onPlace(net.neoforged.neoforge.event.level.BlockEvent.EntityPlaceEvent event) {
+        if (event.getLevel() instanceof ServerLevel level && level.dimension() == DIMENSION && event.getEntity() instanceof ServerPlayer player) {
+            final Rooms rooms = Rooms.get(level.getServer());
+            rooms.placed.add(event.getPos().asLong());
+            rooms.setDirty();
+            tellPlaced(player, "+" + event.getPos().asLong());
+        }
+    }
+
+    /** Only what players set down can be broken in the inner self (not in creative: there all can). */
+    @SubscribeEvent
+    public static void onBreak(net.neoforged.neoforge.event.level.BlockEvent.BreakEvent event) {
+        if (event.getLevel() instanceof ServerLevel level && level.dimension() == DIMENSION && !event.getPlayer().isCreative()) {
+            final Rooms rooms = Rooms.get(level.getServer());
+            if (!rooms.placed.remove(event.getPos().asLong())) {
+                event.setCanceled(true);
+            } else {
+                rooms.setDirty();
+                if (event.getPlayer() instanceof ServerPlayer player) {
+                    tellPlaced(player, "-" + event.getPos().asLong());
+                }
+            }
+        }
+    }
+
+    /** What cannot be broken does not crack either: no mining it at all (on both sides). */
+    @SubscribeEvent
+    public static void onBreakSpeed(net.neoforged.neoforge.event.entity.player.PlayerEvent.BreakSpeed event) {
+        final net.minecraft.world.entity.player.Player player = event.getEntity();
+        if (player.level().dimension() != DIMENSION || player.isCreative() || event.getPosition().isEmpty()) {
+            return;
+        }
+        final long at = event.getPosition().get().asLong();
+        final boolean placed = player.level() instanceof ServerLevel level ? Rooms.get(level.getServer()).placed.contains(at) : PLACED_CLIENT.contains(at);
+        if (!placed) {
+            event.setCanceled(true);
+        }
+    }
+
+    /** Client: the blocks players placed in this player's place (told by the server: {@code haven_placed/...}). */
+    private static final it.unimi.dsi.fastutil.longs.LongOpenHashSet PLACED_CLIENT = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
+
+    /** Client: the placed blocks of this place, all of them ("=a,b,c"), or one more ("+a") or less ("-a"). */
+    public static void clientPlaced(String data) {
+        if (data.startsWith("=")) {
+            PLACED_CLIENT.clear();
+            for (String one : data.substring(1).split(",")) {
+                if (!one.isEmpty()) {
+                    PLACED_CLIENT.add(Long.parseLong(one));
+                }
+            }
+        } else if (data.startsWith("+")) {
+            PLACED_CLIENT.add(Long.parseLong(data.substring(1)));
+        } else if (data.startsWith("-")) {
+            PLACED_CLIENT.remove(Long.parseLong(data.substring(1)));
+        }
+    }
+
+    private static void tellPlaced(ServerPlayer player, String data) {
+        net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player, new redero.abyssaldepths.network.EffectPayload("haven_placed/" + data, 0));
+    }
+
+    /** Coming into the inner self: the player learns which blocks of their place they may break. */
+    @SubscribeEvent
+    public static void onArrive(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerChangedDimensionEvent event) {
+        if (event.getTo() == DIMENSION && event.getEntity() instanceof ServerPlayer player) {
+            final Rooms rooms = Rooms.get(player.getServer());
+            final Vec3 middle = middle(rooms.room(player.getUUID()));
+            final StringBuilder all = new StringBuilder("=");
+            for (long pos : rooms.placed) {
+                final BlockPos at = BlockPos.of(pos);
+                if (Math.abs(at.getX() - middle.x) <= BOUND + 2 && Math.abs(at.getZ() - middle.z) <= BOUND + 2) {
+                    all.append(pos).append(',');
+                }
+            }
+            tellPlaced(player, all.toString());
+        }
+    }
+
+    /** Ticks to sit on the mat (or hold sneak) to wake without Inner Haven. */
+    static final int WAKE_TICKS = 100;
+    /** Players waking without Inner Haven, with how long they have sat or held sneak. */
+    private static final Map<UUID, Integer> WAKING = new HashMap<>();
+
+    private static boolean carries(ServerPlayer player) {
+        return player.getInventory().hasAnyMatching(stack -> stack.getItem() instanceof InnerHavenItem);
+    }
+
+    /**
+     * A way out for who has lost their Inner Haven in the inner self: sitting on the mat, or holding sneak,
+     * for {@link #WAKE_TICKS}, wakes them back in their body. They are told so now and then.
+     */
+    private static void wakeWithout(MinecraftServer server) {
+        final ServerLevel inner = server.getLevel(DIMENSION);
+        if (inner == null || inner.players().isEmpty()) {
+            WAKING.clear();
+            return;
+        }
+        for (ServerPlayer player : inner.players()) {
+            if (travelling(player) || carries(player)) {
+                WAKING.remove(player.getUUID());
+                continue;
+            }
+            final boolean letting = player.getVehicle() instanceof redero.abyssaldepths.entity.Seat || player.isShiftKeyDown();
+            final int held = letting ? WAKING.merge(player.getUUID(), 1, Integer::sum) : 0;
+            if (!letting) {
+                WAKING.remove(player.getUUID());
+                if (player.tickCount % 100 == 0) {
+                    player.displayClientMessage(Component.translatable("abyssaldepths.inner_haven.lost"), true);
+                }
+            } else if (held >= WAKE_TICKS) {
+                WAKING.remove(player.getUUID());
+                returnTo(player, -1); // back to the body
+            } else if (held % 20 == 1) {
+                player.displayClientMessage(Component.translatable("abyssaldepths.inner_haven.waking", (WAKE_TICKS - held) / 20 + 1), true);
+            }
+        }
+    }
+
+    /** Who fell off their islands comes back to where they arrive; who got past the ring (flying over it) is put back in. */
     private static void rescueFallen(MinecraftServer server) {
         final ServerLevel inner = server.getLevel(DIMENSION);
         if (inner == null || inner.players().isEmpty()) {
@@ -412,6 +578,14 @@ public final class InnerSelf {
                 player.teleportTo(inner, arrival.x, arrival.y, arrival.z, player.getYRot(), player.getXRot());
                 player.setDeltaMovement(Vec3.ZERO);
                 player.resetFallDistance();
+                continue;
+            }
+            final Vec3 middle = middle(rooms.room(player.getUUID()));
+            final double dx = player.getX() - middle.x, dz = player.getZ() - middle.z, d = Math.sqrt(dx * dx + dz * dz);
+            if (d > BOUND + 1.5) { // back inside, just within the ring
+                final double k = (BOUND - 2.0) / d;
+                player.teleportTo(inner, middle.x + dx * k, player.getY(), middle.z + dz * k, player.getYRot(), player.getXRot());
+                player.setDeltaMovement(Vec3.ZERO);
             }
         }
     }
@@ -442,6 +616,8 @@ public final class InnerSelf {
         final Map<UUID, net.minecraft.nbt.ListTag> waypoints = new HashMap<>();
         /** How many small islands each player's place was last built with. */
         final Map<UUID, Integer> islands = new HashMap<>();
+        /** Blocks players placed in the inner self (only these can be broken there). */
+        final it.unimi.dsi.fastutil.longs.LongOpenHashSet placed = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
 
         Form form(UUID player) {
             return forms.getOrDefault(player, Form.ISLANDS);
@@ -473,6 +649,9 @@ public final class InnerSelf {
             islands.getAllKeys().forEach(k -> rooms.islands.put(UUID.fromString(k), islands.getInt(k)));
             final CompoundTag waypoints = tag.getCompound("waypoints");
             waypoints.getAllKeys().forEach(k -> rooms.waypoints.put(UUID.fromString(k), waypoints.getList(k, Tag.TAG_COMPOUND)));
+            for (long pos : tag.getLongArray("placed")) {
+                rooms.placed.add(pos);
+            }
             return rooms;
         }
 
@@ -494,6 +673,7 @@ public final class InnerSelf {
             final CompoundTag waypoints = new CompoundTag();
             this.waypoints.forEach((k, v) -> waypoints.put(k.toString(), v));
             tag.put("waypoints", waypoints);
+            tag.putLongArray("placed", placed.toLongArray());
             return tag;
         }
     }
