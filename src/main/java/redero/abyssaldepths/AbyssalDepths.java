@@ -133,6 +133,9 @@ public class AbyssalDepths {
     public static final Supplier<AttachmentType<Integer>> TICKS_BELOW = ATTACHMENT_TYPES.register("ticks_below",
             () -> AttachmentType.builder(() -> 0).serialize(Codec.INT).build());
 
+    /** A player's Corruption Scars (failed Fracturing trials), kept through death ({@code fracture.Scars}). */
+    public static final Supplier<AttachmentType<Integer>> SCARS = ATTACHMENT_TYPES.register("corruption_scars",
+            () -> AttachmentType.builder(() -> 0).serialize(Codec.INT).copyOnDeath().build());
     /** A player's mastery of each kind of artifact (item id to percent), theirs for good ({@code artifact.ArtifactOwnership}). */
     public static final Supplier<AttachmentType<java.util.Map<String, Integer>>> MASTERIES = ATTACHMENT_TYPES.register("masteries",
             () -> AttachmentType.<java.util.Map<String, Integer>>builder(() -> new java.util.HashMap<>())
@@ -267,6 +270,10 @@ public class AbyssalDepths {
     public static final DeferredItem<MirageItem> MIRAGE = ITEMS.register("mirage",
             () -> new MirageItem(new Item.Properties(), ArtifactRank.EXALTED, ArtifactFrame.HOLLOW, 2, 20 * 60 * 3));
 
+    /** Takes one Corruption Scar away (found only). */
+    public static final DeferredItem<redero.abyssaldepths.fracture.CleansingShardItem> CLEANSING_SHARD = ITEMS.register("cleansing_shard",
+            () -> new redero.abyssaldepths.fracture.CleansingShardItem(new Item.Properties().stacksTo(16).rarity(net.minecraft.world.item.Rarity.EPIC)));
+
     /** Calls a column of light down from the sky (locks onto a creature when mastered); 2 charges, 1 back every 15 minutes (sooner with mastery). */
     public static final DeferredItem<EmpyreanItem> EMPYREAN = ITEMS.register("empyrean",
             () -> new EmpyreanItem(new Item.Properties(), ArtifactRank.PRIMORDIAL, ArtifactFrame.ZENITH, 2, 20 * 60 * 15));
@@ -320,6 +327,11 @@ public class AbyssalDepths {
                     .isValidSpawn((state, level, pos, type) -> false).pushReaction(PushReaction.BLOCK).isViewBlocking((state, level, pos) -> false)
                     .isSuffocating((state, level, pos) -> false)));
 
+    /** The walls of the Fracturing trials: pure black, can not be broken. */
+    public static final DeferredBlock<Block> FRACTURE_BLACK = withItem(BLOCKS.registerSimpleBlock("fracture_black",
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK).strength(-1.0F, 3600000.0F).noLootTable()
+                    .isValidSpawn((state, level, pos, type) -> false).pushReaction(PushReaction.BLOCK)));
+
     /** A mat to sit on; at the heart of the island inner self. */
     public static final DeferredBlock<MeditationMatBlock> MEDITATION_MAT = withItem(BLOCKS.registerBlock("meditation_mat", MeditationMatBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.WHITE_CARPET).mapColor(MapColor.COLOR_RED)));
@@ -333,6 +345,14 @@ public class AbyssalDepths {
     public static final DeferredHolder<EntityType<?>, EntityType<UndertowEntity>> UNDERTOW_ENTITY = ENTITY_TYPES.register("undertow",
             () -> EntityType.Builder.<UndertowEntity>of(UndertowEntity::new, MobCategory.MISC).sized(0.5F, 0.5F).noSummon().clientTrackingRange(8)
                     .build("undertow"));
+    /** A fractured player's frozen body, left while they are in their trial. */
+    public static final DeferredHolder<EntityType<?>, EntityType<redero.abyssaldepths.fracture.FracturedBody>> FRACTURED_BODY = ENTITY_TYPES.register("fractured_body",
+            () -> EntityType.Builder.<redero.abyssaldepths.fracture.FracturedBody>of(redero.abyssaldepths.fracture.FracturedBody::new, MobCategory.MISC).sized(0.6F, 1.8F)
+                    .noSummon().clientTrackingRange(10).build("fractured_body"));
+    /** The corrupted core of the Core trial. */
+    public static final DeferredHolder<EntityType<?>, EntityType<redero.abyssaldepths.fracture.FractureCore>> FRACTURE_CORE = ENTITY_TYPES.register("fracture_core",
+            () -> EntityType.Builder.<redero.abyssaldepths.fracture.FractureCore>of(redero.abyssaldepths.fracture.FractureCore::new, MobCategory.MISC).sized(1.6F, 1.6F)
+                    .noSummon().clientTrackingRange(8).build("fracture_core"));
     /** Empyrean's column of light. */
     public static final DeferredHolder<EntityType<?>, EntityType<redero.abyssaldepths.entity.EmpyreanBeam>> EMPYREAN_BEAM = ENTITY_TYPES.register("empyrean_beam",
             () -> EntityType.Builder.<redero.abyssaldepths.entity.EmpyreanBeam>of(redero.abyssaldepths.entity.EmpyreanBeam::new, MobCategory.MISC).sized(0.5F, 0.5F)
@@ -494,6 +514,7 @@ public class AbyssalDepths {
                 {
                     event.put(ABSENT_BODY.get(), net.minecraft.world.entity.LivingEntity.createLivingAttributes().build());
                     event.put(MIRAGE_DECOY.get(), net.minecraft.world.entity.LivingEntity.createLivingAttributes().build());
+                    event.put(FRACTURED_BODY.get(), net.minecraft.world.entity.LivingEntity.createLivingAttributes().build());
                 });
         FEATURES.register(modEventBus);
         CREATIVE_TABS.register(modEventBus);

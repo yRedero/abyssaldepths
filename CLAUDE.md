@@ -26,6 +26,10 @@ NeoForge 21.1 / Minecraft 1.21.1 mod (ModDevGradle). Adds the thalan layer below
   `tools/autoshot.sh <round> small`; their looks (config `aegisLook`, `aegisOverlay`, `convergenceLook`, `convergenceApply`, `convergenceLayer`, `repulsionWave`; the Convergence layer on the player in `client/ConvergenceLayer`) with `looks`.
   Mastery belongs to the player (`artifact/ArtifactOwnership`, attachment `MASTERIES`), written onto every
   copy they carry; one of each artifact per inventory.
+- `fracture/`: Fracturing (`Fracturing`: creatures frozen; `FractureTrials`: the player's onset, trial dimension,
+  kept inventory, pass/fail, death and `Scars`; one class per `Trial`); client side in `client/FractureScreen`
+  (screen breaking), `FractureView` (corruption look, strikes), `TrialHud`, `FractureCoreRenderer`, `FractureSky`.
+  Check with `tools/autoshot.sh <round> fracture` (trials, endings, the body left decomposing) and `fracmarks` (the mark styles, config `fractureMarks`, the auras, config `fractureAura`, the Core's warnings, a passed trial); `/abyssaldepths fracture end pass|fail` ends one's trial; `/abyssaldepths fracture [targets|trial <name>]`, `/abyssaldepths scars <n>`.
 - `block/`, `mixin/`, `network/` (one server-to-client effect payload), config in `ClientConfig`.
 - `src/dev/java`: dev-only (AutoShot, LayerMap, TunnelLayerCheck); not in the jar.
 - `src/test/java`: JUnit regressions of the generation (`./gradlew test`).

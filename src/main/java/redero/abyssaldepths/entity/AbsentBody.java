@@ -81,7 +81,7 @@ public class AbsentBody extends LivingEntity {
         // between ticks from the previous values
         final float facing = getYRot();
         yBodyRot = yBodyRotO = facing;
-        if (level().isClientSide) {
+        if (level().isClientSide && easesHead()) {
             setYHeadRot(getYHeadRot() + Mth.wrapDegrees(facing - getYHeadRot()) * HEAD_EASE);
             setXRot(getXRot() * (1.0F - HEAD_EASE));
         }
@@ -127,6 +127,11 @@ public class AbsentBody extends LivingEntity {
     /** Whether it is no longer needed, with its owner online (or null): back in its world, or gone. */
     protected boolean shouldVanish(Player owner) {
         return owner == null || owner.level() == level();
+    }
+
+    /** Whether its head eases round from where its player looked to straight ahead. */
+    protected boolean easesHead() {
+        return true;
     }
 
     /** Whether it floats with a faint bob (drawn so). */

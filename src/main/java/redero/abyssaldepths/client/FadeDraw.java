@@ -21,6 +21,8 @@ public final class FadeDraw {
     public static int tint = 0xFFFFFF;
     /** The texture in place of the skin (null: the skin). */
     public static ResourceLocation texture;
+    /** Whether it is drawn see-through (its alpha honoured whatever the renderer would use); set around a draw. */
+    public static boolean translucent;
 
     private FadeDraw() {
     }

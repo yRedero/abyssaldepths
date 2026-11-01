@@ -23,6 +23,49 @@ public final class ClientEffects {
             final String[] p = effect.substring("repulsion/".length()).split("/");
             RepulsionView.start(new net.minecraft.world.phys.Vec3(Double.parseDouble(p[0]), Double.parseDouble(p[1]), Double.parseDouble(p[2])),
                     Float.parseFloat(p[3]));
+        } else if (effect.startsWith("fracture_mob/")) { // drawn in the corruption for a while
+            FractureView.corrupt(Integer.parseInt(effect.substring("fracture_mob/".length())), payload.ticks());
+        } else if (effect.startsWith("corruption/")) { // how far corruption has come in someone: their cracks
+            final net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            final String[] p = effect.substring("corruption/".length()).split("/");
+            final int id = Integer.parseInt(p[0]);
+            final float value = Integer.parseInt(p[1]) / 100.0F;
+            if (mc.player != null && id == mc.player.getId()) {
+                FractureScreen.corruption(value);
+            }
+            FractureView.cracks(id, value); // on their body (one's own too, seen from behind)
+        } else if (effect.equals("fracture_onset")) { // the screen breaks: a trial comes
+            FractureScreen.breaking(payload.ticks(), true);
+        } else if (effect.startsWith("trial_start/")) {
+            FractureScreen.moved();
+            TrialHud.enter(effect.substring("trial_start/".length()));
+        } else if (effect.startsWith("trial_title/")) { // the screen has cleared: the looking round
+            TrialHud.start(effect.substring("trial_title/".length()), payload.ticks());
+        } else if (effect.startsWith("trial_hud/")) {
+            final String[] p = effect.substring("trial_hud/".length()).split("/");
+            TrialHud.values(p[0], Float.parseFloat(p[1]), Float.parseFloat(p[2]), Float.parseFloat(p[3]));
+        } else if (effect.startsWith("trial_strike/")) {
+            FractureView.strike(effect.substring("trial_strike/".length()));
+            TrialHud.warned();
+        } else if (effect.equals("trial_hit")) {
+            TrialHud.hit();
+        } else if (effect.startsWith("trial_end/")) { // the trial is overgrown by the black: back to the body
+            FractureScreen.overgrow(payload.ticks(), effect.endsWith("1"));
+        } else if (effect.startsWith("trial_out/")) {
+            FractureScreen.moved();
+        } else if (effect.startsWith("fracture_recede/")) { // a player who passed: the corruption recedes from them
+            final int id = Integer.parseInt(effect.substring("fracture_recede/".length()));
+            final net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc.player == null || id != mc.player.getId()) { // one's own: when one's screen clears (FractureScreen)
+                FractureView.recede(id);
+            }
+        } else if (effect.startsWith("fracture_dying/")) { // a player the corruption takes: only their body is seen going
+            FractureView.dying(Integer.parseInt(effect.substring("fracture_dying/".length())));
+        } else if (effect.startsWith("scarred/")) {
+            final String[] p = effect.substring("scarred/".length()).split("/");
+            FractureView.scarred(Integer.parseInt(p[0]), Integer.parseInt(p[1]));
+        } else if (effect.startsWith("scars/")) {
+            TrialHud.scars(Integer.parseInt(effect.substring("scars/".length())));
         } else if (effect.startsWith("haven_body/")) { // the body left behind dissolves (its player came back elsewhere)
             final net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
             if (mc.level != null && mc.level.getEntity(Integer.parseInt(effect.substring("haven_body/".length()))) instanceof net.minecraft.world.entity.LivingEntity body) {

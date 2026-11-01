@@ -42,6 +42,15 @@ public abstract class FadeDrawMixin {
         return FadeDraw.active && FadeDraw.texture != null ? FadeDraw.texture : ((net.minecraft.client.renderer.entity.EntityRenderer<Entity>) (Object) renderer).getTextureLocation(entity);
     }
 
+    /** Drawn see-through when asked (copies of an entity: the corruption's doubles and echoes). */
+    @Inject(method = "getRenderType", at = @At("HEAD"), cancellable = true)
+    private void abyssaldepths$fadeTranslucent(LivingEntity entity, boolean bodyVisible, boolean translucent, boolean glowing,
+            CallbackInfoReturnable<net.minecraft.client.renderer.RenderType> cir) {
+        if (FadeDraw.active && FadeDraw.translucent && FadeDraw.texture != null) {
+            cir.setReturnValue(net.minecraft.client.renderer.RenderType.entityTranslucent(FadeDraw.texture));
+        }
+    }
+
     @Inject(method = "shouldShowName(Lnet/minecraft/world/entity/LivingEntity;)Z", at = @At("HEAD"), cancellable = true)
     private void abyssaldepths$fadeNoName(LivingEntity entity, CallbackInfoReturnable<Boolean> cir) {
         if (FadeDraw.active) {

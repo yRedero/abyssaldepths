@@ -1,0 +1,13 @@
+{
+  "type": "abyssaldepths:fracture",
+  "generator": {
+    "type": "minecraft:flat",
+    "settings": {
+      "biome": "abyssaldepths:fracture",
+      "layers": [],
+      "lakes": false,
+      "features": false,
+      "structure_overrides": []
+    }
+  }
+}

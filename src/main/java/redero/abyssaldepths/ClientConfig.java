@@ -144,6 +144,33 @@ public final class ClientConfig {
                     "violet motes drawn in), SUPERNOVA (bursting open to twice its width, rays of light over the ground).")
             .translation("abyssaldepths.config.empyrean_beam")
             .defineEnum("empyreanBeam", EmpyreanBeamLook.CATHEDRAL);
+    private static final ModConfigSpec.EnumValue<FractureMarks> FRACTURE_MARKS = BUILDER
+            .comment("The marks of Fracturing on the corrupted (growing with their corruption, alive once they are taken): VEINS",
+                    "(black veins branching out at slants, a light running along them), CIRCUIT (straight lines turning at right angles,",
+                    "square nodes at their ends), SHARDS (angular black shards spreading), GLITCH (rows of pixels torn sideways, blocks",
+                    "turned over), SIGILS (blocky glyphs strung together by lines), BLACKWALL (veins and circuits in black with a dark",
+                    "red glow, a red light running along them). Softer: ASH (veins draining the colour out of what they cross, greyed,",
+                    "not blackened), FROST (pale cold veins, half see-through), HAIRLINE (fine grey cracks, sparse), DITHER (patches of",
+                    "dark pixels in a checker, easing into the skin), FADING (soft patches where the colour drains away). Living (moving):",
+                    "SERPENT (snakes coiling round the body like tattoos), FLOW (dashes of light streaming along veins), SWARM (mites",
+                    "scurrying over the skin), EYES (eyes opening, looking about, blinking), CODE (pixel code raining down), INK (blots",
+                    "of ink swelling and drawing back).")
+            .translation("abyssaldepths.config.fracture_marks")
+            .defineEnum("fractureMarks", FractureMarks.SWARM);
+    private static final ModConfigSpec.EnumValue<FractureAura> FRACTURE_AURA = BUILDER
+            .comment("What else shows corruption on someone, besides the marks: DOUBLES (black and white copies of them flickering",
+                    "beside them now and then), SPLIT (two copies always just off them, one light and warm, one dark and cold),",
+                    "ECHOES (copies left where they were a moment ago, fading), STAIN (the ground under them stained black, pixels rising",
+                    "out of it), GROUND_CRACKS (cracks running out over the ground from under them), SMOKE (dark pixels rising off them),",
+                    "NONE.")
+            .translation("abyssaldepths.config.fracture_aura")
+            .defineEnum("fractureAura", FractureAura.DOUBLES);
+    private static final ModConfigSpec.EnumValue<ScarIcon> SCAR_ICON = BUILDER
+            .comment("The mark beside the hotbar for each Corruption Scar: CRACK (a cracked tile), HEART (a heart broken in two),",
+                    "SHARD (a shard of black and white), EYE (a closed eye opening now and then), RUNE (a glyph in a frame), VEIN (a dark",
+                    "blot reaching out).")
+            .translation("abyssaldepths.config.scar_icon")
+            .defineEnum("scarIcon", ScarIcon.SHARD);
     private static final ModConfigSpec.EnumValue<RepulsionWave> REPULSION_WAVE = BUILDER
             .comment("Repulsion's pressure wave: SHOCK (three thin rings one after another), RING (a ring of pixels running out over",
                     "the ground), DOME (a dome of pixels swelling), BURST (rays of pixels shooting out), GUST (the game's",
@@ -185,6 +212,12 @@ public final class ClientConfig {
 
     /** Undertow's burst. */
     public enum UndertowBurst { PIXELS, SHATTER, RINGS, STARBURST, VOID }
+
+    public enum FractureAura { DOUBLES, SPLIT, ECHOES, STAIN, GROUND_CRACKS, SMOKE, NONE }
+
+    public enum FractureMarks { VEINS, CIRCUIT, SHARDS, GLITCH, SIGILS, BLACKWALL, ASH, FROST, HAIRLINE, DITHER, FADING, SERPENT, FLOW, SWARM, EYES, CODE, INK }
+
+    public enum ScarIcon { CRACK, HEART, SHARD, EYE, RUNE, VEIN }
 
     public enum AegisLook { PIXELS, RINGS, RUNES, SHARDS, BUBBLE }
 
@@ -346,6 +379,18 @@ public final class ClientConfig {
         return SPEC.isLoaded() ? OBLIVION_LOOK.get() : OblivionLook.INK;
     }
 
+    public static FractureMarks fractureMarks() {
+        return SPEC.isLoaded() ? FRACTURE_MARKS.get() : FractureMarks.SWARM;
+    }
+
+    public static FractureAura fractureAura() {
+        return SPEC.isLoaded() ? FRACTURE_AURA.get() : FractureAura.DOUBLES;
+    }
+
+    public static ScarIcon scarIcon() {
+        return SPEC.isLoaded() ? SCAR_ICON.get() : ScarIcon.SHARD;
+    }
+
     public static RepulsionWave repulsionWave() {
         return SPEC.isLoaded() ? REPULSION_WAVE.get() : RepulsionWave.SHOCK;
     }
@@ -363,6 +408,9 @@ public final class ClientConfig {
                 case "aegis_overlay" -> AEGIS_OVERLAY.set(AegisOverlay.valueOf(value));
                 case "convergence" -> CONVERGENCE_LOOK.set(ConvergenceLook.valueOf(value));
                 case "repulsion" -> REPULSION_WAVE.set(RepulsionWave.valueOf(value));
+                case "fracture" -> FRACTURE_MARKS.set(FractureMarks.valueOf(value));
+                case "fracture_aura" -> FRACTURE_AURA.set(FractureAura.valueOf(value));
+                case "scars" -> SCAR_ICON.set(ScarIcon.valueOf(value));
                 case "oblivion" -> OBLIVION_LOOK.set(OblivionLook.valueOf(value));
                 case "empyrean" -> EMPYREAN_BEAM.set(EmpyreanBeamLook.valueOf(value));
                 case "convergence_apply" -> CONVERGENCE_APPLY.set(ConvergenceApply.valueOf(value));

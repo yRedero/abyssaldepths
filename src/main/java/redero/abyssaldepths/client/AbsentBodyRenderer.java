@@ -84,6 +84,8 @@ public class AbsentBodyRenderer extends LivingEntityRenderer<AbsentBody, PlayerM
             event.registerEntityRenderer(AbyssalDepths.EMPYREAN_BEAM.get(), EmpyreanRenderer::new); // the column of light
             // Mirage's decoy: the same likeness as the absent body
             event.registerEntityRenderer(AbyssalDepths.MIRAGE_DECOY.get(), context -> (net.minecraft.client.renderer.entity.EntityRenderer) new AbsentBodyRenderer(context));
+            event.registerEntityRenderer(AbyssalDepths.FRACTURED_BODY.get(), context -> (net.minecraft.client.renderer.entity.EntityRenderer) new AbsentBodyRenderer(context));
+            event.registerEntityRenderer(AbyssalDepths.FRACTURE_CORE.get(), FractureCoreRenderer::new);
         }
     }
 }

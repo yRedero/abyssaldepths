@@ -99,6 +99,13 @@ public final class LayerCommands {
                             c.getSource().sendSuccess(() -> Component.literal(RepriseRecorder.status(c.getSource().getServer())), false);
                             return 1;
                         })))
+                .then(fracture())
+                .then(Commands.literal("scars")
+                        .then(Commands.argument("scars", IntegerArgumentType.integer(0, redero.abyssaldepths.fracture.Scars.MOST))
+                                .executes(c -> {
+                                    redero.abyssaldepths.fracture.Scars.set(c.getSource().getPlayerOrException(), IntegerArgumentType.getInteger(c, "scars"));
+                                    return 1;
+                                })))
                 .then(Commands.literal("charge")
                         .then(Commands.argument("charge", IntegerArgumentType.integer(0))
                                 .executes(c -> charge(c, IntegerArgumentType.getInteger(c, "charge"))))));
@@ -125,7 +132,44 @@ public final class LayerCommands {
     }
 
     /** Crosses into the inner self or back, as if Inner Haven had been used (no charge needed). */
-    /** {@code /abyssaldepths style mark|burst|aegis|aegis_overlay|convergence|convergence_apply|convergence_layer|repulsion|oblivion|empyrean <name>}: sets that client option of the one using it. */
+    /**
+     * {@code /abyssaldepths fracture [targets [percent]]}: corruption added (the user, or those given; 100 % if not
+     * said, which breaks through at once); {@code fracture trial <name>}: the user into that trial.
+     */
+    private static LiteralArgumentBuilder<CommandSourceStack> fracture() {
+        final LiteralArgumentBuilder<CommandSourceStack> fracture = Commands.literal("fracture");
+        fracture.executes(c -> {
+            redero.abyssaldepths.fracture.Fracturing.corrupt(c.getSource().getPlayerOrException(), 100.0F, null);
+            return 1;
+        });
+        fracture.then(Commands.argument("targets", net.minecraft.commands.arguments.EntityArgument.entities()).executes(c -> corrupt(c, 100.0F))
+                .then(Commands.argument("percent", IntegerArgumentType.integer(1, 100)).executes(c -> corrupt(c, IntegerArgumentType.getInteger(c, "percent")))));
+        final LiteralArgumentBuilder<CommandSourceStack> trial = Commands.literal("trial");
+        for (redero.abyssaldepths.fracture.Trial.Type type : redero.abyssaldepths.fracture.Trial.Type.values()) {
+            trial.then(Commands.literal(type.name().toLowerCase(java.util.Locale.ROOT)).executes(c -> {
+                redero.abyssaldepths.fracture.Fracturing.fracture(c.getSource().getPlayerOrException(), type);
+                return 1;
+            }));
+        }
+        final LiteralArgumentBuilder<CommandSourceStack> end = Commands.literal("end"); // ends one's trial at once, passed or failed
+        for (String how : new String[] {"pass", "fail"}) {
+            end.then(Commands.literal(how).executes(c -> redero.abyssaldepths.fracture.FractureTrials.end(c.getSource().getPlayerOrException(), how.equals("pass")) ? 1 : 0));
+        }
+        return fracture.then(trial).then(end);
+    }
+
+    private static int corrupt(CommandContext<CommandSourceStack> c, float percent) throws CommandSyntaxException {
+        int count = 0;
+        for (net.minecraft.world.entity.Entity entity : net.minecraft.commands.arguments.EntityArgument.getEntities(c, "targets")) {
+            if (entity instanceof net.minecraft.world.entity.LivingEntity living) {
+                redero.abyssaldepths.fracture.Fracturing.corrupt(living, percent, null);
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /** {@code /abyssaldepths style mark|burst|aegis|aegis_overlay|convergence|convergence_apply|convergence_layer|repulsion|oblivion|empyrean|fracture <name>}: sets that client option of the one using it. */
     private static LiteralArgumentBuilder<CommandSourceStack> styles() {
         final LiteralArgumentBuilder<CommandSourceStack> style = Commands.literal("style");
         final LiteralArgumentBuilder<CommandSourceStack> mark = Commands.literal("mark"), burst = Commands.literal("burst");
@@ -166,8 +210,24 @@ public final class LayerCommands {
         for (ClientConfig.EmpyreanBeamLook value : ClientConfig.EmpyreanBeamLook.values()) {
             empyrean.then(Commands.literal(value.name().toLowerCase(java.util.Locale.ROOT)).executes(c -> send(c, "style/empyrean/" + value.name())));
         }
+        final LiteralArgumentBuilder<CommandSourceStack> fracture = Commands.literal("fracture");
+        for (ClientConfig.FractureMarks value : ClientConfig.FractureMarks.values()) {
+            fracture.then(Commands.literal(value.name().toLowerCase(java.util.Locale.ROOT)).executes(c -> send(c, "style/fracture/" + value.name())));
+        }
+        final LiteralArgumentBuilder<CommandSourceStack> fractureAura = Commands.literal("fracture_aura");
+        for (ClientConfig.FractureAura value : ClientConfig.FractureAura.values()) {
+            fractureAura.then(Commands.literal(value.name().toLowerCase(java.util.Locale.ROOT)).executes(c -> send(c, "style/fracture_aura/" + value.name())));
+        }
         return style.then(mark).then(burst).then(aegis).then(aegisOverlay).then(convergence).then(apply).then(fit).then(repulsion).then(oblivion)
-                .then(empyrean);
+                .then(empyrean).then(fracture).then(fractureAura).then(scarIcons());
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> scarIcons() {
+        final LiteralArgumentBuilder<CommandSourceStack> scars = Commands.literal("scars");
+        for (ClientConfig.ScarIcon value : ClientConfig.ScarIcon.values()) {
+            scars.then(Commands.literal(value.name().toLowerCase(java.util.Locale.ROOT)).executes(c -> send(c, "style/scars/" + value.name())));
+        }
+        return scars;
     }
 
     private static int form(CommandContext<CommandSourceStack> context, InnerSelf.Form form) throws CommandSyntaxException {
