@@ -75,6 +75,21 @@ public final class Fracturing {
         }
     }
 
+    /** Sets the corruption of an entity (per cent); at 100 % it breaks through, at 0 it is gone. */
+    public static void set(LivingEntity target, float percent) {
+        if (!(target.level() instanceof ServerLevel level)) {
+            return;
+        }
+        if (percent <= 0.0F) {
+            CORRUPTION.remove(target.getUUID());
+            tell(target, 0.0F);
+            return;
+        }
+        final Corruption corruption = CORRUPTION.computeIfAbsent(target.getUUID(), k -> new Corruption(level));
+        corruption.value = 0.0F;
+        corrupt(target, percent, null); // (as if added at once: the same checks, the same breaking through)
+    }
+
     /** How corrupted an entity is now (0 .. 1). */
     public static float corruption(Entity entity) {
         final Corruption corruption = CORRUPTION.get(entity.getUUID());

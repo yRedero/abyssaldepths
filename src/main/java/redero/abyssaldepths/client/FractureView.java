@@ -115,6 +115,27 @@ public final class FractureView {
         }
     }
 
+    /** A player the corruption takes dies quietly: no cry of hurt or of death near them (their body goes in silence). */
+    @SubscribeEvent
+    public static void onSound(net.neoforged.neoforge.client.event.sound.PlaySoundEvent event) {
+        final Minecraft mc = Minecraft.getInstance();
+        if (DYING.isEmpty() || event.getSound() == null || mc.level == null) {
+            return;
+        }
+        final ResourceLocation id = event.getSound().getLocation();
+        if (!id.equals(net.minecraft.sounds.SoundEvents.PLAYER_DEATH.getLocation()) && !id.equals(net.minecraft.sounds.SoundEvents.PLAYER_HURT.getLocation())) {
+            return;
+        }
+        for (Int2LongOpenHashMap.Entry e : DYING.int2LongEntrySet()) {
+            final Entity dying = mc.level.getEntity(e.getIntKey());
+            if (mc.level.getGameTime() - e.getLongValue() < 400 && dying != null
+                    && dying.distanceToSqr(event.getSound().getX(), event.getSound().getY(), event.getSound().getZ()) < 16.0) {
+                event.setSound(null);
+                return;
+            }
+        }
+    }
+
     /** How far the marks of scars reach on the scarred (a quarter, near half, two thirds). */
     private static float scarMarks(int scars) {
         return scars <= 0 ? 0.0F : 0.05F + 0.2F * Math.min(3, scars);
@@ -651,7 +672,7 @@ public final class FractureView {
         final int dark = 0x22252B, mid = 0x5A5E66, light = 0xE8E2D6;
         switch (style) {
             case SERPENT -> { // snakes coiling round, scaled, a pale eye on each head; more of them as it grows
-                final int count = Math.max(2, Math.round(reach * anim.loops().size() * 1.5F));
+                final int count = Math.max(1, Math.round(reach * anim.loops().size() * 1.5F));
                 for (int k = 0; k < count; k++) {
                     final int[] loop = anim.loops().get(k % anim.loops().size());
                     final int length = loop.length, body = Math.max(4, (int) (length * 0.55F));
@@ -681,7 +702,7 @@ public final class FractureView {
                 }
             }
             case SWARM -> { // mites scurrying round, each with paler pixels behind it; more and bigger the further it has come
-                final int count = Math.max(3, Math.round(reach * reach * anim.loops().size() * 7));
+                final int count = Math.max(1, Math.round(reach * reach * anim.loops().size() * 7));
                 final boolean big = reach >= 0.45F;
                 for (int k = 0; k < count; k++) {
                     final int[] loop = anim.loops().get(k % anim.loops().size());
@@ -700,7 +721,7 @@ public final class FractureView {
                 }
             }
             case EYES -> { // eyes opening on the skin, looking about, blinking, closing again
-                final int count = Math.max(2, Math.round(reach * anim.eyes().length * 1.3F));
+                final int count = Math.max(1, Math.round(reach * anim.eyes().length * 1.3F));
                 for (int k = 0; k < count; k++) {
                     final int x = anim.eyes()[k % anim.eyes().length][0], y = anim.eyes()[k % anim.eyes().length][1] + (k / anim.eyes().length) * 4;
                     final int t = (frame + k * 11) % FRAMES;
@@ -722,7 +743,7 @@ public final class FractureView {
                 }
             }
             case CODE -> { // pixel code raining down the body: a pale head, a dark trail fading behind
-                final int count = Math.max(4, Math.round(reach * anim.columns().length));
+                final int count = Math.max(1, Math.round(reach * anim.columns().length));
                 for (int k = 0; k < count; k++) {
                     final int[] c = anim.columns()[k % anim.columns().length];
                     final int head = (c[1] + frame * h * c[2] / FRAMES) % h;
@@ -733,7 +754,7 @@ public final class FractureView {
                 }
             }
             case INK -> { // blots of ink breathing: swelling and drawing back, ragged at their rims
-                final int count = Math.max(2, Math.round(reach * anim.blots().length * 1.3F));
+                final int count = Math.max(1, Math.round(reach * anim.blots().length * 1.3F));
                 for (int k = 0; k < count; k++) {
                     final float[] b = anim.blots()[k % anim.blots().length];
                     final float r = b[2] * (0.7F + 0.3F * Mth.sin(frame / (float) FRAMES * Mth.TWO_PI + b[3]));
@@ -795,6 +816,7 @@ public final class FractureView {
     /** The marks a player's body and the player share (so the one looks just like the other). */
     private static int salt(Entity entity) {
         return entity instanceof redero.abyssaldepths.fracture.FracturedBody body ? body.owner().map(java.util.UUID::hashCode).orElse(entity.getId())
+                : entity instanceof redero.abyssaldepths.fracture.Hollow hollow ? hollow.owner().map(java.util.UUID::hashCode).orElse(entity.getId())
                 : entity instanceof net.minecraft.world.entity.player.Player ? entity.getUUID().hashCode() : entity.getId();
     }
 
@@ -823,7 +845,8 @@ public final class FractureView {
                 recede = -1.0F;
             }
         }
-        final boolean taken = corrupted(entity) || entity instanceof redero.abyssaldepths.fracture.FracturedBody || recede >= 0.0F && recede < 0.25F;
+        final boolean taken = corrupted(entity) || entity instanceof redero.abyssaldepths.fracture.FracturedBody || entity instanceof redero.abyssaldepths.fracture.Hollow
+                || recede >= 0.0F && recede < 0.25F;
         final float scars = SCARRED.isEmpty() ? 0.0F : scarMarks(SCARRED.get(entity.getId()));
         float value = taken ? 1.0F : Math.max(scars, CRACKS.isEmpty() ? 0.0F : CRACKS.get(entity.getId()));
         if (recede >= 0.25F) {
@@ -838,9 +861,12 @@ public final class FractureView {
         final ResourceLocation original = ((net.minecraft.client.renderer.entity.EntityRenderer<LivingEntity>) (Object) event.getRenderer()).getTextureLocation(entity);
         final boolean living = animated(ClientConfig.fractureMarks());
         // the living styles run through many frames: their reach in four steps only (fewer textures)
-        final int step = living ? new int[] {3, 5, 8, 10}[Mth.clamp(Math.round(value * 4) - 1, 0, 3)] : Mth.clamp(Math.round(value * 10), 1, 10);
+        final int step = step(value, living);
         final int salt = salt(entity);
         final int version = living ? (int) Math.floorMod(now / 2 + salt, FRAMES) : (int) Math.floorMod(now / (taken ? 3 : 4) + salt, VERSIONS);
+        if (step <= 0) {
+            return; // too little yet to show
+        }
         final ResourceLocation texture = look(original, step, version, taken, salt, decay);
         if (texture == null) {
             return; // the texture cannot be read (yet): drawn as it is
@@ -859,6 +885,24 @@ public final class FractureView {
         }
     }
 
+    /**
+     * How far the marks show (tenths) for a corruption: never ahead of it (rounded down), nothing below 10 %; the
+     * living styles in fewer steps (each a run of frames).
+     */
+    private static int step(float value, boolean living) {
+        final int tenths = Mth.clamp((int) (value * 10 + 1.0E-4F), 0, 10);
+        if (!living) {
+            return tenths;
+        }
+        int step = 0;
+        for (int s : new int[] {1, 2, 4, 6, 8, 10}) {
+            if (s <= tenths) {
+                step = s;
+            }
+        }
+        return step;
+    }
+
     /** The marked texture of an entity as it is now (the same as its body shows), or null if unmarked or unreadable. */
     private static ResourceLocation marked(LivingEntity entity, ResourceLocation original) {
         final long now = entity.level().getGameTime();
@@ -869,10 +913,10 @@ public final class FractureView {
             return null;
         }
         final boolean living = animated(ClientConfig.fractureMarks());
-        final int step = living ? new int[] {3, 5, 8, 10}[Mth.clamp(Math.round(value * 4) - 1, 0, 3)] : Mth.clamp(Math.round(value * 10), 1, 10);
+        final int step = step(value, living);
         final int salt = salt(entity);
         final int version = living ? (int) Math.floorMod(now / 2 + salt, FRAMES) : (int) Math.floorMod(now / (taken ? 3 : 4) + salt, VERSIONS);
-        return look(original, step, version, taken, salt, 0);
+        return step <= 0 ? null : look(original, step, version, taken, salt, 0);
     }
 
     /** One's own hand in the first person: marked as one's body is (scars, corruption building up). */
@@ -925,7 +969,7 @@ public final class FractureView {
             case DOUBLES -> { // now and then a copy or two flickers beside it, for a few frames
                 final int frame = (int) (now / 3);
                 for (int k = 0; k < 2; k++) {
-                    if (UndertowRenderer.noise(salt + k * 31, frame) > 0.2F + 0.45F * value) {
+                    if (UndertowRenderer.noise(salt + k * 31, frame) > 0.6F * value) {
                         continue;
                     }
                     final float side = (UndertowRenderer.noise(salt + k, frame + 7) - 0.5F) * 2.0F * (0.2F + 0.4F * value);
@@ -938,7 +982,7 @@ public final class FractureView {
             }
             case SPLIT -> { // always two copies just off it, one warm and light, one cold and dark, jittering
                 for (int k = 0; k < 2; k++) {
-                    final float side = (k == 0 ? 1 : -1) * (0.04F + 0.09F * value) * (0.8F + 0.4F * UndertowRenderer.noise(salt + k, (int) now));
+                    final float side = (k == 0 ? 1 : -1) * 0.13F * value * (0.8F + 0.4F * UndertowRenderer.noise(salt + k, (int) now));
                     pose.pushPose();
                     pose.translate(left.x() * side, 0.0F, left.z() * side);
                     FadeDraw.drawHere(entity, event.getPartialTick(), pose, event.getMultiBufferSource(), k == 0 ? 0.32F : 0.42F, k == 0 ? 0xFFF0DC : 0x1C2028, ghost);
@@ -1062,7 +1106,7 @@ public final class FractureView {
     /** The ground under them stained black, ragged and greying at its rim, pixels rising out of it. */
     private static void stain(VertexConsumer q, Matrix4f m, LivingEntity entity, float value, float now, Vector3f left, Vector3f up, float partial) {
         final Vec3 at = entity.getPosition(partial);
-        final float radius = 0.5F + 1.1F * value, cell = 0.125F;
+        final float radius = 1.6F * value, cell = 0.125F;
         final int n = (int) Math.ceil(radius / cell);
         final int seed = entity.getId();
         for (int j = -n; j <= n; j++) {
@@ -1088,7 +1132,7 @@ public final class FractureView {
     /** Cracks running out over the ground from under them, a light running out along them now and then. */
     private static void groundCracks(VertexConsumer q, Matrix4f m, LivingEntity entity, float value, float now, float partial) {
         final Vec3 at = entity.getPosition(partial);
-        final float cell = 0.125F, length = 0.6F + 2.2F * value;
+        final float cell = 0.125F, length = 2.8F * value;
         final int seed = entity.getId();
         for (int c = 0; c < 6; c++) {
             float a = (c + UndertowRenderer.noise(seed + c, 41) * 0.6F) * Mth.TWO_PI / 6;
@@ -1109,7 +1153,7 @@ public final class FractureView {
     /** Dark pixels rising off the body like smoke, greying as they go. */
     private static void smoke(VertexConsumer q, Matrix4f m, LivingEntity entity, float value, float now, Vector3f left, Vector3f up, float partial) {
         final Vec3 at = entity.getPosition(partial);
-        final int count = 6 + (int) (14 * value), seed = entity.getId();
+        final int count = (int) (20 * value), seed = entity.getId();
         for (int k = 0; k < count; k++) {
             final float life = (now * 0.025F + UndertowRenderer.noise(seed * 9 + k, 51)) % 1.0F;
             final float a = UndertowRenderer.noise(seed + k, 52) * Mth.TWO_PI, r = entity.getBbWidth() * 0.45F;

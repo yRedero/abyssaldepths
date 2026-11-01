@@ -133,6 +133,36 @@ public final class TrialHud {
         TrialHud.c = c;
     }
 
+    private static String voiceKey = "";
+    private static int voiceTicks = 1000;
+
+    /** The corruption speaks: a line, glitching in and out. */
+    public static void voice(String key) {
+        voiceKey = key;
+        voiceTicks = 0;
+    }
+
+    private static final String GLYPHS = "#%&@$?!/|<>=+*";
+
+    /** The voice's line: lower middle, letters glitching to signs as it comes and goes and now and then between. */
+    private static void voiceLine(GuiGraphics g, Minecraft mc, int w, int h) {
+        final int length = 80;
+        if (voiceKey.isEmpty() || voiceTicks > length) {
+            return;
+        }
+        final String line = Component.translatable("abyssaldepths.voice." + voiceKey).getString();
+        final float settle = Math.min(1.0F, voiceTicks / 12.0F), leave = Math.min(1.0F, (length - voiceTicks) / 14.0F);
+        final StringBuilder shown = new StringBuilder();
+        for (int i = 0; i < line.length(); i++) {
+            final char c = line.charAt(i);
+            final float n = UndertowRenderer.noise(i * 13 + voiceKey.hashCode(), voiceTicks / 2);
+            final boolean glitch = c != ' ' && (n > Math.min(settle, leave) || n < 0.04F);
+            shown.append(glitch ? GLYPHS.charAt((int) (UndertowRenderer.noise(i, voiceTicks) * GLYPHS.length()) % GLYPHS.length()) : c);
+        }
+        final float alpha = Mth.clamp(Math.min(voiceTicks / 6.0F, leave), 0.0F, 1.0F);
+        centred(g, mc, Component.literal(shown.toString()), w / 2 + (voiceTicks % 7 == 0 ? 1 : 0), (int) (h * 0.66F), 1.6F, alpha);
+    }
+
     public static void hit() {
         hitTicks = 6;
     }
@@ -143,8 +173,22 @@ public final class TrialHud {
         outTicks = 60;
     }
 
+    /** How many scars the player has (as their screen was told). */
+    public static int scarCount() {
+        return scars;
+    }
+
+    /** The scars before the last change, and when it came (for their marks popping in and out). */
+    private static int scarsBefore, clock, popAt = -100;
+    private static final int POP_TICKS = 18;
+    /** Ticks the screen has been clear of the fracturing (the scars' change shows a moment after). */
+    private static int clearFor;
+
+    /** The scars as last told (shown once the screen is clear of the fracturing). */
+    private static int scarsTold;
+
     public static void scars(int scars) {
-        TrialHud.scars = scars;
+        scarsTold = scars;
     }
 
     @SubscribeEvent
@@ -153,6 +197,14 @@ public final class TrialHud {
             sounds(Minecraft.getInstance());
         }
         titleTicks++;
+        clock++;
+        clearFor = FractureScreen.clear() ? clearFor + 1 : 0;
+        if (scarsTold != scars && clearFor > 20) { // the change, seen a moment after the screen has cleared: its marks pop
+            scarsBefore = scars;
+            scars = scarsTold;
+            popAt = clock;
+        }
+        voiceTicks++;
         if (hitTicks > 0) {
             hitTicks--;
         }
@@ -178,6 +230,7 @@ public final class TrialHud {
     private static void draw(GuiGraphics g, float partial) {
         final Minecraft mc = Minecraft.getInstance();
         final int w = g.guiWidth(), h = g.guiHeight();
+        voiceLine(g, mc, w, h);
         if (inTrial()) {
             title(g, mc, w, h);
             bars(g, w);
@@ -198,10 +251,28 @@ public final class TrialHud {
             final float alpha = Mth.clamp(outTicks / 20.0F, 0.0F, 1.0F);
             centred(g, mc, Component.translatable(passed ? "abyssaldepths.trial.passed" : "abyssaldepths.trial.failed"), w / 2, h / 3, 2.0F, alpha);
         }
-        if (scars > 0 && !mc.options.hideGui) { // a mark for each scar, left of the hotbar (clear of the hearts)
+        final float pop = Math.min(1.0F, (clock - popAt + partial) / POP_TICKS);
+        final int marks = pop < 1.0F ? Math.max(scars, scarsBefore) : scars;
+        if (marks > 0 && !mc.options.hideGui) { // a mark for each scar, left of the hotbar (clear of the hearts)
             final long time = mc.level == null ? 0 : mc.level.getGameTime();
-            for (int s = 0; s < scars; s++) {
-                scarIcon(g, w / 2 - 91 - 10, h - 22 + s * 7 + 1, s, time);
+            for (int s = 0; s < marks; s++) {
+                float scale = 1.0F;
+                if (s >= scarsBefore && s < scars) { // new: big at first, shrinking into its size
+                    final float e = 1.0F - (1.0F - pop) * (1.0F - pop);
+                    scale = 1.0F + 0.8F * (1.0F - e);
+                } else if (s >= scars) { // gone: a little swell, then shrinking to nothing
+                    scale = pop < 0.35F ? 1.0F + 0.35F * pop / 0.35F : 1.35F * (1.0F - (pop - 0.35F) / 0.65F);
+                }
+                if (scale <= 0.02F) {
+                    continue;
+                }
+                final int x = w / 2 - 91 - 10, y = h - 22 + s * 7 + 1;
+                g.pose().pushPose();
+                g.pose().translate(x + 3.5F, y + 3.5F, 0.0F);
+                g.pose().scale(scale, scale, 1.0F);
+                g.pose().translate(-x - 3.5F, -y - 3.5F, 0.0F);
+                scarIcon(g, x, y, s, time);
+                g.pose().popPose();
             }
         }
         if (flicker > 0) {
@@ -318,6 +389,24 @@ public final class TrialHud {
                         g.fill(dx + 4, dy + 2, dx + 6, dy + 6, 0xFF67666A);
                         g.fill(dx + 6, dy + 6, dx + 8, dy + 10, 0xFF67666A);
                     }
+                }
+            }
+            case "REACH", "DUEL" -> { // the control left (three marks, the lost ones dark and cracked); at the body, the heart's bar
+                final int left = Math.round(a * 3);
+                for (int k = 0; k < 3; k++) {
+                    final int dx = w / 2 - 27 + k * 18 + 3, dy = y;
+                    final boolean kept = k < left;
+                    g.fill(dx + 2, dy, dx + 10, dy + 12, 0xFF0C0D12);
+                    g.fill(dx, dy + 2, dx + 12, dy + 10, 0xFF0C0D12);
+                    g.fill(dx + 2, dy + 2, dx + 10, dy + 10, kept ? 0xFFC9C2B6 : 0xFF2B2E36);
+                    g.fill(dx + 2, dy + 2, dx + 8, dy + 8, kept ? 0xFFF1EBDF : 0xFF2B2E36);
+                    if (!kept) {
+                        g.fill(dx + 4, dy + 2, dx + 6, dy + 6, 0xFF67666A);
+                        g.fill(dx + 6, dy + 6, dx + 8, dy + 10, 0xFF67666A);
+                    }
+                }
+                if (b >= 0.0F) {
+                    bar(g, x, y + 18, width, b);
                 }
             }
             case "CORE" -> {

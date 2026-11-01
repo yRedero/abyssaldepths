@@ -53,7 +53,7 @@ public final class FractureScreen {
     private static final int GROW_TICKS = 10, FALL_TICKS = 40, HOLD_TICKS = 20, WASH_TICKS = 24;
     private static final int CORE = 0xFF0C0D12, EDGE = 0xFF2E313A, LIGHT = 0xFFE9E2D4, BLACK = 0xFF121419;
 
-    private enum Phase { NONE, BREAKING, OVERGROWING, MOVED, HOLDING, WASHING }
+    private enum Phase { NONE, BREAKING, SINKING, OVERGROWING, MOVED, HOLDING, WASHING }
 
     private static Phase phase = Phase.NONE;
     /** The player's corruption as the cracks show it (eased), and as it is. */
@@ -102,7 +102,11 @@ public final class FractureScreen {
                 seeds.add(new float[] {(i + 0.15F + 0.7F * noise(seed * 11 + i, j)) / ACROSS * aspect, (j + 0.15F + 0.7F * noise(seed * 13 + j, i + 40)) / DOWN});
             }
         }
-        final float ox = noise(seed, 90) * aspect, oy = noise(seed, 91); // where it begins
+        // where it begins: a few places at once, scattered over the screen (one in each third, at random)
+        final float[][] origins = new float[3][];
+        for (int o = 0; o < origins.length; o++) {
+            origins[o] = new float[] {(o + 0.1F + 0.8F * noise(seed * 3 + o, 90)) / origins.length * aspect, 0.1F + 0.8F * noise(seed * 3 + o, 91)};
+        }
         final java.util.Set<Long> seen = new java.util.HashSet<>();
         for (int k = 0; k < seeds.size(); k++) {
             List<float[]> cell = new ArrayList<>(List.of(new float[] {0, 0}, new float[] {aspect, 0}, new float[] {aspect, 1}, new float[] {0, 1}));
@@ -130,11 +134,20 @@ public final class FractureScreen {
                 if (!seen.add(key)) {
                     continue; // shared with a piece done already
                 }
-                final float dp = (float) Math.hypot(p[0] - ox, p[1] - oy), dq = (float) Math.hypot(q[0] - ox, q[1] - oy);
+                float dp = Float.MAX_VALUE, dq = Float.MAX_VALUE;
+                for (float[] o : origins) { // from the nearest of the places it begins
+                    dp = Math.min(dp, (float) Math.hypot(p[0] - o[0], p[1] - o[1]));
+                    dq = Math.min(dq, (float) Math.hypot(q[0] - o[0], q[1] - o[1]));
+                }
                 final float[] near = dp < dq ? p : q, far = dp < dq ? q : p;
-                final float when = Math.min(dp, dq) / (float) Math.hypot(Math.max(ox, aspect - ox), Math.max(oy, 1 - oy));
-                CRACKS.add(new float[] {near[0] / aspect, near[1], far[0] / aspect, far[1], Mth.clamp(when * 0.8F + noise(seed + v, k) * 0.08F, 0.0F, 0.85F)});
+                final float when = Math.min(dp, dq) + noise(seed + v, k) * 0.25F; // not quite in order: now here, now there
+                CRACKS.add(new float[] {near[0] / aspect, near[1], far[0] / aspect, far[1], when});
             }
+        }
+        // in order from where it began; each then takes its share of the level: as much shows as there is corruption
+        CRACKS.sort((a, b) -> Float.compare(a[4], b[4]));
+        for (int c = 0; c < CRACKS.size(); c++) {
+            CRACKS.get(c)[4] = c;
         }
     }
 
@@ -189,6 +202,64 @@ public final class FractureScreen {
         phaseTicks = 0;
     }
 
+    /** Ticks the view drifts out of the body before the screen shatters. */
+    private static final int SINK_OUT = 30;
+    /** The camera as it was before the view sank (put back once in the trial). */
+    private static net.minecraft.client.CameraType savedCamera;
+
+    /**
+     * Taken: the view leaves the body, drifting out behind it (the body freezing, turning black and white, the cracks
+     * full over the screen), then the screen shatters along them; the move follows after {@code ticks}.
+     */
+    public static void sinking(int ticks) {
+        final Minecraft mc = Minecraft.getInstance();
+        seed++;
+        intoTrial = true;
+        passed = false;
+        growTicks = Math.max(1, ticks);
+        phase = Phase.SINKING;
+        age = 0;
+        phaseTicks = 0;
+        if (savedCamera == null) {
+            savedCamera = mc.options.getCameraType();
+        }
+        mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+    }
+
+    /** While sinking: the camera out behind the body, then into it. */
+    @SubscribeEvent
+    public static void onCameraDistance(net.neoforged.neoforge.client.event.CalculateDetachedCameraDistanceEvent event) {
+        if (phase != Phase.SINKING) {
+            return;
+        }
+        final float p = Math.min(1.0F, phaseTicks / (float) SINK_OUT);
+        event.setDistance(Mth.lerp(p * p * (3 - 2 * p), 0.6F, 4.0F)); // out to where the game keeps it
+    }
+
+    /** The onset came to nothing (they died meanwhile): the screen and camera let go, the cracks gone. */
+    public static void cancel() {
+        final Minecraft mc = Minecraft.getInstance();
+        if (phase == Phase.SINKING || phase == Phase.BREAKING || phase == Phase.MOVED && intoTrial) {
+            phase = Phase.NONE;
+            release(mc);
+            if (savedCamera != null) {
+                mc.options.setCameraType(savedCamera);
+                savedCamera = null;
+            }
+            target = level = previousLevel = 0.0F;
+        }
+    }
+
+    /** How far the player's corruption is (0 .. 1). */
+    public static float corruptionLevel() {
+        return target;
+    }
+
+    /** Whether nothing of the fracturing covers the screen now. */
+    public static boolean clear() {
+        return phase == Phase.NONE;
+    }
+
     /** Whether the black is growing over the screen now (a trial ending). */
     public static boolean overgrowing() {
         return phase == Phase.OVERGROWING;
@@ -196,6 +267,10 @@ public final class FractureScreen {
 
     /** The move happened: the black holds until the new place is ready. */
     public static void moved() {
+        if (savedCamera != null) { // in the trial: the camera as the player had it
+            Minecraft.getInstance().options.setCameraType(savedCamera);
+            savedCamera = null;
+        }
         if (phase == Phase.NONE) { // nothing was breaking (a login in a trial): only the black and its wash
             newCracks();
         }
@@ -214,6 +289,16 @@ public final class FractureScreen {
         age++;
         phaseTicks++;
         switch (phase) {
+            case SINKING -> {
+                level = previousLevel = target = 1.0F;
+                if (phaseTicks >= SINK_OUT) { // the body seen taken: now the screen shatters
+                    if (PIECES.isEmpty()) {
+                        newCracks();
+                    }
+                    phase = Phase.BREAKING;
+                    age = 0;
+                }
+            }
             case BREAKING -> {
                 level = previousLevel = target = 1.0F;
                 if (age == GROW_TICKS + 1) {
@@ -298,6 +383,7 @@ public final class FractureScreen {
                 }
             }
             case OVERGROWING -> overgrown(g, w, h, t, Math.min(1.0F, (phaseTicks + partial) / growTicks));
+            case SINKING -> cracks(g, w, h, 1.0F);
             case MOVED, HOLDING -> layer(g, w, h, t, -1.0F);
             case WASHING -> {
                 if (!intoTrial && passed) {
@@ -317,7 +403,7 @@ public final class FractureScreen {
         }
         for (int c = 0; c < CRACKS.size(); c++) {
             final float[] k = CRACKS.get(c);
-            final float shown = Mth.clamp((p - k[4]) / 0.15F, 0.0F, 1.0F);
+            final float shown = Mth.clamp(p * CRACKS.size() - k[4], 0.0F, 1.0F);
             if (shown <= 0) {
                 continue;
             }
@@ -507,8 +593,8 @@ public final class FractureScreen {
 
     @SubscribeEvent
     public static void onScreen(ScreenEvent.Render.Post event) {
-        if (event.getScreen() instanceof net.minecraft.client.gui.screens.DeathScreen) {
-            return; // drawn under it (with the HUD): the death screen over the black, not over the world
+        if (event.getScreen() instanceof net.minecraft.client.gui.screens.DeathScreen || phase == Phase.NONE) {
+            return; // drawn with the HUD, under the screen: the death screen over the black; the cracks alone under menus
         }
         draw(event.getGuiGraphics(), event.getPartialTick());
     }

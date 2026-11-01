@@ -27,7 +27,7 @@ NeoForge 21.1 / Minecraft 1.21.1 mod (ModDevGradle). Adds the thalan layer below
   Mastery belongs to the player (`artifact/ArtifactOwnership`, attachment `MASTERIES`), written onto every
   copy they carry; one of each artifact per inventory.
 - `fracture/`: Fracturing (`Fracturing`: creatures frozen; `FractureTrials`: the player's onset, trial dimension,
-  kept inventory, pass/fail, death and `Scars`; one class per `Trial`); client side in `client/FractureScreen`
+  kept inventory, pass/fail, death and `Scars`; one class per `Trial`: Fracturing brings `ReachTrial` (a black-and-white copy of the land round the player, their body at the far end, their `FractureDouble`, the heart), the older three by command only); a failed body rises as a `Hollow` (killing it takes the scar back); `client/FractureControl` (control slipping from 50 %); client side in `client/FractureScreen`
   (screen breaking), `FractureView` (corruption look, strikes), `TrialHud`, `FractureCoreRenderer`, `FractureSky`.
   Check with `tools/autoshot.sh <round> fracture` (trials, endings, the body left decomposing) and `fracmarks` (the mark styles, config `fractureMarks`, the auras, config `fractureAura`, the Core's warnings, a passed trial); `/abyssaldepths fracture end pass|fail` ends one's trial; `/abyssaldepths fracture [targets|trial <name>]`, `/abyssaldepths scars <n>`.
 - `block/`, `mixin/`, `network/` (one server-to-client effect payload), config in `ClientConfig`.

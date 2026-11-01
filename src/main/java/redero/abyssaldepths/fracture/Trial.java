@@ -30,7 +30,8 @@ public abstract class Trial {
 
     /** The trials, with how often each comes (the simpler, the more often). */
     public enum Type {
-        COLLAPSE(40), BREAKDOWN(35), CORE(25);
+        /** The first three only by command now; Fracturing brings the Reach. */
+        COLLAPSE(0), BREAKDOWN(0), CORE(0), REACH(1), DUEL(1);
 
         final int weight;
 
@@ -43,6 +44,8 @@ public abstract class Trial {
                 case COLLAPSE -> new CollapseTrial(player, level, origin, scars);
                 case BREAKDOWN -> new BreakdownTrial(player, level, origin, scars);
                 case CORE -> new CoreTrial(player, level, origin, scars);
+                case REACH -> new ReachTrial(player, level, origin, scars, false);
+                case DUEL -> new ReachTrial(player, level, origin, scars, true);
             };
         }
 
@@ -77,6 +80,10 @@ public abstract class Trial {
     }
 
     public abstract Type type();
+
+    /** What the player carried (a few things, copies), before it was kept away: some trials make use of it. */
+    void remember(List<net.minecraft.world.item.ItemStack> things) {
+    }
 
     /** Builds the arena round the origin. */
     abstract void build();
@@ -177,10 +184,15 @@ public abstract class Trial {
 
     /** A hit on the player: thrown up and back a little, a hard sound, the screen told. */
     protected void hit(Vec3 from) {
+        hit(from, 0.6);
+    }
+
+    /** A hit, throwing them so far (over the void, gently: a hit should not be a fall too). */
+    protected void hit(Vec3 from, double push) {
         final Vec3 away = player.position().subtract(from);
         final Vec3 flat = new Vec3(away.x, 0, away.z);
         final Vec3 dir = flat.lengthSqr() < 1.0E-4 ? new Vec3(0, 0, 1) : flat.normalize();
-        player.setDeltaMovement(dir.x * 0.6, 0.45, dir.z * 0.6);
+        player.setDeltaMovement(dir.x * push, 0.3 + push * 0.25, dir.z * push);
         player.hurtMarked = true;
         level.playSound(null, player.blockPosition(), net.minecraft.sounds.SoundEvents.AMETHYST_BLOCK_BREAK, net.minecraft.sounds.SoundSource.HOSTILE, 1.0F, 0.5F);
         PacketDistributor.sendToPlayer(player, new EffectPayload("trial_hit", 0));

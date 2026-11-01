@@ -1,6 +1,7 @@
 package redero.abyssaldepths.fracture;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -50,7 +51,7 @@ public final class FractureTrials {
     public static final ResourceKey<Level> DIMENSION = ResourceKey.create(Registries.DIMENSION, ResourceLocation.fromNamespaceAndPath(AbyssalDepths.MODID, "fracture"));
     public static final ResourceKey<net.minecraft.world.damagesource.DamageType> DAMAGE = ResourceKey.create(Registries.DAMAGE_TYPE,
             ResourceLocation.fromNamespaceAndPath(AbyssalDepths.MODID, "fracture"));
-    public static final int ONSET_TICKS = 50, LEAVE_TICKS = 20;
+    public static final int ONSET_TICKS = 85, LEAVE_TICKS = 20;
     private static final int SPACING = 512, ARENA_Y = 100;
     private static final ResourceLocation HELD = ResourceLocation.fromNamespaceAndPath(AbyssalDepths.MODID, "fracture_held");
 
@@ -113,7 +114,20 @@ public final class FractureTrials {
 
     // ---- in and out -------------------------------------------------------------------------
 
+    /** The onset comes to nothing (they died meanwhile, or are gone): let go, the body away, their screen told. */
+    private static void cancelOnset(ServerPlayer player) {
+        ONSET.remove(player.getUUID());
+        PLACED.remove(player.getUUID());
+        hold(player, false);
+        Fracturing.discardBody(player);
+        PacketDistributor.sendToPlayer(player, new EffectPayload("fracture_cancel", 0));
+    }
+
     private static void enter(ServerPlayer player, Trial.Type type) {
+        if (!player.isAlive()) { // dead meanwhile: no trial
+            cancelOnset(player);
+            return;
+        }
         hold(player, false);
         final MinecraftServer server = player.getServer();
         final ServerLevel trials = server.getLevel(DIMENSION);
@@ -126,12 +140,20 @@ public final class FractureTrials {
         if (!PLACED.remove(player.getUUID())) {
             FracturedBody.standIn(player);
         }
+        final List<net.minecraft.world.item.ItemStack> things = new java.util.ArrayList<>(); // a few things they carried, to remember
+        for (int slot = 0; slot < player.getInventory().getContainerSize() && things.size() < 3; slot++) {
+            final net.minecraft.world.item.ItemStack stack = player.getInventory().getItem(slot);
+            if (!stack.isEmpty() && things.stream().noneMatch(s -> s.is(stack.getItem()))) {
+                things.add(stack.copyWithCount(1));
+            }
+        }
         player.getInventory().clearContent();
         player.removeAllEffects();
         player.setHealth(player.getMaxHealth());
         player.getFoodData().setFoodLevel(20);
         final BlockPos origin = new BlockPos(kept.slot(player.getUUID()) * SPACING, ARENA_Y, 0);
         final Trial trial = (type == null ? Trial.Type.pick(player.getRandom()) : type).create(player, trials, origin, Scars.of(player));
+        trial.remember(things);
         trial.build();
         final Vec3 spawn = trial.spawn();
         player.teleportTo(trials, spawn.x, spawn.y, spawn.z, trial.spawnYaw(), 10.0F);
@@ -174,6 +196,14 @@ public final class FractureTrials {
         LEAVING.put(player.getUUID(), new Leaving(player.serverLevel().getGameTime() + LEAVE_TICKS, passed));
         PacketDistributor.sendToPlayer(player, new EffectPayload("trial_end/" + (passed ? 1 : 0), LEAVE_TICKS));
         return true;
+    }
+
+    /** For the dev tools: no hit counts in the trials (to see them through standing still). */
+    public static boolean unharmed;
+
+    /** Where a part of the player's trial is (for the dev tools), or null. */
+    public static Vec3 place(ServerPlayer player, String what) {
+        return TRIALS.get(player.getUUID()) instanceof ReachTrial reach ? reach.place(what) : null;
     }
 
     /** Players whose body stands already (the moment before they go). */
@@ -274,10 +304,20 @@ public final class FractureTrials {
                 && !event.getSource().is(net.minecraft.world.damagesource.DamageTypes.GENERIC_KILL)) {
             event.setCanceled(true);
         }
+        // while it takes them (held still, the view leaving them) nothing else hurts them, but the void and /kill
+        if (event.getEntity() instanceof Player player && ONSET.containsKey(player.getUUID())
+                && !event.getSource().is(net.minecraft.world.damagesource.DamageTypes.GENERIC_KILL)
+                && !event.getSource().is(net.minecraft.world.damagesource.DamageTypes.FELL_OUT_OF_WORLD)) {
+            event.setCanceled(true);
+        }
     }
 
     @SubscribeEvent
     public static void onDeath(LivingDeathEvent event) {
+        if (event.getEntity() instanceof ServerPlayer dying && ONSET.containsKey(dying.getUUID())) {
+            cancelOnset(dying); // dead before it took them: no trial
+            return;
+        }
         if (event.getEntity() instanceof ServerPlayer player && player.level().dimension() == DIMENSION && TRIALS.containsKey(player.getUUID())) {
             event.setCanceled(true); // the trial fails instead (the death follows, back in the body)
             player.setHealth(1.0F);

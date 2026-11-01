@@ -12,11 +12,11 @@ import redero.abyssaldepths.entity.AbsentBody;
 /**
  * The body a fractured player leaves standing while they are in their trial: their likeness, frozen in black
  * and white corruption (drawn so by {@code client.FractureView}), untouchable, unmoving. It goes when its player
- * is out of the trial again (or gone); if they failed it stays where it stood, decomposing over
- * {@link #DECAY_TICKS} (pixels falling away), while the corruption takes them.
+ * is out of the trial again (or gone); if they failed it stays where it stood, decomposing (pixels falling away),
+ * and after {@link #RISE_TICKS} it rises as a {@link Hollow} and walks off in their likeness.
  */
 public class FracturedBody extends AbsentBody {
-    public static final int DECAY_TICKS = 20 * 30;
+    public static final int DECAY_TICKS = 20 * 30, RISE_TICKS = 20 * 5;
     /** The world's tick it began to decompose (the same on every client, however long they have seen it); -1 not. */
     private static final net.minecraft.network.syncher.EntityDataAccessor<Long> DECAY = net.minecraft.network.syncher.SynchedEntityData.defineId(FracturedBody.class,
             net.minecraft.network.syncher.EntityDataSerializers.LONG);
@@ -42,6 +42,17 @@ public class FracturedBody extends AbsentBody {
         return from < 0 ? -1.0F : Mth.clamp((level().getGameTime() - from + partialTick) / DECAY_TICKS, 0.0F, 1.0F);
     }
 
+    /** The player's body as it stands in their trial (where they must reach it), facing yaw. */
+    static FracturedBody mirror(ServerPlayer player, net.minecraft.server.level.ServerLevel level, net.minecraft.world.phys.Vec3 at, float yaw) {
+        final FracturedBody body = new FracturedBody(AbyssalDepths.FRACTURED_BODY.get(), level);
+        body.dressAs(player);
+        body.moveTo(at.x, at.y, at.z, yaw, 0.0F);
+        body.setYHeadRot(yaw);
+        body.yBodyRot = body.yBodyRotO = yaw;
+        level.addFreshEntity(body);
+        return body;
+    }
+
     /** Leaves the player's frozen body where they stand. */
     static FracturedBody standIn(ServerPlayer player) {
         final FracturedBody body = new FracturedBody(AbyssalDepths.FRACTURED_BODY.get(), player.level());
@@ -60,8 +71,9 @@ public class FracturedBody extends AbsentBody {
         if (!level().isClientSide && tickCount % 40 == 1) {
             Fracturing.showCorrupted(this, 60);
         }
-        if (!level().isClientSide && decayed(0.0F) >= 1.0F) {
-            discard(); // nothing left
+        if (!level().isClientSide && decayed(0.0F) * DECAY_TICKS >= RISE_TICKS) {
+            Hollow.rise(this); // it gets up, and is no longer theirs
+            discard();
         }
     }
 

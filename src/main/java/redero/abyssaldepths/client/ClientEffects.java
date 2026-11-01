@@ -34,8 +34,12 @@ public final class ClientEffects {
                 FractureScreen.corruption(value);
             }
             FractureView.cracks(id, value); // on their body (one's own too, seen from behind)
-        } else if (effect.equals("fracture_onset")) { // the screen breaks: a trial comes
-            FractureScreen.breaking(payload.ticks(), true);
+        } else if (effect.startsWith("trial_voice/")) { // the corruption speaks
+            TrialHud.voice(effect.substring("trial_voice/".length()));
+        } else if (effect.equals("fracture_cancel")) { // it came to nothing (died meanwhile): the screen let go
+            FractureScreen.cancel();
+        } else if (effect.equals("fracture_onset")) { // taken: the view sinks into the body
+            FractureScreen.sinking(payload.ticks());
         } else if (effect.startsWith("trial_start/")) {
             FractureScreen.moved();
             TrialHud.enter(effect.substring("trial_start/".length()));

@@ -30,6 +30,8 @@ public class FractureCore extends Entity {
     public static final int STRENGTH = 10;
 
     private int cooldown;
+    /** Blows taken since its shell last opened (one is all it takes: then it closes). */
+    private int openBlows;
     /** Blows taken since the trial last looked. */
     int struck;
 
@@ -68,6 +70,7 @@ public class FractureCore extends Entity {
     }
 
     void set(int state, float sweepFrom, float pace, int next) {
+        openBlows = 0;
         entityData.set(NEXT, next);
         entityData.set(STATE, state);
         entityData.set(SINCE, tickCount);
@@ -90,13 +93,14 @@ public class FractureCore extends Entity {
     /** A blow: it only cracks while its shell is open, and not twice in a moment. */
     @Override
     public boolean hurt(DamageSource source, float amount) {
-        if (level().isClientSide || !(source.getEntity() instanceof Player) || state() != OPEN || cooldown > 0 || left() <= 0) {
+        if (level().isClientSide || !(source.getEntity() instanceof Player) || state() != OPEN || cooldown > 0 || openBlows > 0 || left() <= 0) {
             if (!level().isClientSide && source.getEntity() instanceof Player && state() != OPEN) {
                 level().playSound(null, blockPosition(), SoundEvents.SHIELD_BLOCK, SoundSource.HOSTILE, 0.8F, 1.6F); // the shell holds
             }
             return false;
         }
         cooldown = 6;
+        openBlows++;
         struck++;
         setLeft(left() - 1);
         level().playSound(null, blockPosition(), SoundEvents.AMETHYST_BLOCK_BREAK, SoundSource.HOSTILE, 1.2F, 0.8F + 0.04F * left());

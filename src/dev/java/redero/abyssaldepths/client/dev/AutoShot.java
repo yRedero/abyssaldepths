@@ -53,7 +53,7 @@ public final class AutoShot {
     private static final String SPOT_COMMANDS = System.getProperty("abyssaldepths.autoshot.spotCommands", "");
     private static final int SETTLE_TICKS = 220, TURN_TICKS = 15;
 
-    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, VANISH, OBLIVION, NEWARTIFACTS, FIRMAMENT, SMALL, LOOKS, EMPYREAN, MARKS, WAKE, FRACTURE, FRACMARKS, VARIANTS, DONE }
+    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, VANISH, OBLIVION, NEWARTIFACTS, FIRMAMENT, SMALL, LOOKS, EMPYREAN, MARKS, WAKE, FRACTURE, FRACMARKS, FRACLEVELS, VARIANTS, DONE }
 
     private static Step step = Step.TITLE;
     private static final Deque<String> BIOMES = new ArrayDeque<>();
@@ -173,6 +173,14 @@ public final class AutoShot {
                         fractureTrial = 0;
                         fractureAt = -1;
                         step = Step.FRACTURE;
+                    }
+                    return;
+                }
+                if (biome != null && biome.startsWith("fraclevels#")) {
+                    // not a place: the screen's cracks at 10, 50 and 90 %, the pause menu over them, creatures at 1 and 10 %
+                    if (biome.endsWith("#0")) {
+                        wait = 0;
+                        step = Step.FRACLEVELS;
                     }
                     return;
                 }
@@ -423,7 +431,7 @@ public final class AutoShot {
             case FRACTURE -> {
                 final MinecraftServer server = mc.getSingleplayerServer();
                 final int t = ++wait;
-                final String[] trials = {"collapse", "breakdown", "core"};
+                final String[] trials = {"reach", "duel"}; // the way (stood through: failed), the fight
                 final boolean inTrial = mc.level.dimension() == redero.abyssaldepths.fracture.FractureTrials.DIMENSION;
                 if (mc.player.isDeadOrDying() && mc.screen instanceof net.minecraft.client.gui.screens.DeathScreen) {
                     if (deathShown < 0) {
@@ -452,6 +460,10 @@ public final class AutoShot {
                     mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
                 } else if (t == 12) {
                     command(server, "abyssaldepths fracture @e[tag=frac_test]");
+                    command(server, "abyssaldepths fracture set @s 40");
+                    command(server, "abyssaldepths fracture get");
+                    command(server, "abyssaldepths fracture set @s 0");
+                    command(server, "abyssaldepths fracture get @s");
                 } else if (t == 20) {
                     server.execute(() -> {
                         for (net.minecraft.world.entity.Entity e : server.getPlayerList().getPlayers().get(0).serverLevel().getAllEntities()) {
@@ -469,15 +481,48 @@ public final class AutoShot {
                         command(server, "abyssaldepths fracture trial " + trials[fractureTrial]);
                     }
                     final int in = t - fractureAt;
-                    if (in == 25 || in == 44) {
-                        shoot(mc, "fracture_" + fractureTrial + "_dir" + (in == 25 ? 0 : 1)); // the cracks; the pieces falling
-                    } else if (in == 95) {
+                    if (in == 22 || in == 50) {
+                        shoot(mc, "fracture_" + fractureTrial + "_dir" + (in == 22 ? 0 : 1)); // the view drifting out; sinking back in
+                    } else if (in == 160 && fractureTrial == 1 || fractureTrial == 0 && (in == 160 || in == 185 || in == 210)) { // the gate, a memory, the duel (first trial); the body (second)
+                        final String what = fractureTrial == 1 ? "duel" : in == 160 ? "gate" : in == 185 ? "memory" : "duel";
+                        server.execute(() -> {
+                            final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                            final net.minecraft.world.phys.Vec3 at = redero.abyssaldepths.fracture.FractureTrials.place(p, what);
+                            AbyssalDepths.LOGGER.info("fracture check: {} at {}", what, at);
+                            if (at != null) {
+                                p.teleportTo(p.serverLevel(), at.x, at.y + 0.1, at.z, 0.0F, 5.0F);
+                            }
+                        });
+                    } else if (fractureTrial == 0 && (in == 172 || in == 196 || in == 228) || fractureTrial == 1 && in >= 190 && in <= 300 && in % 12 == 0) {
+                        shoot(mc, "fracture_" + fractureTrial + "_at" + in + "_dir0");
+                    } else if (fractureTrial == 1 && in > 160 && in < 1400) { // the fight seen through: blows on whatever is there, unharmed
+                        redero.abyssaldepths.fracture.FractureTrials.unharmed = true;
+                        if (in % 4 == 0) {
+                            server.execute(() -> {
+                                final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                                boolean twin = false;
+                                for (net.minecraft.world.entity.Entity e : p.serverLevel().getAllEntities()) {
+                                    if (e instanceof redero.abyssaldepths.fracture.FractureDouble || e instanceof redero.abyssaldepths.fracture.FractureCore) {
+                                        e.hurt(p.damageSources().playerAttack(p), 1.0F);
+                                        twin = true;
+                                    }
+                                }
+                                if (!twin && redero.abyssaldepths.fracture.FractureTrials.place(p, "body") != null) { // the double broken: to the body, then onto it
+                                    final net.minecraft.world.phys.Vec3 at = redero.abyssaldepths.fracture.FractureTrials.place(p, p.tickCount % 80 < 40 ? "body" : "touch");
+                                    p.teleportTo(p.serverLevel(), at.x, at.y, at.z, 0.0F, 10.0F);
+                                }
+                            });
+                        }
+                        if (in % 40 == 0) {
+                            shoot(mc, "fracture_1_fight" + in + "_dir0");
+                        }
+                    } else if (in == 170) {
                         shoot(mc, "fracture_" + fractureTrial + "_dir2"); // arrived: the arena, the title
                         AbyssalDepths.LOGGER.info("fracture check {}: in {} inventory empty {}", trials[fractureTrial], mc.level.dimension().location(),
                                 mc.player.getInventory().isEmpty());
-                    } else if (in == 140) {
-                        mc.player.setXRot(-15.0F); // up a little: the core, if there is one
-                        shoot(mc, "fracture_" + fractureTrial + "_dir3"); // under way
+                    } else if (in == 215) {
+                        mc.player.setXRot(5.0F);
+                        shoot(mc, "fracture_" + fractureTrial + "_dir3"); // under way: the double coming
                     }
                     if (in > 60 && endSeen < 0 && redero.abyssaldepths.client.FractureScreen.overgrowing()) {
                         endSeen = t;
@@ -485,23 +530,27 @@ public final class AutoShot {
                     if (endSeen >= 0 && t - endSeen == 8) {
                         shoot(mc, "fracture_" + fractureTrial + "_dir4"); // the black growing over the trial
                     }
-                    if (in > 60 && !inTrial && fractureBack < 0) {
+                    if (in > 160 && !inTrial && fractureBack < 0) {
                         fractureBack = t;
                         endSeen = -1;
                     }
-                    if (fractureBack >= 0 && t - fractureBack == 75) { // after the respawn: the body left behind, decomposing
+                    if (fractureBack >= 0 && (t - fractureBack == 40 || t - fractureBack == 130)) { // after the respawn: the body decomposing, then risen
+                        final boolean risen = t - fractureBack == 130;
                         server.execute(() -> {
                             final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
                             for (net.minecraft.world.entity.Entity e : p.serverLevel().getAllEntities()) {
-                                if (e instanceof redero.abyssaldepths.fracture.FracturedBody) {
+                                if (e instanceof redero.abyssaldepths.fracture.FracturedBody || e instanceof redero.abyssaldepths.fracture.Hollow) {
                                     p.teleportTo(p.serverLevel(), e.getX(), e.getY(), e.getZ() + 3.0, 180.0F, 15.0F);
-                                    AbyssalDepths.LOGGER.info("fracture check: the body is still there, decomposing {}", ((redero.abyssaldepths.fracture.FracturedBody) e).decayed(0));
+                                    AbyssalDepths.LOGGER.info("fracture check: {} there ({})", e.getType().getDescriptionId(), risen ? "risen?" : "decomposing");
                                 }
                             }
                         });
                     }
-                    if (fractureBack >= 0 && t - fractureBack == 85) {
-                        shoot(mc, "fracture_" + fractureTrial + "_dir6");
+                    if (fractureBack >= 0 && (t - fractureBack == 48 || t - fractureBack == 138)) {
+                        shoot(mc, "fracture_" + fractureTrial + "_dir" + (t - fractureBack == 48 ? 6 : 7));
+                    }
+                    if (fractureBack >= 0 && t - fractureBack == 150) {
+                        command(server, "kill @e[type=abyssaldepths:hollow]");
                     }
                     if (fractureBack >= 0 && t - fractureBack == 15) {
                         AbyssalDepths.LOGGER.info("fracture check {}: back after {} s, dead {}", trials[fractureTrial], (t - fractureAt) / 20, mc.player.isDeadOrDying());
@@ -516,7 +565,8 @@ public final class AutoShot {
                                     p.getMaxHealth(), p.getInventory().countItem(net.minecraft.world.item.Items.DIAMOND));
                         });
                     }
-                    if (fractureBack >= 0 && t - fractureBack == 95) {
+                    if (fractureBack >= 0 && t - fractureBack == 160) {
+                        redero.abyssaldepths.fracture.FractureTrials.unharmed = false;
                         fractureTrial++;
                         fractureAt = -1;
                     }
@@ -606,6 +656,53 @@ public final class AutoShot {
                 if (mc.player.isDeadOrDying() && mc.screen instanceof net.minecraft.client.gui.screens.DeathScreen) {
                     mc.player.respawn();
                     mc.setScreen(null);
+                }
+            }
+            case FRACLEVELS -> {
+                final MinecraftServer server = mc.getSingleplayerServer();
+                final int t = ++wait;
+                if (t == 1) {
+                    command(server, "gamemode survival");
+                    command(server, "tp @s ~ ~40 ~ 0 10");
+                    command(server, "effect give @s resistance 600 4 true");
+                } else if (t == 6) {
+                    command(server, "fill ~-6 ~-1 ~-2 ~6 ~-1 ~10 stone");
+                    command(server, "summon villager ~-2 ~ ~4 {NoAI:1b,PersistenceRequired:1b,Rotation:[180f,0f],Tags:[\"fl1\"]}");
+                    command(server, "summon villager ~2 ~ ~4 {NoAI:1b,PersistenceRequired:1b,Rotation:[180f,0f],Tags:[\"fl10\"]}");
+                    mc.options.hideGui = false;
+                } else if (t == 10) {
+                    command(server, "abyssaldepths fracture @e[tag=fl1] 1");
+                    command(server, "abyssaldepths fracture @e[tag=fl10] 10");
+                    command(server, "abyssaldepths fracture @s 10");
+                } else if (t == 40) {
+                    shoot(mc, "fraclevels_10_dir0"); // the left at 1 %, the right at 10 %; the screen at 10 %
+                    command(server, "abyssaldepths fracture @s 40");
+                } else if (t == 80) {
+                    shoot(mc, "fraclevels_50_dir0");
+                    command(server, "abyssaldepths fracture @s 40");
+                } else if (t == 120) {
+                    shoot(mc, "fraclevels_90_dir0");
+                    mc.setScreen(new net.minecraft.client.gui.screens.PauseScreen(true));
+                } else if (t == 126) {
+                    shoot(mc, "fraclevels_pause_dir0"); // the menu over the cracks
+                    mc.setScreen(null);
+                    command(server, "kill @e[tag=fl1]");
+                    command(server, "kill @e[tag=fl10]");
+                    command(server, "abyssaldepths fracture @s 100"); // taken ...
+                } else if (t == 146) {
+                    command(server, "kill @s"); // ... and dead before it took them
+                } else if (t == 250) { // a while on the death screen
+                    AbyssalDepths.LOGGER.info("fracture check died in the onset: in {}, dead {}, screen clear {}", mc.level.dimension().location(), mc.player.isDeadOrDying(),
+                            redero.abyssaldepths.client.FractureScreen.clear());
+                    shoot(mc, "fraclevels_dead_dir0");
+                    mc.player.respawn();
+                } else if (t == 300) {
+                    AbyssalDepths.LOGGER.info("fracture check after the respawn: in {}, dead {}, screen clear {}, camera {}", mc.level.dimension().location(),
+                            mc.player.isDeadOrDying(), redero.abyssaldepths.client.FractureScreen.clear(), mc.options.getCameraType());
+                    shoot(mc, "fraclevels_respawned_dir0");
+                    mc.options.hideGui = true;
+                    command(server, "gamemode spectator");
+                    step = Step.NEXT;
                 }
             }
             case WAKE -> {

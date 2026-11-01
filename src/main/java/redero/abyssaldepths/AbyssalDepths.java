@@ -349,6 +349,14 @@ public class AbyssalDepths {
     public static final DeferredHolder<EntityType<?>, EntityType<redero.abyssaldepths.fracture.FracturedBody>> FRACTURED_BODY = ENTITY_TYPES.register("fractured_body",
             () -> EntityType.Builder.<redero.abyssaldepths.fracture.FracturedBody>of(redero.abyssaldepths.fracture.FracturedBody::new, MobCategory.MISC).sized(0.6F, 1.8F)
                     .noSummon().clientTrackingRange(10).build("fractured_body"));
+    /** A player's corrupted double in their trial. */
+    public static final DeferredHolder<EntityType<?>, EntityType<redero.abyssaldepths.fracture.FractureDouble>> FRACTURE_DOUBLE = ENTITY_TYPES.register("fracture_double",
+            () -> EntityType.Builder.<redero.abyssaldepths.fracture.FractureDouble>of(redero.abyssaldepths.fracture.FractureDouble::new, MobCategory.MISC).sized(0.6F, 1.8F)
+                    .noSummon().clientTrackingRange(10).build("fracture_double"));
+    /** A body the corruption took, risen. */
+    public static final DeferredHolder<EntityType<?>, EntityType<redero.abyssaldepths.fracture.Hollow>> HOLLOW = ENTITY_TYPES.register("hollow",
+            () -> EntityType.Builder.<redero.abyssaldepths.fracture.Hollow>of(redero.abyssaldepths.fracture.Hollow::new, MobCategory.MONSTER).sized(0.6F, 1.8F)
+                    .clientTrackingRange(10).build("hollow"));
     /** The corrupted core of the Core trial. */
     public static final DeferredHolder<EntityType<?>, EntityType<redero.abyssaldepths.fracture.FractureCore>> FRACTURE_CORE = ENTITY_TYPES.register("fracture_core",
             () -> EntityType.Builder.<redero.abyssaldepths.fracture.FractureCore>of(redero.abyssaldepths.fracture.FractureCore::new, MobCategory.MISC).sized(1.6F, 1.6F)
@@ -515,6 +523,8 @@ public class AbyssalDepths {
                     event.put(ABSENT_BODY.get(), net.minecraft.world.entity.LivingEntity.createLivingAttributes().build());
                     event.put(MIRAGE_DECOY.get(), net.minecraft.world.entity.LivingEntity.createLivingAttributes().build());
                     event.put(FRACTURED_BODY.get(), net.minecraft.world.entity.LivingEntity.createLivingAttributes().build());
+                    event.put(FRACTURE_DOUBLE.get(), net.minecraft.world.entity.LivingEntity.createLivingAttributes().build());
+                    event.put(HOLLOW.get(), redero.abyssaldepths.fracture.Hollow.attributes().build());
                 });
         FEATURES.register(modEventBus);
         CREATIVE_TABS.register(modEventBus);

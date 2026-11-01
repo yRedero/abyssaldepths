@@ -155,7 +155,31 @@ public final class LayerCommands {
         for (String how : new String[] {"pass", "fail"}) {
             end.then(Commands.literal(how).executes(c -> redero.abyssaldepths.fracture.FractureTrials.end(c.getSource().getPlayerOrException(), how.equals("pass")) ? 1 : 0));
         }
+        // the level itself: set (0 .. 100: at 100 it breaks through) and read
+        fracture.then(Commands.literal("set").then(Commands.argument("targets", net.minecraft.commands.arguments.EntityArgument.entities())
+                .then(Commands.argument("percent", IntegerArgumentType.integer(0, 100)).executes(c -> {
+                    int count = 0;
+                    for (net.minecraft.world.entity.Entity entity : net.minecraft.commands.arguments.EntityArgument.getEntities(c, "targets")) {
+                        if (entity instanceof net.minecraft.world.entity.LivingEntity living) {
+                            redero.abyssaldepths.fracture.Fracturing.set(living, IntegerArgumentType.getInteger(c, "percent"));
+                            count++;
+                        }
+                    }
+                    final int percent = IntegerArgumentType.getInteger(c, "percent"), n = count;
+                    c.getSource().sendSuccess(() -> Component.literal("Fracture level set to " + percent + " % (" + n + ")"), false);
+                    return count;
+                }))));
+        fracture.then(Commands.literal("get").executes(c -> level(c, c.getSource().getEntityOrException()))
+                .then(Commands.argument("target", net.minecraft.commands.arguments.EntityArgument.entity())
+                        .executes(c -> level(c, net.minecraft.commands.arguments.EntityArgument.getEntity(c, "target")))));
         return fracture.then(trial).then(end);
+    }
+
+    /** Tells the fracture level of an entity (and returns it, in per cent). */
+    private static int level(CommandContext<CommandSourceStack> c, net.minecraft.world.entity.Entity entity) {
+        final int percent = Math.round(redero.abyssaldepths.fracture.Fracturing.corruption(entity) * 100);
+        c.getSource().sendSuccess(() -> Component.literal(entity.getName().getString() + ": fracture level " + percent + " %"), false);
+        return percent;
     }
 
     private static int corrupt(CommandContext<CommandSourceStack> c, float percent) throws CommandSyntaxException {
