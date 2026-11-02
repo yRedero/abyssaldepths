@@ -52,6 +52,8 @@ public final class FractureTrials {
     public static final ResourceKey<net.minecraft.world.damagesource.DamageType> DAMAGE = ResourceKey.create(Registries.DAMAGE_TYPE,
             ResourceLocation.fromNamespaceAndPath(AbyssalDepths.MODID, "fracture"));
     public static final int ONSET_TICKS = 85, LEAVE_TICKS = 20;
+    /** Ticks into the onset the screen shatters (the view out of the body first: see {@code client.FractureScreen}). */
+    private static final int BREAK_AFTER = 41;
     private static final int SPACING = 512, ARENA_Y = 100;
     private static final ResourceLocation HELD = ResourceLocation.fromNamespaceAndPath(AbyssalDepths.MODID, "fracture_held");
 
@@ -94,7 +96,6 @@ public final class FractureTrials {
         hold(player, true);
         PacketDistributor.sendToPlayer(player, new EffectPayload("fracture_onset", ONSET_TICKS));
         Fracturing.showCorrupted(player, ONSET_TICKS + 5);
-        player.serverLevel().playSound(null, player.blockPosition(), net.minecraft.sounds.SoundEvents.GLASS_BREAK, net.minecraft.sounds.SoundSource.PLAYERS, 1.0F, 0.3F);
     }
 
     /** Holds the player still (or lets go): no walking, no jumping. */
@@ -228,6 +229,10 @@ public final class FractureTrials {
                 final ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
                 if (player == null) {
                     ONSET.remove(entry.getKey());
+                } else if (player.serverLevel().getGameTime() == entry.getValue().at() - ONSET_TICKS + BREAK_AFTER) {
+                    // the moment their screen shatters: those near hear it too (they themselves hear it from their screen)
+                    player.serverLevel().playSound(player, player.blockPosition(), net.minecraft.sounds.SoundEvents.GLASS_BREAK,
+                            net.minecraft.sounds.SoundSource.PLAYERS, 1.0F, 0.3F);
                 } else if (player.serverLevel().getGameTime() >= entry.getValue().at() - 3 && !PLACED.contains(entry.getKey())) {
                     PLACED.add(entry.getKey()); // the body a few ticks before the player goes: both there at once, never neither
                     FracturedBody.standIn(player);

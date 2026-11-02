@@ -391,7 +391,7 @@ public final class TrialHud {
                     }
                 }
             }
-            case "REACH", "DUEL" -> { // the control left (three marks, the lost ones dark and cracked); at the body, the heart's bar
+            case "REACH", "DUEL", "HUSH", "FALL" -> { // (Hush: the bar is how loud they are; the Fall: how deep) // the control left (three marks, the lost ones dark and cracked); at the body, the heart's bar
                 final int left = Math.round(a * 3);
                 for (int k = 0; k < 3; k++) {
                     final int dx = w / 2 - 27 + k * 18 + 3, dy = y;

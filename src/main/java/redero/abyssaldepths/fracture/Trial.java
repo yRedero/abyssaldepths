@@ -31,7 +31,7 @@ public abstract class Trial {
     /** The trials, with how often each comes (the simpler, the more often). */
     public enum Type {
         /** The first three only by command now; Fracturing brings the Reach. */
-        COLLAPSE(0), BREAKDOWN(0), CORE(0), REACH(1), DUEL(1);
+        COLLAPSE(0), BREAKDOWN(0), CORE(0), REACH(1), DUEL(1), HUSH(1), FALL(1);
 
         final int weight;
 
@@ -46,6 +46,8 @@ public abstract class Trial {
                 case CORE -> new CoreTrial(player, level, origin, scars);
                 case REACH -> new ReachTrial(player, level, origin, scars, false);
                 case DUEL -> new ReachTrial(player, level, origin, scars, true);
+                case HUSH -> new HushTrial(player, level, origin, scars);
+                case FALL -> new FallTrial(player, level, origin, scars);
             };
         }
 
@@ -106,6 +108,11 @@ public abstract class Trial {
             orient(age);
             return Result.RUNNING;
         }
+        if (ward && age % 5 == 0) { // the ward: pale motes circling them
+            final double a = age * 0.4;
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.END_ROD, player.getX() + Math.cos(a) * 0.7, player.getY() + 1.0, player.getZ() + Math.sin(a) * 0.7,
+                    1, 0, 0.1, 0, 0);
+        }
         return run(age - ORIENT_TICKS);
     }
 
@@ -136,6 +143,49 @@ public abstract class Trial {
     /** The walls' block: pure black, no detail. */
     static net.minecraft.world.level.block.state.BlockState black() {
         return redero.abyssaldepths.AbyssalDepths.FRACTURE_BLACK.get().defaultBlockState();
+    }
+
+    /** Held by a memory: the next hit comes to nothing (pale motes circle the player meanwhile). */
+    protected boolean ward;
+
+    /** Whether a hit is warded off (the ward spent: a burst of light, a word). */
+    protected boolean wardOff() {
+        if (!ward) {
+            return false;
+        }
+        ward = false;
+        level.sendParticles(net.minecraft.core.particles.ParticleTypes.END_ROD, player.getX(), player.getY() + 1.0, player.getZ(), 30, 0.4, 0.6, 0.4, 0.12);
+        level.playSound(null, player.blockPosition(), net.minecraft.sounds.SoundEvents.AMETHYST_BLOCK_RESONATE, net.minecraft.sounds.SoundSource.PLAYERS, 1.2F, 1.2F);
+        say("ward");
+        return true;
+    }
+
+    /** The corruption speaks to the player (a line on their screen). */
+    protected void say(String key) {
+        PacketDistributor.sendToPlayer(player, new EffectPayload("trial_voice/" + key, 0));
+    }
+
+    /** A thing the player carried, floating where they can reach it (glowing, so it shows in the dark): a memory. */
+    protected net.minecraft.world.entity.item.ItemEntity memory(net.minecraft.world.item.ItemStack stack, Vec3 at) {
+        final net.minecraft.world.entity.item.ItemEntity memory = new net.minecraft.world.entity.item.ItemEntity(level, at.x, at.y, at.z, stack);
+        memory.setNoGravity(true);
+        memory.setNeverPickUp();
+        memory.setUnlimitedLifetime();
+        memory.setDeltaMovement(Vec3.ZERO);
+        memory.setGlowingTag(true);
+        level.addFreshEntity(memory);
+        return memory;
+    }
+
+    /** Things to remember: what they carried (copies), their own head where there is too little. */
+    protected static List<net.minecraft.world.item.ItemStack> remembered(ServerPlayer player, List<net.minecraft.world.item.ItemStack> things, int count) {
+        final List<net.minecraft.world.item.ItemStack> list = new java.util.ArrayList<>(things);
+        while (list.size() < count) {
+            final net.minecraft.world.item.ItemStack head = new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.PLAYER_HEAD);
+            head.set(net.minecraft.core.component.DataComponents.PROFILE, new net.minecraft.world.item.component.ResolvableProfile(player.getGameProfile()));
+            list.add(head);
+        }
+        return list;
     }
 
     /** Tells the player's screen how the trial stands (three numbers, the trial's own; a few times a second). */

@@ -431,7 +431,7 @@ public final class AutoShot {
             case FRACTURE -> {
                 final MinecraftServer server = mc.getSingleplayerServer();
                 final int t = ++wait;
-                final String[] trials = {"reach", "duel"}; // the way (stood through: failed), the fight
+                final String[] trials = {"hush", "fall"}; // in the dark (looked round, then passed), the fall (seen through, unharmed)
                 final boolean inTrial = mc.level.dimension() == redero.abyssaldepths.fracture.FractureTrials.DIMENSION;
                 if (mc.player.isDeadOrDying() && mc.screen instanceof net.minecraft.client.gui.screens.DeathScreen) {
                     if (deathShown < 0) {
@@ -493,7 +493,12 @@ public final class AutoShot {
                                 p.teleportTo(p.serverLevel(), at.x, at.y + 0.1, at.z, 0.0F, 5.0F);
                             }
                         });
-                    } else if (fractureTrial == 0 && (in == 172 || in == 196 || in == 228) || fractureTrial == 1 && in >= 190 && in <= 300 && in % 12 == 0) {
+                    } else if (fractureTrial == 0 && in == 340) {
+                        command(server, "abyssaldepths fracture end pass");
+                    } else if (fractureTrial == 1 && in == 1300 && inTrial) {
+                        AbyssalDepths.LOGGER.info("fracture check fall: at y {} when ended", mc.player.getY());
+                        command(server, "abyssaldepths fracture end pass");
+                    } else if (fractureTrial == 0 && in >= 172 && in <= 330 && in % 20 == 0 || fractureTrial == 1 && in >= 190 && in <= 300 && in % 12 == 0) {
                         shoot(mc, "fracture_" + fractureTrial + "_at" + in + "_dir0");
                     } else if (fractureTrial == 1 && in > 160 && in < 1400) { // the fight seen through: blows on whatever is there, unharmed
                         redero.abyssaldepths.fracture.FractureTrials.unharmed = true;

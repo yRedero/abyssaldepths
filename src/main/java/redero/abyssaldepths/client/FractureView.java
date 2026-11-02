@@ -179,7 +179,6 @@ public final class FractureView {
 
     private static Tone tone(FractureMarks style) {
         return switch (style) {
-            case BLACKWALL -> new Tone(0x0C0404, 1.0F, 0x7A1010, 0.6F, 0.28F, 0xFF3A30, true, false);
             case ASH -> new Tone(0x5A5D63, 0.55F, 0x8A8C90, 0.7F, 0.35F, 0xD8D2C6, true, true);
             case FROST -> new Tone(0xC9CED6, 0.7F, 0xB4BAC4, 0.35F, 0.15F, 0xF4F0E8, true, false);
             case HAIRLINE -> new Tone(0x2C2F36, 0.8F, 0x50535A, 0.18F, 0.0F, 0x8A8D94, false, false);
@@ -210,10 +209,6 @@ public final class FractureView {
             switch (style) {
                 case VEINS -> walkers(m, w, h, random, starts(source, random, count), 8, false);
                 case CIRCUIT -> walkers(m, w, h, random, starts(source, random, count), 4, true);
-                case BLACKWALL -> {
-                    walkers(m, w, h, random, starts(source, random, count / 2 + 1), 8, false);
-                    walkers(m, w, h, random, starts(source, random, count / 2 + 1), 4, true);
-                }
                 case SHARDS -> shards(m, w, h, random, starts(source, random, count + 3));
                 case SIGILS -> sigils(m, w, h, random, starts(source, random, count * 2 + 4));
                 case GLITCH -> torn(m, w, h, random, starts(source, random, Math.max(10, h)));
@@ -885,8 +880,12 @@ public final class FractureView {
         FadeDraw.drawHere(entity, event.getPartialTick(), pose, event.getMultiBufferSource(), 1.0F, 0xFFFFFF, texture);
         pose.popPose();
         if (decay == 0) {
-            copies(event, entity, original, value, salt, now);
-            AURA.put(entity.getId(), value);
+            // the aura: full for the taken and with corruption building up; from scars alone only faintly (now and then)
+            final float aura = taken || recede >= 0.0F ? value : Math.max(CRACKS.isEmpty() ? 0.0F : CRACKS.get(entity.getId()), scars * 0.3F);
+            if (aura > 0.0F) {
+                copies(event, entity, original, aura, salt, now);
+                AURA.put(entity.getId(), aura);
+            }
         }
     }
 

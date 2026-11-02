@@ -48,7 +48,7 @@ public final class FractureScreen {
     /** One pixel of the cracks and of the black behind, in GUI pixels. */
     private static final int CELL = 3, LAYER_CELL = 8;
     /** The pieces' seeds across and down. */
-    private static final int ACROSS = 5, DOWN = 3;
+    /** (The pieces' seeds: how many across and down is worked out each time from the config, varying.) */
     /** The steps: the cracks complete, the pieces falling, after the move a second's hold, the wash. */
     private static final int GROW_TICKS = 10, FALL_TICKS = 40, HOLD_TICKS = 20, WASH_TICKS = 24;
     private static final int CORE = 0xFF0C0D12, EDGE = 0xFF2E313A, LIGHT = 0xFFE9E2D4, BLACK = 0xFF121419;
@@ -97,9 +97,15 @@ public final class FractureScreen {
         final Minecraft mc = Minecraft.getInstance();
         final float aspect = mc.getWindow() == null ? 16 / 9.0F : Math.max(0.5F, mc.getWindow().getGuiScaledWidth() / (float) Math.max(1, mc.getWindow().getGuiScaledHeight()));
         final List<float[]> seeds = new ArrayList<>(); // in screen space stretched by the aspect (so the cells are not squashed)
-        for (int j = 0; j < DOWN; j++) {
-            for (int i = 0; i < ACROSS; i++) {
-                seeds.add(new float[] {(i + 0.15F + 0.7F * noise(seed * 11 + i, j)) / ACROSS * aspect, (j + 0.15F + 0.7F * noise(seed * 13 + j, i + 40)) / DOWN});
+        // about as many pieces as set, a little more or fewer each time, in a jittered grid of the screen's shape
+        final int wanted = Math.max(3, Math.round(redero.abyssaldepths.ClientConfig.fractureCracks() * (0.65F + 0.7F * noise(seed, 7))));
+        final int across = Math.max(1, Math.round((float) Math.sqrt(wanted * aspect))), down = Math.max(1, (int) Math.ceil(wanted / (float) across));
+        for (int j = 0; j < down; j++) {
+            for (int i = 0; i < across; i++) {
+                if (j * across + i >= wanted + across / 2) {
+                    continue; // the last row only partly
+                }
+                seeds.add(new float[] {(i + 0.15F + 0.7F * noise(seed * 11 + i, j)) / across * aspect, (j + 0.15F + 0.7F * noise(seed * 13 + j, i + 40)) / down});
             }
         }
         // where it begins: a few places at once, scattered over the screen (one in each third, at random)
@@ -303,6 +309,7 @@ public final class FractureScreen {
                 level = previousLevel = target = 1.0F;
                 if (age == GROW_TICKS + 1) {
                     capture(mc); // the picture, cracks and all, to break along them
+                    mc.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.GLASS_BREAK, 0.3F, 1.0F)); // and it shatters
                 }
             }
             case MOVED -> {

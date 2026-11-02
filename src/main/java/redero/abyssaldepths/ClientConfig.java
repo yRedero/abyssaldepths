@@ -144,12 +144,15 @@ public final class ClientConfig {
                     "violet motes drawn in), SUPERNOVA (bursting open to twice its width, rays of light over the ground).")
             .translation("abyssaldepths.config.empyrean_beam")
             .defineEnum("empyreanBeam", EmpyreanBeamLook.CATHEDRAL);
+    private static final ModConfigSpec.IntValue FRACTURE_CRACKS = BUILDER
+            .comment("About how many pieces the screen breaks into under Fracturing (each time a little more or fewer).")
+            .translation("abyssaldepths.config.fracture_cracks")
+            .defineInRange("fractureCracks", 14, 4, 40);
     private static final ModConfigSpec.EnumValue<FractureMarks> FRACTURE_MARKS = BUILDER
             .comment("The marks of Fracturing on the corrupted (growing with their corruption, alive once they are taken): VEINS",
                     "(black veins branching out at slants, a light running along them), CIRCUIT (straight lines turning at right angles,",
                     "square nodes at their ends), SHARDS (angular black shards spreading), GLITCH (rows of pixels torn sideways, blocks",
-                    "turned over), SIGILS (blocky glyphs strung together by lines), BLACKWALL (veins and circuits in black with a dark",
-                    "red glow, a red light running along them). Softer: ASH (veins draining the colour out of what they cross, greyed,",
+                    "turned over), SIGILS (blocky glyphs strung together by lines). Softer: ASH (veins draining the colour out of what they cross, greyed,",
                     "not blackened), FROST (pale cold veins, half see-through), HAIRLINE (fine grey cracks, sparse), DITHER (patches of",
                     "dark pixels in a checker, easing into the skin), FADING (soft patches where the colour drains away). Living (moving):",
                     "SERPENT (snakes coiling round the body like tattoos), FLOW (dashes of light streaming along veins), SWARM (mites",
@@ -172,7 +175,7 @@ public final class ClientConfig {
             .translation("abyssaldepths.config.scar_icon")
             .defineEnum("scarIcon", ScarIcon.SHARD);
     private static final ModConfigSpec.EnumValue<RepulsionWave> REPULSION_WAVE = BUILDER
-            .comment("Repulsion's pressure wave: SHOCK (three thin rings one after another), RING (a ring of pixels running out over",
+            .comment("Concuss's pressure wave: SHOCK (three thin rings one after another), RING (a ring of pixels running out over",
                     "the ground), DOME (a dome of pixels swelling), BURST (rays of pixels shooting out), GUST (the game's",
                     "own gusts and clouds).")
             .translation("abyssaldepths.config.repulsion_wave")
@@ -215,7 +218,7 @@ public final class ClientConfig {
 
     public enum FractureAura { DOUBLES, SPLIT, ECHOES, STAIN, GROUND_CRACKS, SMOKE, NONE }
 
-    public enum FractureMarks { VEINS, CIRCUIT, SHARDS, GLITCH, SIGILS, BLACKWALL, ASH, FROST, HAIRLINE, DITHER, FADING, SERPENT, FLOW, SWARM, EYES, CODE, INK }
+    public enum FractureMarks { VEINS, CIRCUIT, SHARDS, GLITCH, SIGILS, ASH, FROST, HAIRLINE, DITHER, FADING, SERPENT, FLOW, SWARM, EYES, CODE, INK }
 
     public enum ScarIcon { CRACK, HEART, SHARD, EYE, RUNE, VEIN }
 
@@ -385,6 +388,10 @@ public final class ClientConfig {
 
     public static FractureAura fractureAura() {
         return SPEC.isLoaded() ? FRACTURE_AURA.get() : FractureAura.DOUBLES;
+    }
+
+    public static int fractureCracks() {
+        return SPEC.isLoaded() ? FRACTURE_CRACKS.get() : 14;
     }
 
     public static ScarIcon scarIcon() {

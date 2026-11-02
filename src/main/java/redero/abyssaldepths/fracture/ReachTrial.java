@@ -44,7 +44,7 @@ final class ReachTrial extends Trial {
     /** How far apart (in the real world) the places the pieces are copied from lie. */
     private static final int SAMPLE_STEP = 4;
     /** The heart: blows it takes; its parts. */
-    private static final int HEART = 2, WARN = 20, SHOCKWAVE = 50, BARRAGE = 56, OPEN = 40;
+    private static final int HEART = 3, WARN = 20, SHOCKWAVE = 50, BARRAGE = 56, OPEN = 40;
     private static final int CRUMBLE_TICKS = 26, PHASE_TICKS = 80, PHASE_SOLID = 56, PHASE_WARN = 20, GATE_BLOWS = 2;
     /** The tones the copy is made of, dark to light. */
     private static final Block[] TONES = {Blocks.POLISHED_DEEPSLATE, Blocks.GRAY_CONCRETE, Blocks.LIGHT_GRAY_CONCRETE, Blocks.CALCITE, Blocks.WHITE_CONCRETE,
@@ -98,6 +98,14 @@ final class ReachTrial extends Trial {
     private boolean dueling, duelDone;
     private int duelPart, duelStart, duelBlows, pattern, windup;
     private boolean secondDash;
+    /** The last thing the double did in the duel (not twice running). */
+    private int lastPattern = -1;
+
+    /** Strikes to fall: their cells, size, floor and when. */
+    private record Pending(List<int[]> cells, int size, double floor, int at) {
+    }
+
+    private final List<Pending> pendings = new ArrayList<>();
     /** The fight's second stage (the piece crumbling at its rim, the double blinking and splitting); its decoys and their dashes. */
     private boolean secondStage;
     private final List<FractureDouble> decoys = new ArrayList<>();
@@ -236,7 +244,7 @@ final class ReachTrial extends Trial {
         final float fx = -Mth.sin(yaw), fz = Mth.cos(yaw);
         final net.minecraft.util.RandomSource random = level.random;
         final int count = fight ? FIGHT_ISLANDS : ISLANDS;
-        final int gate1 = fight ? -1 : ISLANDS / 3, duelAt = fight ? count - 1 : ISLANDS * 2 / 3, gate2 = fight ? -1 : ISLANDS - 4;
+        final int gate1 = fight ? -1 : ISLANDS / 3, duelAt = fight ? count - 1 : -1, gate2 = fight ? -1 : ISLANDS - 4;
         int lateral = 0, rise = 0, z = 0, half = 2, swing = random.nextBoolean() ? 1 : -1;
         Kind before = Kind.HOLD;
         for (int i = 0; i < count; i++) {
@@ -329,6 +337,10 @@ final class ReachTrial extends Trial {
         if (invulnerable > 0 || FractureTrials.unharmed) {
             return;
         }
+        if (wardOff()) {
+            invulnerable = 30;
+            return;
+        }
         invulnerable = 30;
         hits++;
         hit(from, 0.2);
@@ -388,6 +400,7 @@ final class ReachTrial extends Trial {
                 level.playSound(null, memory.blockPosition(), SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 1.2F, 0.8F);
                 memory.discard();
                 hits = Math.max(0, hits - 1);
+                ward = true; // and the next hit comes to nothing
                 control();
                 voice("remember");
             }
@@ -402,7 +415,7 @@ final class ReachTrial extends Trial {
                 }
             }
         }
-        if (stage == 0 && end.under(player) && (!fight || duelDone) && player.position().distanceTo(body.position()) < 7.0) { // at the body: the heart rises
+        if (stage == 0 && !fight && end.under(player) && player.position().distanceTo(body.position()) < 7.0) { // at the body: the heart rises
             stage = 1;
             if (twin != null) {
                 level.sendParticles(ParticleTypes.SQUID_INK, twin.getX(), twin.getY() + 1.0, twin.getZ(), 30, 0.3, 0.6, 0.3, 0.02);
@@ -481,6 +494,9 @@ final class ReachTrial extends Trial {
      * suddenly ahead, standing in the way. A blow staggers it.
      */
     private void hunt(int t) {
+        if (!fight && (twin == null || twin.isRemoved())) { // (gone somehow: it comes back, a gate needs its guard)
+            twin = FractureDouble.of(player, level, player.position().add(0, 0, 8));
+        }
         if (twin == null || twin.isRemoved()) {
             return;
         }
@@ -654,14 +670,32 @@ final class ReachTrial extends Trial {
                 if (in >= 34 || to.length() <= 3.5 && in >= 10) {
                     // what it does: at first a straight dash; then also a dash and a second at once, and a wide one
                     // the second stage: blinking behind them, or splitting into three, besides the dashes
-                    pattern = secondStage ? 1 + level.random.nextInt(4) : duelBlows == 0 ? 0 : level.random.nextInt(duelBlows >= 2 ? 3 : 2);
+                    // what it does, never the same twice running: dashes (straight, twice, wide), lines across the piece,
+                    // squares running out from it, a rain of strikes; in the second stage also blinking behind them,
+                    // splitting into three, pulling them in
+                    final int[] pool = secondStage ? new int[] {0, 1, 2, 3, 4, 5, 6, 7, 8} : new int[] {0, 1, 2, 5, 6, 7};
+                    int next = duelBlows == 0 && !secondStage && lastPattern < 0 ? 0 : pool[level.random.nextInt(pool.length)];
+                    for (int tries = 0; next == lastPattern && tries < 6; tries++) {
+                        next = pool[level.random.nextInt(pool.length)];
+                    }
+                    pattern = lastPattern = next;
                     secondDash = false;
-                    if (pattern == 3) {
-                        blink(t, floor);
-                    } else {
-                        aim(t, floor, 22);
-                        if (pattern == 4) {
-                            split(t, floor);
+                    switch (pattern) {
+                        case 3 -> blink(t, floor);
+                        case 5 -> lines(t, floor);
+                        case 6 -> squares(t, floor);
+                        case 7 -> rain(t, floor);
+                        case 8 -> {
+                            duelPart = 5; // pulling them in, then the dash
+                            duelStart = t;
+                            voice("pull");
+                            level.playSound(null, twin.blockPosition(), SoundEvents.WARDEN_SONIC_CHARGE, SoundSource.HOSTILE, 0.7F, 0.6F);
+                        }
+                        default -> {
+                            aim(t, floor, 22);
+                            if (pattern == 4) {
+                                split(t, floor);
+                            }
                         }
                     }
                 }
@@ -712,6 +746,26 @@ final class ReachTrial extends Trial {
                     }
                 }
             }
+            case 4 -> { // its strikes falling: open once they have
+                if (pendings.isEmpty()) {
+                    duelPart = 3;
+                    duelStart = t;
+                }
+            }
+            case 5 -> { // pulling them in: ink between them, then it dashes
+                final Vec3 to = twin.position().subtract(player.position()).multiply(1, 0, 1);
+                if (to.length() > 1.5) {
+                    player.setDeltaMovement(player.getDeltaMovement().add(to.normalize().scale(0.085)));
+                    player.hurtMarked = true;
+                }
+                for (int k = 0; k < 4; k++) {
+                    final Vec3 p = player.position().add(to.scale(level.random.nextFloat()));
+                    level.sendParticles(ParticleTypes.SQUID_INK, p.x, p.y + 1.0, p.z, 1, 0.1, 0.1, 0.1, 0.0);
+                }
+                if (in >= 30) {
+                    aim(t, floor, 14);
+                }
+            }
             default -> { // open: blows land
                 level.sendParticles(ParticleTypes.END_ROD, twin.getX(), twin.getY() + 1.0, twin.getZ(), 2, 0.3, 0.5, 0.3, 0.01);
                 if (blow) {
@@ -736,6 +790,16 @@ final class ReachTrial extends Trial {
         }
         if (blow && duelPart != 0) { // a blow while it is not open: it only reels (staying on its piece)
             twin.setPos(arena(twin.position().add(twin.position().subtract(player.position()).multiply(1, 0, 1).normalize().scale(0.8))));
+        }
+        for (int k = pendings.size() - 1; k >= 0; k--) { // the strikes of its lines, squares and rain
+            final Pending p = pendings.get(k);
+            if (t >= p.at()) {
+                burst(p.cells(), p.size(), p.floor());
+                if (inCells(p.cells(), p.size(), p.floor(), 1.6)) {
+                    struck(new Vec3(player.getX(), p.floor(), player.getZ() - 1));
+                }
+                pendings.remove(k);
+            }
         }
         if (fight && duelPart == 0 && in == 1 && duelBlows >= 2 && strikeAt < 0) { // in the fight, from the third blow on: strikes round them too
             strikeCells.clear();
@@ -805,6 +869,9 @@ final class ReachTrial extends Trial {
             twin.discard();
             twin = null;
             voice("falter");
+            if (fight) {
+                stage = 2; // broken: the body is theirs to take back
+            }
         }
     }
 
@@ -813,6 +880,74 @@ final class ReachTrial extends Trial {
         final double limit = duel.half - (secondStage ? 2.7 : 0.7); // (the rim gone in the second stage)
         final double cx = duel.middle.getX() + 0.5, cz = duel.middle.getZ() + 0.5;
         return new Vec3(Mth.clamp(at.x, cx - limit, cx + limit), duel.middle.getY() + 1.0, Mth.clamp(at.z, cz - limit, cz + limit));
+    }
+
+    /** Marks strikes to fall at a tick, on these cells. */
+    private void pending(List<int[]> cells, int size, double floor, int t, int warn) {
+        if (cells.isEmpty()) {
+            return;
+        }
+        warn(floor, size, cells, warn);
+        pendings.add(new Pending(cells, size, floor, t + warn));
+    }
+
+    /** Whether a cell lies on what is left of the duel's piece. */
+    private boolean onArena(int x, int z) {
+        final int limit = duel.half - (secondStage ? 2 : 0);
+        return Math.abs(x - duel.middle.getX()) <= limit && Math.abs(z - duel.middle.getZ()) <= limit;
+    }
+
+    /** Lines across the whole piece through where they stand: a cross, or the two slants of an X. */
+    private void lines(int t, double floor) {
+        final int px = Mth.floor(player.getX()), pz = Mth.floor(player.getZ());
+        final boolean slant = level.random.nextBoolean();
+        final List<int[]> cells = new ArrayList<>();
+        for (int d = -duel.half * 2; d <= duel.half * 2; d++) {
+            final int[][] at = slant ? new int[][] {{px + d, pz + d}, {px + d, pz - d}} : new int[][] {{px + d, pz}, {px, pz + d}};
+            for (int[] c : at) {
+                if (onArena(c[0], c[1])) {
+                    cells.add(c);
+                }
+            }
+        }
+        pending(cells, 1, floor, t, 28);
+        duelPart = 4;
+        duelStart = t;
+        level.playSound(null, twin.blockPosition(), SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.HOSTILE, 1.0F, 0.5F);
+    }
+
+    /** Squares running out from it, one after another (step over each as it comes). */
+    private void squares(int t, double floor) {
+        final int cx = Mth.floor(twin.getX()), cz = Mth.floor(twin.getZ());
+        for (int wave = 1; wave <= 3; wave++) {
+            final int r = wave * 2;
+            final List<int[]> ring = new ArrayList<>();
+            for (int dz = -r; dz <= r; dz++) {
+                for (int dx = -r; dx <= r; dx++) {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) == r && onArena(cx + dx, cz + dz)) {
+                        ring.add(new int[] {cx + dx, cz + dz});
+                    }
+                }
+            }
+            pending(ring, 1, floor, t, 16 + wave * 10);
+        }
+        duelPart = 4;
+        duelStart = t;
+        level.playSound(null, twin.blockPosition(), SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.HOSTILE, 0.9F, 0.6F);
+    }
+
+    /** A rain of strikes round them, one after another. */
+    private void rain(int t, double floor) {
+        final int px = Mth.floor(player.getX()), pz = Mth.floor(player.getZ());
+        for (int k = 0; k < 6; k++) {
+            final int x = k == 0 ? px : px + level.random.nextInt(7) - 3, z = k == 0 ? pz : pz + level.random.nextInt(7) - 3;
+            if (onArena(x, z)) {
+                pending(new ArrayList<>(List.of(new int[] {x, z})), 3, floor, t, 22 + k * 8);
+            }
+        }
+        duelPart = 4;
+        duelStart = t;
+        level.playSound(null, twin.blockPosition(), SoundEvents.AMETHYST_CLUSTER_BREAK, SoundSource.HOSTILE, 1.0F, 0.5F);
     }
 
     /** The blink: a spot behind them marked (a strike), and there it will be when it falls. */
