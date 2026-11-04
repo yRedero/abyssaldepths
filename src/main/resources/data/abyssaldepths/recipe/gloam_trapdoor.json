@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "group": "wooden_trapdoor",
+  "pattern": [
+    "###",
+    "###"
+  ],
+  "key": {
+    "#": {
+      "item": "abyssaldepths:gloam_planks"
+    }
+  },
+  "result": {
+    "id": "abyssaldepths:gloam_trapdoor",
+    "count": 2
+  }
+}

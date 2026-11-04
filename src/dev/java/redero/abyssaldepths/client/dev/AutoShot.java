@@ -53,7 +53,7 @@ public final class AutoShot {
     private static final String SPOT_COMMANDS = System.getProperty("abyssaldepths.autoshot.spotCommands", "");
     private static final int SETTLE_TICKS = 220, TURN_TICKS = 15;
 
-    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, VANISH, OBLIVION, NEWARTIFACTS, FIRMAMENT, SMALL, LOOKS, EMPYREAN, MARKS, WAKE, FRACTURE, FRACMARKS, FRACLEVELS, VARIANTS, DONE }
+    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, VANISH, OBLIVION, NEWARTIFACTS, FIRMAMENT, SMALL, LOOKS, EMPYREAN, MARKS, WAKE, FRACTURE, FRACMARKS, FRACLEVELS, GLOW, GROTTO, VARIANTS, DONE }
 
     private static Step step = Step.TITLE;
     private static final Deque<String> BIOMES = new ArrayDeque<>();
@@ -65,6 +65,14 @@ public final class AutoShot {
     private static BlockPos tntAt = BlockPos.ZERO;
     /** The fracture check: which trial, the tick it was asked for, the tick the player came back (-1: not yet). */
     private static int fractureTrial, fractureAt = -1, fractureBack = -1, deathShown = -1, endSeen = -1;
+    /** The glow pockets found (crystal positions), and how far the search went. */
+    private static final java.util.Set<String> SET_PIECES = java.util.Set.of("grotto", "frozenfall", "skeleton", "canyon", "lavafall", "ventlung", "tidelake");
+    /** Set pieces that are long and lie any way: shot from all four corners. */
+    private static final java.util.Set<String> LONG_PIECES = java.util.Set.of("skeleton");
+    /** The set piece the GROTTO step goes to (its command), and the name of its shots. */
+    private static String grottoCommand = "abyssaldepths grotto", grottoName = "grotto";
+    private static final java.util.List<net.minecraft.core.BlockPos> glowFound = new java.util.ArrayList<>();
+    private static int glowTries;
 
     private AutoShot() {
     }
@@ -173,6 +181,26 @@ public final class AutoShot {
                         fractureTrial = 0;
                         fractureAt = -1;
                         step = Step.FRACTURE;
+                    }
+                    return;
+                }
+                if (biome != null && SET_PIECES.contains(biome.split("#")[0])) {
+                    // not a place: the nearest set piece of that kind (abyssaldepths <name>), from three sides and above
+                    if (biome.endsWith("#0")) {
+                        wait = 0;
+                        grottoName = biome.split("#")[0];
+                        grottoCommand = "abyssaldepths " + grottoName;
+                        step = Step.GROTTO;
+                    }
+                    return;
+                }
+                if (biome != null && biome.startsWith("glow#")) {
+                    // not a place: the glow pockets near where the last biome left off (run after a biome), three of them
+                    if (biome.endsWith("#0")) {
+                        wait = 0;
+                        glowFound.clear();
+                        glowTries = 0;
+                        step = Step.GLOW;
                     }
                     return;
                 }
@@ -665,6 +693,97 @@ public final class AutoShot {
                 if (mc.player.isDeadOrDying() && mc.screen instanceof net.minecraft.client.gui.screens.DeathScreen) {
                     mc.player.respawn();
                     mc.setScreen(null);
+                }
+            }
+            case GROTTO -> {
+                final MinecraftServer server = mc.getSingleplayerServer();
+                final int t = ++wait;
+                if (t == 1) {
+                    command(server, "gamemode spectator");
+                    mc.options.hideGui = true;
+                    command(server, grottoCommand);
+                } else if (t == 200) {
+                    shoot(mc, grottoName + "_0_dir0"); // from one corner, looking in
+                    command(server, grottoName.equals("canyon") ? "tp @s ~ ~5 ~ ~ 45" // the canyon: from its end, steeper, then from inside
+                            : LONG_PIECES.contains(grottoName) ? "tp @s ~-53 ~0 ~0 -135 15" : "tp @s ~-37 ~2 ~-37 -45 12");
+                } else if (t == 300) {
+                    shoot(mc, grottoName + "_0_dir1"); // from the other
+                    // a skeleton is long and lies any way: from all four corners instead
+                    command(server, grottoName.equals("canyon") ? "tp @s ^ ^-14 ^14 ~ 5"
+                            : LONG_PIECES.contains(grottoName) ? "tp @s ~53 ~0 ~-53 45 15" : "tp @s ~25 ~-6 ~10 -90 5");
+                } else if (t == 400) {
+                    shoot(mc, grottoName + "_0_dir2"); // low, by the water
+                    command(server, grottoName.equals("canyon") ? "tp @s ^ ^ ^20 ~180 5"
+                            : LONG_PIECES.contains(grottoName) ? "tp @s ~-53 ~0 ~0 -45 15" : "tp @s ~-8 ~14 ~8 0 70");
+                } else if (t == 480) {
+                    shoot(mc, grottoName + "_0_dir3"); // from above
+                    step = Step.NEXT;
+                }
+            }
+            case GLOW -> {
+                final MinecraftServer server = mc.getSingleplayerServer();
+                final int t = ++wait;
+                if (t == 1) {
+                    command(server, "gamemode spectator");
+                    mc.options.hideGui = true;
+                }
+                if (t % 40 == 20 && glowFound.size() < 3) { // look round the loaded layer for crystals, further each time
+                    server.execute(() -> {
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        final net.minecraft.server.level.ServerLevel lvl = p.serverLevel();
+                        final net.minecraft.core.BlockPos.MutableBlockPos at = new net.minecraft.core.BlockPos.MutableBlockPos();
+                        final int px = p.getBlockX(), pz = p.getBlockZ();
+                        for (int cx = -6; cx <= 6 && glowFound.size() < 3; cx++) {
+                            for (int cz = -6; cz <= 6 && glowFound.size() < 3; cz++) {
+                                final int bx = (px >> 4) + cx, bz = (pz >> 4) + cz;
+                                if (!lvl.hasChunk(bx, bz)) {
+                                    continue;
+                                }
+                                search:
+                                for (int x = 0; x < 16; x += 2) {
+                                    for (int z = 0; z < 16; z += 2) {
+                                        for (int y = -120; y <= -66; y++) {
+                                            if (lvl.getBlockState(at.set(bx * 16 + x, y, bz * 16 + z)).is(AbyssalDepths.GLOAMCAP.get())) {
+                                                final net.minecraft.core.BlockPos found = at.immutable();
+                                                if (glowFound.stream().noneMatch(f -> f.distSqr(found) < 30 * 30)) {
+                                                    glowFound.add(found);
+                                                }
+                                                break search;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        AbyssalDepths.LOGGER.info("glow check: {} pockets found near {} {} (try {})", glowFound.size(), px, pz, glowTries);
+                        if (glowFound.size() < 3) {
+                            p.teleportTo(lvl, px + 90, p.getY(), pz + 30, p.getYRot(), p.getXRot()); // further on
+                        }
+                    });
+                    glowTries++;
+                }
+                final int shotsFrom = 60 + glowTries * 40;
+                if (glowFound.size() >= 3 || glowTries >= 14) {
+                    final int k = (t - shotsFrom) / 60;
+                    if (t >= shotsFrom && k < glowFound.size() && (t - shotsFrom) % 60 == 0) {
+                        final net.minecraft.core.BlockPos c = glowFound.get(k);
+                        server.execute(() -> {
+                            final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                            p.teleportTo(p.serverLevel(), c.getX() + 8.5, c.getY() - 4.0, c.getZ() + 8.5, 135.0F, -12.0F); // a gloamcap, from below
+                        });
+                    } else if (t >= shotsFrom && k < glowFound.size() && (t - shotsFrom) % 60 == 40) {
+                        shoot(mc, "glow_" + k + "_dir0");
+                    } else if (t >= shotsFrom && k < glowFound.size() && (t - shotsFrom) % 60 == 50) {
+                        final net.minecraft.core.BlockPos c = glowFound.get(k);
+                        server.execute(() -> { // from further off and higher: the pocket in its hall
+                            final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                            p.teleportTo(p.serverLevel(), c.getX() - 15.5, c.getY() - 2.0, c.getZ() - 15.5, -45.0F, 5.0F);
+                        });
+                    } else if (t >= shotsFrom && k < glowFound.size() && (t - shotsFrom) % 60 == 58) {
+                        shoot(mc, "glow_" + k + "_dir1");
+                    } else if (t >= shotsFrom && k >= glowFound.size()) {
+                        step = Step.NEXT;
+                    }
                 }
             }
             case FRACLEVELS -> {

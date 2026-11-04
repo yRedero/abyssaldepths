@@ -20,5 +20,12 @@ Attribution as required by the photo licences:
 | shale_rubble | [Basalt used in a beach groyne near The Hague.jpg](https://commons.wikimedia.org/wiki/File:Basalt_used_in_a_beach_groyne_near_The_Hague.jpg) | Ellywa | CC BY-SA 3.0 |
 | fossilized_siltstone | [Teleoceras major (fossil barrel-bodied rhino) in volcanic tuff (Ash Hollow Formation, Miocene, 11.83 Ma; Ashfall Fossil Beds, Nebraska, USA) 33.jpg](https://commons.wikimedia.org/wiki/File:Teleoceras_major_(fossil_barrel-bodied_rhino)_in_volcanic_tuff_(Ash_Hollow_Formation,_Miocene,_11.83_Ma;_Ashfall_Fossil_Beds,_Nebraska,_USA)_33.jpg) | James St. John | CC BY 2.0 |
 | quicksilt | [Mudcracks around Mud Volcano (10 August 2011) 3 (14536324843).jpg](https://commons.wikimedia.org/wiki/File:Mudcracks_around_Mud_Volcano_(10_August_2011)_3_(14536324843).jpg) | James St. John | CC BY 2.0 |
+| gloam_crystal | [Fake geode - chalcopyrite on amethyst (Morocco) 5 (32572251076).jpg](https://commons.wikimedia.org/wiki/File:Fake_geode_-_chalcopyrite_on_amethyst_(Morocco)_5_(32572251076).jpg) | James St. John | CC BY 2.0 |
+| gloamweave (recoloured) | [Mimbre, Sevilla, España, 2015.JPG](https://commons.wikimedia.org/wiki/File:Mimbre,_Sevilla,_Espa%C3%B1a,_2015.JPG) | Benjamín Núñez González | CC BY-SA 4.0 |
+| numinor_ore (top, bottom) | [Iron Ore at Castle Guédelon - panoramio.jpg](https://commons.wikimedia.org/wiki/File:Iron_Ore_at_Castle_Gu%C3%A9delon_-_panoramio.jpg) | Art Anderson | CC BY-SA 3.0 |
+| gloam_stalk (side, top, bottom) | [Detailed Leaf Texture Close Up (217395839).jpeg](https://commons.wikimedia.org/wiki/File:Detailed_Leaf_Texture_Close_Up_(217395839).jpeg) | Lars Aleksander Hb | CC BY 3.0 |
+| gloam_planks | [Weathered wood texture.jpg](https://commons.wikimedia.org/wiki/File:Weathered_wood_texture.jpg) | Kelsey Todd | CC BY-SA 4.0 |
+| gloamcap | [2011-03-26 Agaricus crocopeplus Berkeley & Broom 143196.jpg](https://commons.wikimedia.org/wiki/File:2011-03-26_Agaricus_crocopeplus_Berkeley_%26_Broom_143196.jpg) | Johannes Harnisch (Mushroom Observer) | CC BY-SA 3.0 |
+| dark_ice | [Sea Ice and Clouds over the Sea of Okhotsk (MODIS).jpg](https://commons.wikimedia.org/wiki/File:Sea_Ice_and_Clouds_over_the_Sea_of_Okhotsk_(MODIS).jpg) | MODIS Land Rapid Response Team, NASA GSFC | Public domain |
 
 Textures derived from these (ore and fossil overlays, building blocks, sulfur deposit) build on the ones above.

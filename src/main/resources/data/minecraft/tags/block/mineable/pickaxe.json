@@ -1,7 +1,6 @@
 {
   "values": [
     "abyssaldepths:thalan",
-    "abyssaldepths:glimmering_thalan",
     "abyssaldepths:thalan_iron_ore",
     "abyssaldepths:thalan_copper_ore",
     "abyssaldepths:thalan_gold_ore",
@@ -52,6 +51,10 @@
     "abyssaldepths:siltstone_tile_slab",
     "abyssaldepths:siltstone_tile_wall",
     "abyssaldepths:chiseled_siltstone",
-    "abyssaldepths:numinor_ore"
+    "abyssaldepths:numinor_ore",
+    "abyssaldepths:gloam_crystal",
+    "abyssaldepths:gloam_cluster",
+    "abyssaldepths:dark_ice",
+    "abyssaldepths:tide_stone"
   ]
 }

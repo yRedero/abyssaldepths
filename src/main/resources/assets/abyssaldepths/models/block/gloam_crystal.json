@@ -1,0 +1,118 @@
+{
+  "parent": "minecraft:block/block",
+  "render_type": "minecraft:cutout",
+  "textures": {
+    "particle": "abyssaldepths:block/gloam_crystal",
+    "all": "abyssaldepths:block/gloam_crystal",
+    "glow": "abyssaldepths:block/gloam_crystal_glow"
+  },
+  "elements": [
+    {
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        16,
+        16
+      ],
+      "faces": {
+        "down": {
+          "texture": "#all",
+          "cullface": "down"
+        },
+        "up": {
+          "texture": "#all",
+          "cullface": "up"
+        },
+        "north": {
+          "texture": "#all",
+          "cullface": "north"
+        },
+        "south": {
+          "texture": "#all",
+          "cullface": "south"
+        },
+        "west": {
+          "texture": "#all",
+          "cullface": "west"
+        },
+        "east": {
+          "texture": "#all",
+          "cullface": "east"
+        }
+      }
+    },
+    {
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        16,
+        16
+      ],
+      "shade": false,
+      "faces": {
+        "down": {
+          "texture": "#glow",
+          "cullface": "down",
+          "neoforge_data": {
+            "block_light": 15,
+            "sky_light": 15,
+            "ambient_occlusion": false
+          }
+        },
+        "up": {
+          "texture": "#glow",
+          "cullface": "up",
+          "neoforge_data": {
+            "block_light": 15,
+            "sky_light": 15,
+            "ambient_occlusion": false
+          }
+        },
+        "north": {
+          "texture": "#glow",
+          "cullface": "north",
+          "neoforge_data": {
+            "block_light": 15,
+            "sky_light": 15,
+            "ambient_occlusion": false
+          }
+        },
+        "south": {
+          "texture": "#glow",
+          "cullface": "south",
+          "neoforge_data": {
+            "block_light": 15,
+            "sky_light": 15,
+            "ambient_occlusion": false
+          }
+        },
+        "west": {
+          "texture": "#glow",
+          "cullface": "west",
+          "neoforge_data": {
+            "block_light": 15,
+            "sky_light": 15,
+            "ambient_occlusion": false
+          }
+        },
+        "east": {
+          "texture": "#glow",
+          "cullface": "east",
+          "neoforge_data": {
+            "block_light": 15,
+            "sky_light": 15,
+            "ambient_occlusion": false
+          }
+        }
+      }
+    }
+  ]
+}

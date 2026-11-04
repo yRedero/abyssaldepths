@@ -11,14 +11,29 @@ and ambience.
   deep pressure effect that builds up the longer you stay down (tunnel vision, heartbeat, ringing,
   hallucinations).
 - **Biomes**
-  - *Thalan depths*: plain thalan, faintly glimmering specks in the walls.
+  - *Thalan depths*: plain thalan; the coldest part, where the gloam is faintest.
   - *Shale flats*: shale plateaus full of leaning shards of fractured shale; you find your way along
     winding paths between them.
   - *Silt dunes*: one big open hall of fine silt dunes with lone pillars, slender arches and siltstone
     outcrops, quicksilt pools that pull you down, and dune storms.
   - *Thermal reaches*: thermal rock, glowing smouldering fissures, vent cones and vent fields with steam,
     oxide and sulfur deposits, sinter terraces with warm pools.
-- **Blocks**: the thalan and siltstone building sets, shale, silt, thermal and vent blocks, Numinor ore.
+- **The gloam**, the glow that ties the layer together (none in the dunes): rare pockets where gloam
+  crystal breaks out of the rock, gloam moss and clusters round them, often a dark pool, in the richest
+  ones giant gloamcaps (the layer's only wood: gloam stalk and its wood set; their caps give gloam fibre,
+  woven into gloamweave).
+- **Set pieces**, rare landmarks (`/abyssaldepths <name>` takes you to the nearest):
+  - *Gloam grotto* (`grotto`, depths): a still dark lake glowing from its bed, gloam spires round it.
+  - *Frozen fall* (`frozenfall`, depths): a fall frozen mid-fall in dark ice, gloam caught in its core.
+  - *Tide lake* (`tidelake`, depths): black water with an island; every two minutes the tide goes out and
+    a rock spine comes up stone by stone to the island, then goes under again shore first.
+  - *Fracture canyon* (`canyon`, flats): a zigzag crack through the plain, lava glowing at its bottom.
+  - *Buried skeleton* (`skeleton`, dunes): the ribs of something enormous rising out of the silt.
+  - *Lava fall* (`lavafall`, reaches): lava pouring from the ceiling into a cup in a steaming lake.
+  - *Vent lung* (`ventlung`, reaches): a bowl of vents in rings that breathes: every 20 seconds it hisses,
+    then bursts ring after ring outwards.
+- **Blocks**: the thalan and siltstone building sets, shale, silt, thermal and vent blocks, dark ice,
+  the gloam family, Numinor ore.
 - **Artifacts**: ranked items (Lesser, Greater, Exalted, Primordial) with mastery and charge and their
   own tooltip. *Inner Haven* carries you into your inner self, a room of your own in the Inner Self
   dimension, while your body waits behind. *Reprise* remembers the last two minutes of the world while

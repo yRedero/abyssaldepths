@@ -5,8 +5,8 @@
   "effects": {
     "fog_color": 592139,
     "sky_color": 0,
-    "water_color": 4159204,
-    "water_fog_color": 329011,
+    "water_color": 1712696,
+    "water_fog_color": 329485,
     "ambient_sound": "abyssaldepths:ambient.thalan_layer.loop",
     "additions_sound": {
       "sound": "abyssaldepths:ambient.thalan_layer.drip",

@@ -188,12 +188,6 @@ public class AbyssalDepths {
                     .strength(5.0F, 9.0F)
                     .sound(SoundType.DEEPSLATE));
     public static final DeferredItem<BlockItem> THALAN_ITEM = ITEMS.registerSimpleBlockItem(THALAN);
-    /** Thalan with faintly glowing mineral specks, scattered sparsely over the walls of the layer. */
-    public static final DeferredBlock<Block> GLIMMERING_THALAN = withItem(BLOCKS.registerSimpleBlock("glimmering_thalan",
-            BlockBehaviour.Properties.of().mapColor(MapColor.DEEPSLATE).instrument(NoteBlockInstrument.BASEDRUM)
-                    .requiresCorrectToolForDrops().strength(5.0F, 9.0F).sound(SoundType.DEEPSLATE)
-                    .lightLevel(state -> 2).emissiveRendering((state, level, pos) -> true)));
-
     // Building blocks, the full deepslate set. Models, loot, recipes and tags are the vanilla deepslate ones renamed.
     public static final DeferredBlock<Block> COBBLED_THALAN = building("cobbled_thalan", Blocks.COBBLED_DEEPSLATE);
     public static final DeferredBlock<StairBlock> COBBLED_THALAN_STAIRS = stairs("cobbled_thalan_stairs", COBBLED_THALAN);
@@ -229,12 +223,90 @@ public class AbyssalDepths {
     public static final DeferredBlock<Block> THALAN_DIAMOND_ORE = ore("thalan_diamond_ore", Blocks.DEEPSLATE_DIAMOND_ORE,
             p -> new DropExperienceBlock(UniformInt.of(3, 7), p));
     /**
-     * Rare ore of the thalan layer only: small veins, drops nuggets. Its purple veins are drawn at full
-     * brightness (a second model layer), so they glow in the dark without emitting light.
+     * Rare ore of the thalan layer only: small veins, drops nuggets. It does not glow: it has to be found by
+     * looking.
      */
     public static final DeferredBlock<Block> NUMINOR_ORE = ore("numinor_ore", Blocks.DEEPSLATE_DIAMOND_ORE,
             p -> new DropExperienceBlock(UniformInt.of(2, 5), p));
     public static final DeferredItem<Item> NUMINOR_NUGGET = ITEMS.registerSimpleItem("numinor_nugget");
+    /**
+     * The gloamcap, the layer's giant fungus: it grows only in the richest gloam pockets. Its stalk is the layer's
+     * only wood (scarce: there are no trees below); its cap glows faintly from the gloam it drew up, and breaks into
+     * gloam fibre, which is woven into gloamweave.
+     */
+    public static final DeferredBlock<net.minecraft.world.level.block.RotatedPillarBlock> GLOAM_STALK = withItem(BLOCKS.registerBlock("gloam_stalk",
+            net.minecraft.world.level.block.RotatedPillarBlock::new,
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE).instrument(NoteBlockInstrument.BASS).strength(2.0F).sound(SoundType.STEM)));
+    public static final DeferredBlock<Block> GLOAM_PLANKS = withItem(BLOCKS.registerSimpleBlock("gloam_planks",
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE).instrument(NoteBlockInstrument.BASS).strength(2.0F, 3.0F).sound(SoundType.NETHER_WOOD)));
+    public static final DeferredBlock<net.minecraft.world.level.block.RotatedPillarBlock> STRIPPED_GLOAM_STALK = withItem(BLOCKS.registerBlock(
+            "stripped_gloam_stalk", net.minecraft.world.level.block.RotatedPillarBlock::new,
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE).instrument(NoteBlockInstrument.BASS).strength(2.0F).sound(SoundType.STEM)));
+    public static final DeferredBlock<net.minecraft.world.level.block.RotatedPillarBlock> GLOAM_HYPHAE = withItem(BLOCKS.registerBlock("gloam_hyphae",
+            net.minecraft.world.level.block.RotatedPillarBlock::new,
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE).instrument(NoteBlockInstrument.BASS).strength(2.0F).sound(SoundType.STEM)));
+    public static final DeferredBlock<net.minecraft.world.level.block.RotatedPillarBlock> STRIPPED_GLOAM_HYPHAE = withItem(BLOCKS.registerBlock(
+            "stripped_gloam_hyphae", net.minecraft.world.level.block.RotatedPillarBlock::new,
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE).instrument(NoteBlockInstrument.BASS).strength(2.0F).sound(SoundType.STEM)));
+    private static BlockBehaviour.Properties gloamWood() {
+        return BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE).instrument(NoteBlockInstrument.BASS).strength(2.0F, 3.0F).sound(SoundType.NETHER_WOOD);
+    }
+    public static final DeferredBlock<net.minecraft.world.level.block.StairBlock> GLOAM_STAIRS = withItem(BLOCKS.registerBlock("gloam_stairs",
+            p -> new net.minecraft.world.level.block.StairBlock(GLOAM_PLANKS.get().defaultBlockState(), p), gloamWood()));
+    public static final DeferredBlock<net.minecraft.world.level.block.SlabBlock> GLOAM_SLAB = withItem(BLOCKS.registerBlock("gloam_slab",
+            net.minecraft.world.level.block.SlabBlock::new, gloamWood()));
+    public static final DeferredBlock<net.minecraft.world.level.block.FenceBlock> GLOAM_FENCE = withItem(BLOCKS.registerBlock("gloam_fence",
+            net.minecraft.world.level.block.FenceBlock::new, gloamWood()));
+    public static final DeferredBlock<net.minecraft.world.level.block.FenceGateBlock> GLOAM_FENCE_GATE = withItem(BLOCKS.registerBlock("gloam_fence_gate",
+            p -> new net.minecraft.world.level.block.FenceGateBlock(net.minecraft.world.level.block.state.properties.WoodType.CRIMSON, p), gloamWood()));
+    public static final DeferredBlock<net.minecraft.world.level.block.DoorBlock> GLOAM_DOOR = withItem(BLOCKS.registerBlock("gloam_door",
+            p -> new net.minecraft.world.level.block.DoorBlock(net.minecraft.world.level.block.state.properties.BlockSetType.CRIMSON, p),
+            gloamWood().strength(3.0F).noOcclusion().pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)));
+    public static final DeferredBlock<net.minecraft.world.level.block.TrapDoorBlock> GLOAM_TRAPDOOR = withItem(BLOCKS.registerBlock("gloam_trapdoor",
+            p -> new net.minecraft.world.level.block.TrapDoorBlock(net.minecraft.world.level.block.state.properties.BlockSetType.CRIMSON, p),
+            gloamWood().strength(3.0F).noOcclusion().isValidSpawn(Blocks::never)));
+    public static final DeferredBlock<net.minecraft.world.level.block.PressurePlateBlock> GLOAM_PRESSURE_PLATE = withItem(BLOCKS.registerBlock(
+            "gloam_pressure_plate", p -> new net.minecraft.world.level.block.PressurePlateBlock(net.minecraft.world.level.block.state.properties.BlockSetType.CRIMSON, p),
+            gloamWood().noCollission().strength(0.5F).pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)));
+    public static final DeferredBlock<net.minecraft.world.level.block.ButtonBlock> GLOAM_BUTTON = withItem(BLOCKS.registerBlock("gloam_button",
+            p -> new net.minecraft.world.level.block.ButtonBlock(net.minecraft.world.level.block.state.properties.BlockSetType.CRIMSON, 30, p),
+            BlockBehaviour.Properties.of().noCollission().strength(0.5F).sound(SoundType.NETHER_WOOD).pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)));
+    /** Ice of the deep: dark, nearly black, slippery like packed ice and never melting (the frozen fall is made of it). */
+    public static final DeferredBlock<net.minecraft.world.level.block.HalfTransparentBlock> DARK_ICE = withItem(BLOCKS.registerBlock("dark_ice",
+            net.minecraft.world.level.block.HalfTransparentBlock::new,
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK).instrument(NoteBlockInstrument.CHIME).friction(0.98F).strength(0.5F).sound(SoundType.GLASS)
+                    .noOcclusion().isRedstoneConductor((s, l, p) -> false).isViewBlocking((s, l, p) -> false)));
+    public static final DeferredBlock<Block> GLOAMCAP = withItem(BLOCKS.registerSimpleBlock("gloamcap",
+            BlockBehaviour.Properties.of().mapColor(MapColor.TERRACOTTA_PURPLE).instrument(NoteBlockInstrument.BASS).strength(1.0F).sound(SoundType.WART_BLOCK)
+                    .lightLevel(state -> 8)));
+    public static final DeferredItem<Item> GLOAM_FIBRE = ITEMS.registerSimpleItem("gloam_fibre");
+    /** The layer's cloth: fibre of the gloamcaps and the gloam moss, woven; the camps' tents, curtains and mats. */
+    public static final DeferredBlock<Block> GLOAMWEAVE = withItem(BLOCKS.registerSimpleBlock("gloamweave",
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE).instrument(NoteBlockInstrument.GUITAR).strength(0.8F).sound(SoundType.WOOL).ignitedByLava()));
+    public static final DeferredBlock<net.minecraft.world.level.block.CarpetBlock> GLOAMWEAVE_MAT = withItem(BLOCKS.registerBlock("gloamweave_mat",
+            net.minecraft.world.level.block.CarpetBlock::new,
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE).strength(0.1F).sound(SoundType.WOOL).ignitedByLava()));
+    /**
+     * The gloam, the glow that is the layer's lifeblood: crystal seams in the rock (deep blue and violet, drawn at full brightness and
+     * giving a little light), crystal clusters growing out of them, and the living glow moss round them.
+     */
+    public static final DeferredBlock<Block> GLOAM_CRYSTAL = withItem(BLOCKS.registerSimpleBlock("gloam_crystal",
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLUE).requiresCorrectToolForDrops().strength(3.0F, 6.0F)
+                    .sound(SoundType.AMETHYST).lightLevel(state -> 9)));
+    /** Gloam on the bed of a tide lake that keeps the tide: it raises gloam out of the water at low tide (see TideStoneBlock). */
+    public static final DeferredBlock<redero.abyssaldepths.block.TideStoneBlock> TIDE_STONE = withItem(BLOCKS.registerBlock("tide_stone",
+            redero.abyssaldepths.block.TideStoneBlock::new,
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLUE).requiresCorrectToolForDrops().strength(3.0F, 6.0F)
+                    .sound(SoundType.AMETHYST).lightLevel(state -> state.getValue(redero.abyssaldepths.block.TideStoneBlock.GLOAM) ? 9 : 0)));
+    public static final DeferredBlock<net.minecraft.world.level.block.AmethystClusterBlock> GLOAM_CLUSTER = withItem(BLOCKS.registerBlock(
+            "gloam_cluster", p -> new net.minecraft.world.level.block.AmethystClusterBlock(7.0F, 3.0F, p),
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLUE).forceSolidOn().noOcclusion().strength(1.5F)
+                    .sound(SoundType.AMETHYST_CLUSTER).lightLevel(state -> 7).pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)));
+    public static final DeferredBlock<net.minecraft.world.level.block.GlowLichenBlock> GLOAM_MOSS = withItem(BLOCKS.registerBlock(
+            "gloam_moss", net.minecraft.world.level.block.GlowLichenBlock::new,
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_CYAN).replaceable().noCollission().strength(0.2F).sound(SoundType.MOSS_CARPET)
+                    .lightLevel(state -> net.minecraft.world.level.block.GlowLichenBlock.emission(6).applyAsInt(state))
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)));
     public static final DeferredItem<Item> NUMINOR_INGOT = ITEMS.registerSimpleItem("numinor_ingot");
 
     // artifacts (see artifact/): Inner Haven is the first one, its powers come later

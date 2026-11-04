@@ -5,8 +5,8 @@
   "effects": {
     "fog_color": 921101,
     "sky_color": 0,
-    "water_color": 4159204,
-    "water_fog_color": 329011,
+    "water_color": 1712696,
+    "water_fog_color": 329485,
     "mood_sound": {
       "sound": "minecraft:ambient.cave",
       "tick_delay": 6000,

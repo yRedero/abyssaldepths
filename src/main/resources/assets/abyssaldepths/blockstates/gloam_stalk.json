@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "axis=y": {
+      "model": "abyssaldepths:block/gloam_stalk"
+    },
+    "axis=z": {
+      "model": "abyssaldepths:block/gloam_stalk",
+      "x": 90
+    },
+    "axis=x": {
+      "model": "abyssaldepths:block/gloam_stalk",
+      "x": 90,
+      "y": 90
+    }
+  }
+}

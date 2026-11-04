@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "group": "bark",
+  "pattern": [
+    "##",
+    "##"
+  ],
+  "key": {
+    "#": {
+      "item": "abyssaldepths:stripped_gloam_stalk"
+    }
+  },
+  "result": {
+    "id": "abyssaldepths:stripped_gloam_hyphae",
+    "count": 3
+  }
+}

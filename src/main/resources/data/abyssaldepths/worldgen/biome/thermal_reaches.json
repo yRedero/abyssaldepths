@@ -5,8 +5,8 @@
   "effects": {
     "fog_color": 854794,
     "sky_color": 0,
-    "water_color": 6262650,
-    "water_fog_color": 1714724,
+    "water_color": 1712696,
+    "water_fog_color": 329485,
     "ambient_sound": "abyssaldepths:ambient.thermal_reaches.loop",
     "additions_sound": {
       "sound": "abyssaldepths:ambient.thermal_reaches.additions",

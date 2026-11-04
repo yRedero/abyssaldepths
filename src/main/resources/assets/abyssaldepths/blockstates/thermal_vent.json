@@ -1,15 +1,6 @@
 {
   "variants": {
-    "active=false,triggered=false": {
-      "model": "abyssaldepths:block/thermal_vent"
-    },
-    "active=false,triggered=true": {
-      "model": "abyssaldepths:block/thermal_vent"
-    },
-    "active=true,triggered=false": {
-      "model": "abyssaldepths:block/thermal_vent"
-    },
-    "active=true,triggered=true": {
+    "": {
       "model": "abyssaldepths:block/thermal_vent"
     }
   }

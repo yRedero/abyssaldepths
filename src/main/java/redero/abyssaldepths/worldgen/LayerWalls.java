@@ -1,10 +1,8 @@
 package redero.abyssaldepths.worldgen;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.MultifaceBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import redero.abyssaldepths.AbyssalDepths;
 import redero.abyssaldepths.worldgen.LayerFormations.Biomes;
@@ -18,16 +16,13 @@ import redero.abyssaldepths.worldgen.LayerFormations.Biomes;
  * <li><b>Thermal reaches:</b> the grey stone stays. Where the area is active: a few rusty streaks where
  * mineral water ran down, and rare drips on the ceiling.</li>
  * </ul>
- * Never horizontal bands of different blocks: each biome has one wall block. Everywhere a few bare
- * thalan blocks glimmer faintly, and the pillars of the dunes carry patches of glow lichen.
+ * Never horizontal bands of different blocks: each biome has one wall block.
  * Whether a block faces air is read from the world inside the chunk; outside it the neighbour chunk
  * may not be carved yet, so the cavern shape itself is asked there.
  */
 final class LayerWalls {
     private static final int[][] SIDES = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
     private static final int STREAKS = 10;
-    /** Share of bare thalan wall and ceiling blocks that glimmer. */
-    private static final double GLIMMER = 0.004;   // noise channel of TunnelLayer.surfaceNoise
 
     private final WorldGenLevel level;
     private final TunnelLayer layer;
@@ -89,10 +84,6 @@ final class LayerWalls {
                     wall(style, x, y, z, sideFloor);
                 }
             }
-            // faint glowing specks scattered over the bare thalan that is left, points of light in the dark
-            if (layer.random(x, z, 5000 + y) < GLIMMER && level.getBlockState(pos.set(x, y, z)).is(AbyssalDepths.THALAN.get())) {
-                set(x, y, z, AbyssalDepths.GLIMMERING_THALAN.get().defaultBlockState());
-            }
         }
     }
 
@@ -144,9 +135,6 @@ final class LayerWalls {
             case Biomes.FLATS -> set(x, y, z, vein ? fractured() : shale());
             case Biomes.DUNES -> {
                 set(x, y, z, vein ? AbyssalDepths.THALAN.get().defaultBlockState() : siltstone());
-                if (!vein && layer.patch(x, y, z, 3.0, 46) < 0.06) {
-                    lichen(x, y, z); // patches of faintly glowing lichen on the pillars of the dunes
-                }
             }
             case Biomes.THERMAL -> {
                 if (vein) {
@@ -154,16 +142,6 @@ final class LayerWalls {
                 }
             }
             default -> {
-            }
-        }
-    }
-
-    /** Glow lichen on the open sides of a block, only inside this chunk. */
-    private void lichen(int x, int y, int z) {
-        for (int[] d : SIDES) {
-            if (inChunk(x + d[0], z + d[1]) && level.getBlockState(pos.set(x + d[0], y, z + d[1])).isAir()) {
-                set(x + d[0], y, z + d[1], Blocks.GLOW_LICHEN.defaultBlockState()
-                        .setValue(MultifaceBlock.getFaceProperty(Direction.fromDelta(-d[0], 0, -d[1])), true));
             }
         }
     }

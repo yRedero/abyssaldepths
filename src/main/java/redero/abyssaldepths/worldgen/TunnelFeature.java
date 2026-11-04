@@ -127,6 +127,15 @@ public class TunnelFeature extends Feature<NoneFeatureConfiguration> {
                 walls.apply(x0 + dx, z0 + dz);
             }
         }
+        final GloamPockets gloam = new GloamPockets(level, layer, surface, x0, z0);
+        gloam.apply(); // the gloam breaking out of the rock
+        new GloamGrotto(level, layer, biomes, gloam, x0, z0).apply(); // and, rarely, its heart
+        new FrozenFall(level, layer, biomes, x0, z0).apply(); // a fall frozen in the cold of the depths
+        new BuriedSkeleton(level, layer, biomes, x0, z0).apply(); // something enormous, long dead in the dunes
+        new FractureCanyon(level, layer, biomes, x0, z0).apply(); // where the heat cracked the flats
+        new LavaFall(level, layer, biomes, x0, z0).apply(); // where the heat comes up
+        new VentLung(level, layer, biomes, x0, z0).apply(); // where the ground breathes
+        new TideLake(level, layer, biomes, world.formations, x0, z0).apply(); // a lake whose path comes and goes
         if (marks != null) {
             mark(marks, 7);
             WorldgenProfile.add(marks, near.size());
@@ -223,6 +232,54 @@ public class TunnelFeature extends Feature<NoneFeatureConfiguration> {
                     : biome.is(AbyssalDepths.SILT_DUNES) ? Biomes.DUNES
                     : biome.is(AbyssalDepths.THERMAL_REACHES) ? Biomes.THERMAL : Biomes.DEPTHS;
         };
+    }
+
+    /** The middle of the nearest tide lake (a few thousand blocks round), or null. */
+    public static BlockPos nearestTideLake(net.minecraft.server.level.ServerLevel level, BlockPos from) {
+        final Context c = Context.of(level);
+        return TideLake.nearest(c.layer, c.biomes, c.formations, from.getX(), from.getZ(), 8);
+    }
+
+    /** The middle of the nearest vent lung (a few thousand blocks round), or null. */
+    public static BlockPos nearestVentLung(net.minecraft.server.level.ServerLevel level, BlockPos from) {
+        final Context c = Context.of(level);
+        return VentLung.nearest(c.layer, c.biomes, from.getX(), from.getZ(), 8);
+    }
+
+    /** Where the nearest lava fall lands (a few thousand blocks round), or null. */
+    public static BlockPos nearestLavaFall(net.minecraft.server.level.ServerLevel level, BlockPos from) {
+        final Context c = Context.of(level);
+        return LavaFall.nearest(c.layer, c.biomes, from.getX(), from.getZ(), 8);
+    }
+
+    /** Where to stand to see the nearest fracture canyon (its end, looking along it: x, y, z, yaw), or null. */
+    public static double[] canyonView(net.minecraft.server.level.ServerLevel level, BlockPos from) {
+        final Context c = Context.of(level);
+        return FractureCanyon.view(c.layer, c.biomes, from.getX(), from.getZ(), 8);
+    }
+
+    /** The middle of the fracture canyon nearest to a place (a few thousand blocks round), or null. */
+    public static BlockPos nearestCanyon(net.minecraft.server.level.ServerLevel level, BlockPos from) {
+        final Context c = Context.of(level);
+        return FractureCanyon.nearest(c.layer, c.biomes, from.getX(), from.getZ(), 8);
+    }
+
+    /** The middle of the buried skeleton nearest to a place (a few thousand blocks round), or null. */
+    public static BlockPos nearestSkeleton(net.minecraft.server.level.ServerLevel level, BlockPos from) {
+        final Context c = Context.of(level);
+        return BuriedSkeleton.nearest(c.layer, c.biomes, from.getX(), from.getZ(), 8);
+    }
+
+    /** The source of the frozen fall nearest to a place (a few thousand blocks round), or null. */
+    public static BlockPos nearestFrozenFall(net.minecraft.server.level.ServerLevel level, BlockPos from) {
+        final Context c = Context.of(level);
+        return FrozenFall.nearest(c.layer, c.biomes, from.getX(), from.getZ(), 8);
+    }
+
+    /** The middle of the gloam grotto nearest to a place (a few thousand blocks round), or null. */
+    public static BlockPos nearestGrotto(net.minecraft.server.level.ServerLevel level, BlockPos from) {
+        final Context c = Context.of(level);
+        return GloamGrotto.nearest(c.layer, c.biomes, from.getX(), from.getZ(), 8);
     }
 
     /** Formation materials into the world. */

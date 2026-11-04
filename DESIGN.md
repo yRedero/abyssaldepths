@@ -82,6 +82,15 @@ Biome and environment concepts include:
 - **Silt Dunes** — a dune-like environment with fine sediment and a sandstorm concept. Sandstorms should have a visible and gameplay-relevant presence, not merely be a cosmetic overlay.
 - **Thermal Reaches** — a warmer or geothermally influenced area, with its own environmental blocks and features.
 
+**Decided direction for the layer's identity (the gloam and the set pieces are built; camps not yet):**
+
+- **Never safe, never deadly:** there should always be something that makes the player careful. Deep Pressure exists to say "this is no safe place, prepare first"; later things may negate most of it once it has done that job.
+- **Food and light are scarce.**
+- **The gloam ties the layer together** (the glow; its family: Gloam Crystal, Gloam Cluster, Gloam Moss, the giant Gloamcap fungus with Gloam Stalk wood and Gloam Planks, Gloamweave and Gloamweave Mat): crystal seams glowing deep blue/violet in the rock, with living gloam (moss) growing on and around them. Life gathers round the gloam pockets, water pools where it meets them, Shadeborn camps sit near them, Numinor forms where the gloam is strongest. Blue/violet colour appears only in the glows; stone and fog stay as they are. The Silt Dunes have no gloam (the silt keeps it buried). The biomes are stages of one system: the Thermal Reaches bring the heat up, the heat drives the winds that build the Silt Dunes, the Shale Flats are rock the heat cracked, the Thalan Depths are the coldest, where the gloam is faintest.
+- **Water in places:** a few dark lakes and falls, rare enough to be landmarks.
+- **Rare set pieces:** a buried giant skeleton (Silt Dunes), a fracture canyon (Shale Flats), a lava fall into a steaming lake (Thermal Reaches), a gloam grotto (Thalan Depths), the vent lung (vents erupting in a rolling wave, Thermal Reaches), a tide lake (still, mirror-black water whose glow pulses like a tide; at low tide a sunken path appears; Thalan Depths), a few camp graveyards (old camps abandoned round a dead gloam pocket), a frozen fall (dark ice with gloam trapped inside, Thalan Depths). All of these are built except the camp graveyards, which wait for the camps. The Fallen Spire (a broken Solit pillar in the dark) waits until a Solit biome exists and only lies beneath one.
+- **Camps** are built mainly of the layer's stone, with a new wood from the giant Gloamcap fungi (Gloam Stalk; scarce, found in the richest gloam pockets) and Gloamweave (fibre from the fungi and the gloam moss) for tents, curtains and mats. Shadeborn camps exist from the start, spread out; they grow stronger as the player progresses. A camp's find is supplies: a little food and light, what the layer lacks. (Camps are deferred for now.)
+
 These are working biome concepts, not a complete final biome specification. Their visual identity should be supported by distinctive blocks, terrain shapes, ambient details and gameplay features. Avoid making them feel empty simply because they are sparse; their scale, silhouettes and environmental storytelling should do some of the work.
 
 ### 3.2 The light region — Solit / Zenith

@@ -1,0 +1,56 @@
+{
+  "variants": {
+    "facing=down,waterlogged=false": {
+      "model": "abyssaldepths:block/gloam_cluster",
+      "x": 180
+    },
+    "facing=down,waterlogged=true": {
+      "model": "abyssaldepths:block/gloam_cluster",
+      "x": 180
+    },
+    "facing=up,waterlogged=false": {
+      "model": "abyssaldepths:block/gloam_cluster"
+    },
+    "facing=up,waterlogged=true": {
+      "model": "abyssaldepths:block/gloam_cluster"
+    },
+    "facing=north,waterlogged=false": {
+      "model": "abyssaldepths:block/gloam_cluster",
+      "x": 90
+    },
+    "facing=north,waterlogged=true": {
+      "model": "abyssaldepths:block/gloam_cluster",
+      "x": 90
+    },
+    "facing=south,waterlogged=false": {
+      "model": "abyssaldepths:block/gloam_cluster",
+      "x": 90,
+      "y": 180
+    },
+    "facing=south,waterlogged=true": {
+      "model": "abyssaldepths:block/gloam_cluster",
+      "x": 90,
+      "y": 180
+    },
+    "facing=west,waterlogged=false": {
+      "model": "abyssaldepths:block/gloam_cluster",
+      "x": 90,
+      "y": 270
+    },
+    "facing=west,waterlogged=true": {
+      "model": "abyssaldepths:block/gloam_cluster",
+      "x": 90,
+      "y": 270
+    },
+    "facing=east,waterlogged=false": {
+      "model": "abyssaldepths:block/gloam_cluster",
+      "x": 90,
+      "y": 90
+    },
+    "facing=east,waterlogged=true": {
+      "model": "abyssaldepths:block/gloam_cluster",
+      "x": 90,
+      "y": 90
+    }
+  }
+}

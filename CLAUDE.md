@@ -12,6 +12,9 @@ NeoForge 21.1 / Minecraft 1.21.1 mod (ModDevGradle). Adds the thalan layer below
   `TunnelFeature` places everything per chunk (carve, `LayerSurface`, formations, `LayerWalls`) and keeps
   a per-world `Context` with thread-safe caches: never compute biome lookups per chunk again (they
   cost the full climate noise; that once made generation 12x slower).
+  The gloam (`GloamPockets`) and the set pieces (`GloamGrotto`, `FrozenFall`, `BuriedSkeleton`, `FractureCanyon`, `LavaFall`, `VentLung`, `TideLake`) come after,
+  each from grid cells; go to one with `/abyssaldepths grotto|frozenfall|skeleton|canyon|lavafall|ventlung|tidelake`, shoot it with
+  `tools/autoshot.sh <round> grotto|frozenfall|skeleton|canyon|lavafall|ventlung|tidelake`.
 - `client/`: all visuals and sounds (fog, ambience, reverb, storms, thermal effects, deep pressure).
 - `artifact/`: artifacts (rank, frame, mastery data component); their tooltip frame is
   `client/ArtifactTooltip`. Preview with `tools/autoshot.sh <round> artifacts`. Inner Haven: `InnerSelf`

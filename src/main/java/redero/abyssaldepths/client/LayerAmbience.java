@@ -279,14 +279,14 @@ public final class LayerAmbience {
                 final LevelChunkSection[] sections = level.getChunk(cx + dx, cz + dz).getSections();
                 for (int i = Math.max(0, sy - 1); i <= sy + 1 && i < sections.length; i++) {
                     final LevelChunkSection section = sections[i];
-                    if (section == null || section.hasOnlyAir() || !section.maybeHas(s -> s.is(AbyssalDepths.GLIMMERING_THALAN.get()))) {
+                    if (section == null || section.hasOnlyAir() || !section.maybeHas(s -> s.is(AbyssalDepths.GLOAM_CRYSTAL.get()))) {
                         continue;
                     }
                     final int bx = (cx + dx) << 4, by = level.getSectionYFromSectionIndex(i) << 4, bz = (cz + dz) << 4;
                     for (int y = 0; y < 16; y++) {
                         for (int z = 0; z < 16; z++) {
                             for (int x = 0; x < 16; x++) {
-                                if (section.getBlockState(x, y, z).is(AbyssalDepths.GLIMMERING_THALAN.get()) && GLIMMERS.size() < 64) {
+                                if (section.getBlockState(x, y, z).is(AbyssalDepths.GLOAM_CRYSTAL.get()) && GLIMMERS.size() < 64) {
                                     GLIMMERS.add(new BlockPos(bx + x, by + y, bz + z));
                                 }
                             }

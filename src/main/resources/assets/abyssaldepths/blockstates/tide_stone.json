@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "gloam=true": {
+      "model": "abyssaldepths:block/gloam_crystal"
+    },
+    "gloam=false": {
+      "model": "abyssaldepths:block/thalan"
+    }
+  }
+}

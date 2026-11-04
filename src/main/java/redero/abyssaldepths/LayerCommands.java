@@ -36,6 +36,23 @@ import redero.abyssaldepths.network.EffectPayload;
  */
 @EventBusSubscriber(modid = AbyssalDepths.MODID)
 public final class LayerCommands {
+    /** To the nearest set piece of a kind (generated as you arrive), standing off from it, looking at it. */
+    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<net.minecraft.commands.CommandSourceStack> setPiece(String name, String label,
+            java.util.function.BiFunction<net.minecraft.server.level.ServerLevel, net.minecraft.core.BlockPos, net.minecraft.core.BlockPos> nearest,
+            double dx, double dy, double dz, float yaw, float pitch) {
+        return Commands.literal(name).executes(c -> {
+            final net.minecraft.server.level.ServerPlayer player = c.getSource().getPlayerOrException();
+            final net.minecraft.core.BlockPos at = nearest.apply(player.serverLevel(), player.blockPosition());
+            if (at == null) {
+                c.getSource().sendFailure(Component.literal("No " + label.toLowerCase(java.util.Locale.ROOT) + " near"));
+                return 0;
+            }
+            player.teleportTo(player.serverLevel(), at.getX() + dx, at.getY() + dy, at.getZ() + dz, yaw, pitch);
+            c.getSource().sendSuccess(() -> Component.literal(label + " at " + at.getX() + " " + at.getY() + " " + at.getZ()), false);
+            return 1;
+        });
+    }
+
     private static final String[] HALLUCINATIONS = {"footsteps", "mob", "digging", "shadow"};
     private static final String[] AMBIENCE = {"groan", "creature", "steps", "rockfall", "gust"};
 
@@ -73,6 +90,23 @@ public final class LayerCommands {
                 .then(Commands.literal("vanish").then(vanishStyle).then(vanishPlay))
                 .then(shadeLook)
                 .then(Commands.literal("showcase").executes(c -> send(c, "showcase")))
+                .then(setPiece("frozenfall", "Frozen fall", redero.abyssaldepths.worldgen.TunnelFeature::nearestFrozenFall, 14.5, 4, 14.5, 135.0F, -10.0F))
+                .then(setPiece("grotto", "Gloam grotto", redero.abyssaldepths.worldgen.TunnelFeature::nearestGrotto, 18.5, 6, 18.5, 135.0F, 15.0F))
+                .then(Commands.literal("canyon").executes(c -> { // to the end of the nearest fracture canyon, looking along it
+                    final net.minecraft.server.level.ServerPlayer player = c.getSource().getPlayerOrException();
+                    final double[] view = redero.abyssaldepths.worldgen.TunnelFeature.canyonView(player.serverLevel(), player.blockPosition());
+                    if (view == null) {
+                        c.getSource().sendFailure(Component.literal("No fracture canyon near"));
+                        return 0;
+                    }
+                    player.teleportTo(player.serverLevel(), view[0], view[1], view[2], (float) view[3], 25.0F);
+                    c.getSource().sendSuccess(() -> Component.literal("Fracture canyon at " + (int) view[0] + " " + (int) view[1] + " " + (int) view[2]), false);
+                    return 1;
+                }))
+                .then(setPiece("lavafall", "Lava fall", redero.abyssaldepths.worldgen.TunnelFeature::nearestLavaFall, 16.5, 5, 16.5, 135.0F, -5.0F))
+                .then(setPiece("ventlung", "Vent lung", redero.abyssaldepths.worldgen.TunnelFeature::nearestVentLung, 16.5, 7, 16.5, 135.0F, 20.0F))
+                .then(setPiece("tidelake", "Tide lake", redero.abyssaldepths.worldgen.TunnelFeature::nearestTideLake, 20.5, 6, 20.5, 135.0F, 20.0F))
+                .then(setPiece("skeleton", "Buried skeleton", redero.abyssaldepths.worldgen.TunnelFeature::nearestSkeleton, 26.5, 10, 26.5, 135.0F, 15.0F))
                 .then(styles())
                 .then(Commands.literal("oblivion").executes(c -> {
                     final java.util.List<String> sent = redero.abyssaldepths.artifact.OblivionItem.cast(c.getSource().getPlayerOrException());

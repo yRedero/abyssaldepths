@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "group": "wooden_door",
+  "pattern": [
+    "##",
+    "##",
+    "##"
+  ],
+  "key": {
+    "#": {
+      "item": "abyssaldepths:gloam_planks"
+    }
+  },
+  "result": {
+    "id": "abyssaldepths:gloam_door",
+    "count": 3
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "parent": "minecraft:block/block",
+  "render_type": "minecraft:cutout",
+  "ambientocclusion": false,
+  "textures": {
+    "particle": "abyssaldepths:block/gloam_moss",
+    "moss": "abyssaldepths:block/gloam_moss",
+    "glow": "abyssaldepths:block/gloam_moss_glow"
+  },
+  "elements": [
+    {
+      "from": [
+        0,
+        0,
+        0.1
+      ],
+      "to": [
+        16,
+        16,
+        0.1
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            16,
+            0,
+            0,
+            16
+          ],
+          "texture": "#moss"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#moss"
+        }
+      }
+    },
+    {
+      "from": [
+        0,
+        0,
+        0.15
+      ],
+      "to": [
+        16,
+        16,
+        0.15
+      ],
+      "shade": false,
+      "faces": {
+        "north": {
+          "uv": [
+            16,
+            0,
+            0,
+            16
+          ],
+          "texture": "#glow",
+          "neoforge_data": {
+            "block_light": 15,
+            "sky_light": 15,
+            "ambient_occlusion": false
+          }
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#glow",
+          "neoforge_data": {
+            "block_light": 15,
+            "sky_light": 15,
+            "ambient_occlusion": false
+          }
+        }
+      }
+    }
+  ]
+}

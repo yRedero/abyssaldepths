@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "type=bottom": {
+      "model": "abyssaldepths:block/gloam_slab"
+    },
+    "type=top": {
+      "model": "abyssaldepths:block/gloam_slab_top"
+    },
+    "type=double": {
+      "model": "abyssaldepths:block/gloam_planks"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/stairs",
+  "textures": {
+    "bottom": "abyssaldepths:block/gloam_planks",
+    "top": "abyssaldepths:block/gloam_planks",
+    "side": "abyssaldepths:block/gloam_planks"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "##"
+  ],
+  "key": {
+    "#": {
+      "item": "abyssaldepths:gloamweave"
+    }
+  },
+  "result": {
+    "id": "abyssaldepths:gloamweave_mat",
+    "count": 3
+  }
+}
