@@ -55,6 +55,8 @@
     "abyssaldepths:gloam_crystal",
     "abyssaldepths:gloam_cluster",
     "abyssaldepths:dark_ice",
-    "abyssaldepths:tide_stone"
+    "abyssaldepths:tide_stone",
+    "abyssaldepths:storm_crystal_cluster",
+    "abyssaldepths:storm_crystal"
   ]
 }

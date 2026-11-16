@@ -90,7 +90,9 @@ final class LayerWalls {
     private void wall(int style, int x, int y, int z, int sideFloor) {
         switch (style) {
             case Biomes.FLATS -> set(x, y, z, shale());
-            case Biomes.DUNES -> set(x, y, z, siltstone());
+            case Biomes.DUNES -> {
+                set(x, y, z, siltstone());
+            }
             case Biomes.THERMAL -> {
                 final double act = surface.activity(x, z);
                 if (act > 0.7 && layer.surfaceNoise(STREAKS, (x + z) / 5.0, (x - z) / 45.0) > 0.62) {

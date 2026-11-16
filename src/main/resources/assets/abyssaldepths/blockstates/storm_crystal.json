@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "charged=false": {
+      "model": "abyssaldepths:block/storm_crystal"
+    },
+    "charged=true": {
+      "model": "abyssaldepths:block/storm_crystal_charged"
+    }
+  }
+}

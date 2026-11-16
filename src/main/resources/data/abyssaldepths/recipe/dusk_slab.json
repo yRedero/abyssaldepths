@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "group": "wooden_slab",
+  "pattern": [
+    "###"
+  ],
+  "key": {
+    "#": {
+      "item": "abyssaldepths:dusk_planks"
+    }
+  },
+  "result": {
+    "id": "abyssaldepths:dusk_slab",
+    "count": 6
+  }
+}

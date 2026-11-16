@@ -1,8 +1,0 @@
-{
-  "parent": "minecraft:block/cube_bottom_top",
-  "textures": {
-    "side": "abyssaldepths:block/gloam_stalk",
-    "top": "abyssaldepths:block/gloam_stalk",
-    "bottom": "abyssaldepths:block/gloam_stalk"
-  }
-}

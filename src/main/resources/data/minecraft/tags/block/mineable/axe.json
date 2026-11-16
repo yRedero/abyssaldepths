@@ -1,18 +1,18 @@
 {
   "values": [
-    "abyssaldepths:gloam_stalk",
-    "abyssaldepths:gloam_planks",
-    "abyssaldepths:gloamcap",
-    "abyssaldepths:stripped_gloam_stalk",
-    "abyssaldepths:gloam_hyphae",
-    "abyssaldepths:stripped_gloam_hyphae",
-    "abyssaldepths:gloam_stairs",
-    "abyssaldepths:gloam_slab",
-    "abyssaldepths:gloam_fence",
-    "abyssaldepths:gloam_fence_gate",
-    "abyssaldepths:gloam_door",
-    "abyssaldepths:gloam_trapdoor",
-    "abyssaldepths:gloam_pressure_plate",
-    "abyssaldepths:gloam_button"
+    "abyssaldepths:dusk_stalk",
+    "abyssaldepths:dusk_planks",
+    "abyssaldepths:duskcap",
+    "abyssaldepths:stripped_dusk_stalk",
+    "abyssaldepths:dusk_hyphae",
+    "abyssaldepths:stripped_dusk_hyphae",
+    "abyssaldepths:dusk_stairs",
+    "abyssaldepths:dusk_slab",
+    "abyssaldepths:dusk_fence",
+    "abyssaldepths:dusk_fence_gate",
+    "abyssaldepths:dusk_door",
+    "abyssaldepths:dusk_trapdoor",
+    "abyssaldepths:dusk_pressure_plate",
+    "abyssaldepths:dusk_button"
   ]
 }

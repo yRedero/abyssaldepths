@@ -816,7 +816,7 @@ public final class FractureView {
     /** The marks a player's body and the player share (so the one looks just like the other). */
     private static int salt(Entity entity) {
         return entity instanceof redero.abyssaldepths.fracture.FracturedBody body ? body.owner().map(java.util.UUID::hashCode).orElse(entity.getId())
-                : entity instanceof redero.abyssaldepths.fracture.Hollow hollow ? hollow.owner().map(java.util.UUID::hashCode).orElse(entity.getId())
+                : entity instanceof redero.abyssaldepths.fracture.Remnant hollow ? hollow.owner().map(java.util.UUID::hashCode).orElse(entity.getId())
                 : entity instanceof net.minecraft.world.entity.player.Player ? entity.getUUID().hashCode() : entity.getId();
     }
 
@@ -845,7 +845,7 @@ public final class FractureView {
                 recede = -1.0F;
             }
         }
-        final boolean taken = corrupted(entity) || entity instanceof redero.abyssaldepths.fracture.FracturedBody || entity instanceof redero.abyssaldepths.fracture.Hollow
+        final boolean taken = corrupted(entity) || entity instanceof redero.abyssaldepths.fracture.FracturedBody || entity instanceof redero.abyssaldepths.fracture.Remnant
                 || recede >= 0.0F && recede < 0.25F;
         final float scars = SCARRED.isEmpty() ? 0.0F : scarMarks(SCARRED.get(entity.getId()));
         float value = taken ? 1.0F : Math.max(scars, CRACKS.isEmpty() ? 0.0F : CRACKS.get(entity.getId()));

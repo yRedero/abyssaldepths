@@ -186,6 +186,11 @@ final class HushTrial extends Trial {
     }
 
     @Override
+    java.util.List<Threshold.Lesson> lessons() {
+        return java.util.List.of(new Threshold.Noise(), new Threshold.Gaze(), new Threshold.Memory());
+    }
+
+    @Override
     Vec3 spawn() {
         return Vec3.atBottomCenterOf(start.above());
     }
@@ -290,8 +295,9 @@ final class HushTrial extends Trial {
         }
         // memories
         for (ItemEntity memory : memories) {
-            if (!memory.isRemoved() && memory.position().distanceTo(player.position().add(0, 0.8, 0)) < 1.4) {
+            if (reaches(memory)) {
                 level.sendParticles(ParticleTypes.END_ROD, memory.getX(), memory.getY(), memory.getZ(), 25, 0.3, 0.3, 0.3, 0.08);
+                boon(memory.position());
                 level.playSound(null, memory.blockPosition(), SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 1.2F, 0.8F);
                 memory.discard();
                 hits = Math.max(0, hits - 1);

@@ -376,11 +376,11 @@ public final class FractureScreen {
         }
     }
 
-    private static void draw(GuiGraphics g, float partial) {
+    private static void draw(GuiGraphics g, float partial, float lift) {
         final int w = g.guiWidth(), h = g.guiHeight();
         final float t = age + partial;
         g.pose().pushPose();
-        g.pose().translate(0.0F, 0.0F, 2900.0F);
+        g.pose().translate(0.0F, 0.0F, lift); // over a screen: above its tooltips; as the top layer: none (more would push it past the GUI's depth, unseen)
         switch (phase) {
             case NONE -> cracks(g, w, h, Mth.lerp(partial, previousLevel, level));
             case BREAKING -> {
@@ -606,7 +606,7 @@ public final class FractureScreen {
         if (event.getScreen() instanceof net.minecraft.client.gui.screens.DeathScreen || phase == Phase.NONE) {
             return; // drawn with the HUD, under the screen: the death screen over the black; the cracks alone under menus
         }
-        draw(event.getGuiGraphics(), event.getPartialTick());
+        draw(event.getGuiGraphics(), event.getPartialTick(), 500.0F);
     }
 
     @EventBusSubscriber(modid = AbyssalDepths.MODID, value = Dist.CLIENT)
@@ -617,7 +617,7 @@ public final class FractureScreen {
         @SubscribeEvent
         public static void register(RegisterGuiLayersEvent event) {
             event.registerAboveAll(ResourceLocation.fromNamespaceAndPath(AbyssalDepths.MODID, "fracture_screen"),
-                    (graphics, delta) -> draw(graphics, delta.getGameTimeDeltaPartialTick(true)));
+                    (graphics, delta) -> draw(graphics, delta.getGameTimeDeltaPartialTick(true), 0.0F));
         }
     }
 }

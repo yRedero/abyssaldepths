@@ -167,6 +167,14 @@ public final class TrialHud {
         hitTicks = 6;
     }
 
+    /** Something good: a memory won back, the body free to take: the screen's edges shimmer green a moment. */
+    public static void boon() {
+        boonTicks = BOON_TICKS;
+    }
+
+    private static final int BOON_TICKS = 30;
+    private static int boonTicks;
+
     /** Back in the body: a word of how it went. */
     public static void out(boolean passed) {
         TrialHud.passed = passed;
@@ -208,6 +216,9 @@ public final class TrialHud {
         if (hitTicks > 0) {
             hitTicks--;
         }
+        if (boonTicks > 0) {
+            boonTicks--;
+        }
         if (outTicks > 0) {
             outTicks--;
         }
@@ -234,6 +245,24 @@ public final class TrialHud {
         if (inTrial()) {
             title(g, mc, w, h);
             bars(g, w);
+            if (boonTicks > 0) { // something good: green pixels shimmering in from the edges, fading
+                final int cell = 8, band = Math.max(w, h) / 6;
+                final float k = boonTicks / (float) BOON_TICKS;
+                for (int y = 0; y < h; y += cell) {
+                    for (int x = 0; x < w; x += cell) {
+                        final int edge = Math.min(Math.min(x, w - x), Math.min(y, h - y));
+                        if (edge > band) {
+                            continue;
+                        }
+                        final float n = UndertowRenderer.noise(x * 13 + y, boonTicks / 2);
+                        final float near = 1.0F - edge / (float) band;
+                        if (n < 0.45F * near) {
+                            final int alpha = (int) (k * near * (n < 0.12F ? 200 : 120));
+                            g.fill(x, y, x + cell, y + cell, alpha << 24 | (n < 0.12F ? 0x9CFF9C : 0x3FCF5A));
+                        }
+                    }
+                }
+            }
             if (hitTicks > 0) { // a hit: the screen flashes in black and white
                 final int cell = 8;
                 for (int y = 0; y < h; y += cell) {

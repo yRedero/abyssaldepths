@@ -12,7 +12,7 @@ import redero.abyssaldepths.worldgen.LayerFormations.Biomes;
 /**
  * The gloam grotto: a rare set piece of the thalan depths, the heart of the gloam. In a tall hall lies a still, dark
  * lake, deeper in its middle, held in by a rim of rock; spires of gloam crystal rise round it and out of it, the
- * ceiling over it is thick with crystal and hanging clusters, every wall round it carries moss, and gloamcaps stand on
+ * ceiling over it is thick with crystal and hanging clusters, every wall round it carries moss, and duskcaps stand on
  * its shore. At most one in a large grid cell, and only where the cell's spot lies in the depths with room overhead.
  * Everything is decided from the cell, so each chunk paints its own part of it.
  */
@@ -66,10 +66,10 @@ final class GloamGrotto {
                 gloam.rich = true;
                 gloam.glow(s.x(), s.floor(), s.z(), 22.0);
                 gloam.ceiling(s.x(), s.floor(), s.z(), 20.0);
-                for (int k = 0; k < 4; k++) { // gloamcaps along the shore
+                for (int k = 0; k < 4; k++) { // duskcaps along the shore
                     final double a = (k + layer.random(gx, gz, 8110 + k) * 0.6) * Math.PI / 2;
                     final double d = s.lake() + 4.0 + layer.random(gx, gz, 8120 + k) * 4.0;
-                    gloam.gloamcaps(gx * 7 + 9000 + k, gz * 7 + 9000, s.x() + (int) Math.round(Math.cos(a) * d), s.z() + (int) Math.round(Math.sin(a) * d), 10.5);
+                    gloam.duskcaps(gx * 7 + 9000 + k, gz * 7 + 9000, s.x() + (int) Math.round(Math.cos(a) * d), s.z() + (int) Math.round(Math.sin(a) * d), 10.5);
                 }
                 gloam.rich = false;
             }

@@ -112,14 +112,19 @@ public final class RepriseCover {
         frozen = false;
     }
 
-    private static void draw(GuiGraphics g, float partialTick) {
+    /**
+     * Draws it; {@code lift} raises it over what is drawn at this point (a screen's tooltips): as the last GUI layer it
+     * needs none, and lifting it far there pushes it out past the far end of the GUI's depth (every layer before it is
+     * already raised a little), where nothing shows.
+     */
+    private static void draw(GuiGraphics g, float partialTick, float lift) {
         if (phase == Phase.IDLE) {
             return;
         }
         final int w = g.guiWidth(), h = g.guiHeight();
         final float p = Mth.lerp(partialTick, previous, progress);
         g.pose().pushPose();
-        g.pose().translate(0.0F, 0.0F, 3000.0F); // over everything, tooltips included
+        g.pose().translate(0.0F, 0.0F, lift);
         if (frozen && texture != null) {
             g.blit(FROZEN, 0, 0, w, h, 0.0F, 0.0F, frozenW, frozenH, frozenW, frozenH);
         }
@@ -257,7 +262,7 @@ public final class RepriseCover {
 
     @SubscribeEvent
     public static void onScreen(ScreenEvent.Render.Post event) {
-        draw(event.getGuiGraphics(), event.getPartialTick());
+        draw(event.getGuiGraphics(), event.getPartialTick(), 500.0F); // over the screen's tooltips
     }
 
     @EventBusSubscriber(modid = AbyssalDepths.MODID, value = Dist.CLIENT)
@@ -265,7 +270,7 @@ public final class RepriseCover {
         @SubscribeEvent
         public static void register(RegisterGuiLayersEvent event) {
             event.registerAboveAll(ResourceLocation.fromNamespaceAndPath(AbyssalDepths.MODID, "reprise_cover"),
-                    (graphics, delta) -> draw(graphics, delta.getGameTimeDeltaPartialTick(true)));
+                    (graphics, delta) -> draw(graphics, delta.getGameTimeDeltaPartialTick(true), 0.0F)); // the last layer: over all by itself
         }
     }
 }

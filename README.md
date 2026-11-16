@@ -15,13 +15,17 @@ and ambience.
   - *Shale flats*: shale plateaus full of leaning shards of fractured shale; you find your way along
     winding paths between them.
   - *Silt dunes*: one big open hall of fine silt dunes with lone pillars, slender arches and siltstone
-    outcrops, quicksilt pools that pull you down, and dune storms.
+    outcrops, quicksilt pools that pull you down, and dune storms: gusts shove you along the wind (crouch
+    to brace), the silt grinds at unsheltered armour, and the storm crystal spires (landmarks of 3 to 5
+    blocks, small crystals round their feet) wake: the light climbs them from the foot, they flash, glow
+    and draw lightning (crackling first); only then can they be broken for storm shards
+    (`/abyssaldepths stormcrystal` takes you to the nearest).
   - *Thermal reaches*: thermal rock, glowing smouldering fissures, vent cones and vent fields with steam,
     oxide and sulfur deposits, sinter terraces with warm pools.
 - **The gloam**, the glow that ties the layer together (none in the dunes): rare pockets where gloam
   crystal breaks out of the rock, gloam moss and clusters round them, often a dark pool, in the richest
-  ones giant gloamcaps (the layer's only wood: gloam stalk and its wood set; their caps give gloam fibre,
-  woven into gloamweave).
+  ones giant duskcaps (the layer's only wood: dusk stalk and its wood set; their caps give duskthread,
+  woven into duskweave).
 - **Set pieces**, rare landmarks (`/abyssaldepths <name>` takes you to the nearest):
   - *Gloam grotto* (`grotto`, depths): a still dark lake glowing from its bed, gloam spires round it.
   - *Frozen fall* (`frozenfall`, depths): a fall frozen mid-fall in dark ice, gloam caught in its core.

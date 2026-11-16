@@ -154,10 +154,12 @@ public final class FractureTrials {
         player.getFoodData().setFoodLevel(20);
         final BlockPos origin = new BlockPos(kept.slot(player.getUUID()) * SPACING, ARENA_Y, 0);
         final Trial trial = (type == null ? Trial.Type.pick(player.getRandom()) : type).create(player, trials, origin, Scars.of(player));
+        trial.carried = things;
         trial.remember(things);
         trial.build();
-        final Vec3 spawn = trial.spawn();
-        player.teleportTo(trials, spawn.x, spawn.y, spawn.z, trial.spawnYaw(), 10.0F);
+        trial.threshold = skipThreshold ? null : Threshold.of(trial, trial.lessons()); // first the threshold, the rules acted out, then the trial
+        final Vec3 spawn = trial.threshold != null ? trial.threshold.arrival() : trial.spawn();
+        player.teleportTo(trials, spawn.x, spawn.y, spawn.z, trial.threshold != null ? trial.threshold.arrivalYaw() : trial.spawnYaw(), 10.0F);
         player.setDeltaMovement(Vec3.ZERO);
         player.resetFallDistance();
         TRIALS.put(player.getUUID(), trial);
@@ -203,6 +205,18 @@ public final class FractureTrials {
 
     /** For the dev tools: no hit counts in the trials (to see them through standing still). */
     public static boolean unharmed;
+    /** For the dev tools: straight into the trial, no threshold first. */
+    public static boolean skipThreshold;
+
+    /** Steps the player through their trial's threshold at once (into the trial); false if there is none to cross. */
+    public static boolean cross(ServerPlayer player) {
+        final Trial trial = TRIALS.get(player.getUUID());
+        if (trial == null || trial.threshold == null || trial.threshold.crossed) {
+            return false;
+        }
+        trial.threshold.crossNow();
+        return true;
+    }
 
     /** Where a part of the player's trial is (for the dev tools), or null. */
     public static Vec3 place(ServerPlayer player, String what) {

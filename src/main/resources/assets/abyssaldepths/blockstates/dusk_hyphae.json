@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "axis=y": {
+      "model": "abyssaldepths:block/dusk_hyphae"
+    },
+    "axis=z": {
+      "model": "abyssaldepths:block/dusk_hyphae",
+      "x": 90
+    },
+    "axis=x": {
+      "model": "abyssaldepths:block/dusk_hyphae",
+      "x": 90,
+      "y": 90
+    }
+  }
+}

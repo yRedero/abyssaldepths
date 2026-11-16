@@ -23,6 +23,8 @@ public final class ClientEffects {
             final String[] p = effect.substring("repulsion/".length()).split("/");
             RepulsionView.start(new net.minecraft.world.phys.Vec3(Double.parseDouble(p[0]), Double.parseDouble(p[1]), Double.parseDouble(p[2])),
                     Float.parseFloat(p[3]));
+        } else if (effect.startsWith("oblivion_bound/")) { // held inside the circle Oblivion reached, till back
+            OblivionView.bound(effect.substring("oblivion_bound/".length()), payload.ticks());
         } else if (effect.startsWith("fracture_mob/")) { // drawn in the corruption for a while
             FractureView.corrupt(Integer.parseInt(effect.substring("fracture_mob/".length())), payload.ticks());
         } else if (effect.startsWith("corruption/")) { // how far corruption has come in someone: their cracks
@@ -53,6 +55,8 @@ public final class ClientEffects {
             TrialHud.warned();
         } else if (effect.equals("trial_hit")) {
             TrialHud.hit();
+        } else if (effect.equals("trial_boon")) {
+            TrialHud.boon();
         } else if (effect.startsWith("trial_end/")) { // the trial is overgrown by the black: back to the body
             FractureScreen.overgrow(payload.ticks(), effect.endsWith("1"));
         } else if (effect.startsWith("trial_out/")) {
@@ -151,8 +155,12 @@ public final class ClientEffects {
             RepriseCover.start();
         } else if (effect.equals("reprise_done")) {
             RepriseCover.done();
-        } else if (effect.equals("storm")) {
-            DuneStormClient.set(payload.ticks());
+        } else if (effect.startsWith("worm_chase/")) { // the worm hunting this player
+            WormRumble.chased(Double.parseDouble(effect.substring("worm_chase/".length())));
+        } else if (effect.startsWith("worm_near/")) { // the worm heard coming
+            WormRumble.near(effect.substring("worm_near/".length()));
+        } else if (effect.equals("storm") || effect.startsWith("storm/")) { // a storm (and its wind's direction)
+            DuneStormClient.set(payload.ticks(), effect.startsWith("storm/") ? Double.parseDouble(effect.substring("storm/".length())) : Double.NaN);
         } else if (effect.startsWith("hallucinate/")) {
             DeepPressureClient.hallucinate(effect.substring("hallucinate/".length()));
         } else if (effect.startsWith("ambience/")) {

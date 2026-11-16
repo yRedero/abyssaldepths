@@ -87,7 +87,9 @@ public class AbsentBodyRenderer extends LivingEntityRenderer<AbsentBody, PlayerM
             event.registerEntityRenderer(AbyssalDepths.FRACTURED_BODY.get(), context -> (net.minecraft.client.renderer.entity.EntityRenderer) new AbsentBodyRenderer(context));
             event.registerEntityRenderer(AbyssalDepths.FRACTURE_CORE.get(), FractureCoreRenderer::new);
             event.registerEntityRenderer(AbyssalDepths.FRACTURE_DOUBLE.get(), context -> (net.minecraft.client.renderer.entity.EntityRenderer) new AbsentBodyRenderer(context));
-            event.registerEntityRenderer(AbyssalDepths.HOLLOW.get(), HollowRenderer::new);
+            event.registerEntityRenderer(AbyssalDepths.REMNANT.get(), RemnantRenderer::new);
+            event.registerEntityRenderer(AbyssalDepths.BIG_WORM.get(), BigWormRenderer::new);
+            event.registerEntityRenderer(AbyssalDepths.TRIAL_ECHO.get(), context -> (net.minecraft.client.renderer.entity.EntityRenderer) new EchoRenderer(context));
         }
     }
 }

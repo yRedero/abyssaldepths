@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "redstone",
+  "group": "wooden_button",
+  "ingredients": [
+    {
+      "item": "abyssaldepths:dusk_planks"
+    }
+  ],
+  "result": {
+    "id": "abyssaldepths:dusk_button",
+    "count": 1
+  }
+}

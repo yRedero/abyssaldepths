@@ -13,7 +13,7 @@ import redero.abyssaldepths.entity.AbsentBody;
  * The body a fractured player leaves standing while they are in their trial: their likeness, frozen in black
  * and white corruption (drawn so by {@code client.FractureView}), untouchable, unmoving. It goes when its player
  * is out of the trial again (or gone); if they failed it stays where it stood, decomposing (pixels falling away),
- * and after {@link #RISE_TICKS} it rises as a {@link Hollow} and walks off in their likeness.
+ * and after {@link #RISE_TICKS} it rises as a {@link Remnant} and walks off in their likeness.
  */
 public class FracturedBody extends AbsentBody {
     public static final int DECAY_TICKS = 20 * 30, RISE_TICKS = 20 * 5;
@@ -72,7 +72,7 @@ public class FracturedBody extends AbsentBody {
             Fracturing.showCorrupted(this, 60);
         }
         if (!level().isClientSide && decayed(0.0F) * DECAY_TICKS >= RISE_TICKS) {
-            Hollow.rise(this); // it gets up, and is no longer theirs
+            Remnant.rise(this); // it gets up, and is no longer theirs
             discard();
         }
     }

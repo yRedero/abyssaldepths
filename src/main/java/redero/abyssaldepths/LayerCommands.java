@@ -92,6 +92,67 @@ public final class LayerCommands {
                 .then(Commands.literal("showcase").executes(c -> send(c, "showcase")))
                 .then(setPiece("frozenfall", "Frozen fall", redero.abyssaldepths.worldgen.TunnelFeature::nearestFrozenFall, 14.5, 4, 14.5, 135.0F, -10.0F))
                 .then(setPiece("grotto", "Gloam grotto", redero.abyssaldepths.worldgen.TunnelFeature::nearestGrotto, 18.5, 6, 18.5, 135.0F, 15.0F))
+                .then(Commands.literal("worm").executes(c -> { // the thalan worm, some way ahead of you
+                    final net.minecraft.server.level.ServerPlayer player = c.getSource().getPlayerOrException();
+                    final redero.abyssaldepths.entity.BigWorm worm = AbyssalDepths.BIG_WORM.get().create(player.serverLevel());
+                    if (worm == null) {
+                        return 0;
+                    }
+                    final net.minecraft.world.phys.Vec3 ahead = player.position().add(net.minecraft.world.phys.Vec3.directionFromRotation(0, player.getYRot()).scale(24));
+                    worm.moveTo(ahead.x, player.getY(), ahead.z, player.getYRot() + 180.0F, 0.0F);
+                    player.serverLevel().addFreshEntity(worm);
+                    c.getSource().sendSuccess(() -> Component.literal("A thalan worm, 24 blocks ahead"), false);
+                    return 1;
+                }))
+                .then(Commands.literal("stormcrystal").executes(c -> { // to the nearest storm crystal in the loaded land round you
+                    final net.minecraft.server.level.ServerPlayer player = c.getSource().getPlayerOrException();
+                    final net.minecraft.server.level.ServerLevel level = player.serverLevel();
+                    net.minecraft.core.BlockPos best = null;
+                    double near = Double.MAX_VALUE;
+                    final net.minecraft.world.level.ChunkPos at = player.chunkPosition();
+                    for (int dz = -8; dz <= 8; dz++) {
+                        for (int dx = -8; dx <= 8; dx++) {
+                            if (!level.hasChunk(at.x + dx, at.z + dz)) {
+                                continue;
+                            }
+                            final net.minecraft.world.level.chunk.LevelChunk chunk = level.getChunk(at.x + dx, at.z + dz);
+                            final net.minecraft.world.level.chunk.LevelChunkSection[] sections = chunk.getSections();
+                            for (int i = 0; i < sections.length; i++) {
+                                if (sections[i] == null || !sections[i].maybeHas(st -> st.is(AbyssalDepths.STORM_CRYSTAL.get()))) {
+                                    continue;
+                                }
+                                final int baseY = net.minecraft.core.SectionPos.sectionToBlockCoord(level.getSectionYFromSectionIndex(i));
+                                for (int y = 0; y < 16; y++) {
+                                    for (int z = 0; z < 16; z++) {
+                                        for (int x = 0; x < 16; x++) {
+                                            if (sections[i].getBlockState(x, y, z).is(AbyssalDepths.STORM_CRYSTAL.get())) {
+                                                final net.minecraft.core.BlockPos pos = new net.minecraft.core.BlockPos(chunk.getPos().getMinBlockX() + x, baseY + y,
+                                                        chunk.getPos().getMinBlockZ() + z);
+                                                final double d = pos.distSqr(player.blockPosition());
+                                                if (d < near) {
+                                                    near = d;
+                                                    best = pos;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (best == null) {
+                        c.getSource().sendFailure(Component.literal("No storm crystal in the loaded land round you"));
+                        return 0;
+                    }
+                    final net.minecraft.world.level.block.state.BlockState state = level.getBlockState(best);
+                    final net.minecraft.world.phys.Vec3 eye = net.minecraft.world.phys.Vec3.atBottomCenterOf(best).add(0.0, 0.0, 6.0);
+                    final net.minecraft.world.phys.Vec3 look = net.minecraft.world.phys.Vec3.atCenterOf(best).subtract(eye);
+                    player.teleportTo(level, eye.x, eye.y, eye.z, (float) (Math.atan2(-look.x, look.z) * 180 / Math.PI), 15.0F);
+                    final net.minecraft.core.BlockPos found = best;
+                    c.getSource().sendSuccess(() -> Component.literal("Storm crystal at " + found.getX() + " " + found.getY() + " " + found.getZ()
+                            + (state.getValue(redero.abyssaldepths.block.StormClusterBlock.CHARGED) ? " (charged)" : " (dull)")), false);
+                    return 1;
+                }))
                 .then(Commands.literal("canyon").executes(c -> { // to the end of the nearest fracture canyon, looking along it
                     final net.minecraft.server.level.ServerPlayer player = c.getSource().getPlayerOrException();
                     final double[] view = redero.abyssaldepths.worldgen.TunnelFeature.canyonView(player.serverLevel(), player.blockPosition());
@@ -185,6 +246,13 @@ public final class LayerCommands {
                 return 1;
             }));
         }
+        fracture.then(Commands.literal("cross").executes(c -> { // through one's trial's threshold at once
+            final boolean done = redero.abyssaldepths.fracture.FractureTrials.cross(c.getSource().getPlayerOrException());
+            if (!done) {
+                c.getSource().sendFailure(Component.literal("No threshold to cross"));
+            }
+            return done ? 1 : 0;
+        }));
         final LiteralArgumentBuilder<CommandSourceStack> end = Commands.literal("end"); // ends one's trial at once, passed or failed
         for (String how : new String[] {"pass", "fail"}) {
             end.then(Commands.literal(how).executes(c -> redero.abyssaldepths.fracture.FractureTrials.end(c.getSource().getPlayerOrException(), how.equals("pass")) ? 1 : 0));

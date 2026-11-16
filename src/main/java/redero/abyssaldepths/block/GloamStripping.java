@@ -9,7 +9,7 @@ import net.neoforged.neoforge.common.ItemAbilities;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import redero.abyssaldepths.AbyssalDepths;
 
-/** An axe strips the gloam stalk and its hyphae, as it does logs. */
+/** An axe strips the dusk stalk and its hyphae, as it does logs. */
 @EventBusSubscriber(modid = AbyssalDepths.MODID)
 public final class GloamStripping {
     private GloamStripping() {
@@ -21,8 +21,8 @@ public final class GloamStripping {
             return;
         }
         final BlockState state = event.getState();
-        final Block stripped = state.is(AbyssalDepths.GLOAM_STALK.get()) ? AbyssalDepths.STRIPPED_GLOAM_STALK.get()
-                : state.is(AbyssalDepths.GLOAM_HYPHAE.get()) ? AbyssalDepths.STRIPPED_GLOAM_HYPHAE.get() : null;
+        final Block stripped = state.is(AbyssalDepths.DUSK_STALK.get()) ? AbyssalDepths.STRIPPED_DUSK_STALK.get()
+                : state.is(AbyssalDepths.DUSK_HYPHAE.get()) ? AbyssalDepths.STRIPPED_DUSK_HYPHAE.get() : null;
         if (stripped != null) {
             event.setFinalState(stripped.defaultBlockState().setValue(RotatedPillarBlock.AXIS, state.getValue(RotatedPillarBlock.AXIS)));
         }

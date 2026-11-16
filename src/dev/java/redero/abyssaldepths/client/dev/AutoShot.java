@@ -53,7 +53,7 @@ public final class AutoShot {
     private static final String SPOT_COMMANDS = System.getProperty("abyssaldepths.autoshot.spotCommands", "");
     private static final int SETTLE_TICKS = 220, TURN_TICKS = 15;
 
-    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, VANISH, OBLIVION, NEWARTIFACTS, FIRMAMENT, SMALL, LOOKS, EMPYREAN, MARKS, WAKE, FRACTURE, FRACMARKS, FRACLEVELS, GLOW, GROTTO, VARIANTS, DONE }
+    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, VANISH, OBLIVION, NEWARTIFACTS, FIRMAMENT, SMALL, LOOKS, EMPYREAN, MARKS, WAKE, FRACTURE, THRESHOLD, STORMWAKE, WORM, FRACMARKS, FRACLEVELS, GLOW, GROTTO, VARIANTS, DONE }
 
     private static Step step = Step.TITLE;
     private static final Deque<String> BIOMES = new ArrayDeque<>();
@@ -171,6 +171,32 @@ public final class AutoShot {
                     if (biome.endsWith("#0")) {
                         wait = 0;
                         step = Step.VARIANTS;
+                    }
+                    return;
+                }
+                if (biome != null && biome.startsWith("worm#")) {
+                    // not a place: the thalan worm on an open floor: gaping, coming, biting, its body behind it
+                    if (biome.endsWith("#0")) {
+                        wait = 0;
+                        step = Step.WORM;
+                    }
+                    return;
+                }
+                if (biome != null && biome.startsWith("stormwake#")) {
+                    // not a place: (after a dunes spot) by the nearest storm crystal spire, a storm rises: the spire wakes
+                    if (biome.endsWith("#0")) {
+                        wait = 0;
+                        step = Step.STORMWAKE;
+                    }
+                    return;
+                }
+                if (biome != null && biome.startsWith("threshold#")) {
+                    // not a place: each trial's threshold, the echoes acting out its rules, then through the doorway
+                    if (biome.endsWith("#0")) {
+                        wait = 0;
+                        fractureTrial = 0;
+                        fractureAt = -1;
+                        step = Step.THRESHOLD;
                     }
                     return;
                 }
@@ -456,9 +482,137 @@ public final class AutoShot {
                     step = Step.NEXT;
                 }
             }
+            case WORM -> {
+                final MinecraftServer server = mc.getSingleplayerServer();
+                final int t = ++wait;
+                if (t == 1) {
+                    command(server, "gamemode survival");
+                    command(server, "tp @s ~ -100 ~ 0 5"); // in the layer (it keeps to it)
+                    mc.options.hideGui = true;
+                } else if (t == 8) {
+                    command(server, "gamerule commandModificationBlockLimit 1000000");
+                    command(server, "fill ~-40 ~ ~-40 ~40 ~24 ~48 air"); // a hall for it
+                    command(server, "fill ~-40 ~-1 ~-40 ~40 ~-1 ~48 stone");
+                    command(server, "effect give @s night_vision 99999 0 true");
+                    command(server, "fill ~-10 ~ ~6 ~10 ~ ~18 stone"); // steps for it to climb (and come down)
+                    command(server, "fill ~-10 ~1 ~10 ~10 ~1 ~16 stone");
+                    command(server, "fill ~-10 ~2 ~12 ~10 ~2 ~14 stone");
+                    command(server, "fill ~-2 ~ ~-2 ~2 ~ ~2 air");
+                    command(server, "effect give @s resistance 99999 4 true");
+                    command(server, "effect give @s regeneration 99999 4 true");
+                    command(server, "time set noon");
+                } else if (t == 20) {
+                    command(server, "abyssaldepths worm");
+                } else if (t == 32) {
+                    shoot(mc, "worm_0_dir0"); // just seen us: the maw rearing open
+                } else if (t == 70) {
+                    shoot(mc, "worm_0_steps"); // over the steps
+                } else if (t == 90) {
+                    mc.options.hideGui = false; // hunted: the view closing in
+                } else if (t == 96) {
+                    shoot(mc, "worm_0_dread");
+                    mc.options.hideGui = true;
+                } else if (t == 100 || t == 114 || t == 120 || t == 126 || t == 132) {
+                    shoot(mc, "worm_0_anim" + t); // coming, then the bite
+                } else if (t == 140) {
+                    command(server, "gamemode spectator"); // (it loses interest and turns away: its body shows)
+                    command(server, "tp @s ~-18 ~5 ~6 -90 14");
+                } else if (t == 200) {
+                    shoot(mc, "worm_0_dir1"); // from the side
+                } else if (t == 205) {
+                    command(server, "tp @s ~4 ~16 ~-10 -30 50");
+                } else if (t == 240) {
+                    shoot(mc, "worm_0_dir2"); // from above
+                } else if (t == 330) {
+                    shoot(mc, "worm_0_dir3"); // later: wandering, the body following its turns
+                } else if (t == 341) { // then one above the player: it must come down to them
+                    command(server, "kill @e[type=abyssaldepths:big_worm]");
+                    command(server, "gamemode survival");
+                    command(server, "tp @s ~14 ~-21 ~4 0 -10");
+                } else if (t == 346) {
+                    command(server, "summon abyssaldepths:big_worm ~ ~16 ~30");
+                } else if (t == 420) {
+                    shoot(mc, "worm_1_above");
+                } else if (t == 425) {
+                    command(server, "gamemode spectator");
+                    command(server, "tp @s ~-20 ~6 ~10 -90 10");
+                } else if (t == 470) {
+                    shoot(mc, "worm_1_side");
+                } else if (t > 470) {
+                    command(server, "kill @e[type=abyssaldepths:big_worm]");
+                    command(server, "effect clear @s");
+                    step = Step.NEXT;
+                }
+            }
+            case STORMWAKE -> {
+                final MinecraftServer server = mc.getSingleplayerServer();
+                final int t = ++wait;
+                if (t == 1) {
+                    command(server, "abyssaldepths storm stop");
+                    command(server, "gamemode spectator");
+                } else if (t == 30) {
+                    command(server, "abyssaldepths stormcrystal");
+                } else if (t == 90) {
+                    shoot(mc, "stormwake_0_dir0"); // dull, before
+                    command(server, "abyssaldepths storm start 600");
+                } else if (t == 115 || t == 145 || t == 175 || t == 205 || t == 235 || t == 290) {
+                    shoot(mc, "stormwake_0_anim" + (t - 90)); // the charge rising through it, then glowing
+                } else if (t > 300) {
+                    command(server, "abyssaldepths storm stop");
+                    step = Step.NEXT;
+                }
+            }
+            case THRESHOLD -> {
+                final MinecraftServer server = mc.getSingleplayerServer();
+                final int t = ++wait;
+                final String[] trials = {"reach", "duel", "hush", "fall"};
+                redero.abyssaldepths.fracture.FractureTrials.skipThreshold = false;
+                if (t == 1) {
+                    command(server, "gamemode survival");
+                    command(server, "tp @s ~ ~40 ~ 0 15");
+                    command(server, "fill ~-3 ~-1 ~-3 ~3 ~-1 ~3 stone");
+                    command(server, "give @s diamond_sword");
+                    mc.options.hideGui = true;
+                } else if (t >= 20 && fractureTrial < trials.length) {
+                    if (fractureAt < 0) {
+                        fractureAt = t;
+                        command(server, "abyssaldepths fracture trial " + trials[fractureTrial]);
+                    }
+                    final int in = t - fractureAt;
+                    final String name = "threshold_" + fractureTrial;
+                    if (in == 150) {
+                        shoot(mc, name + "_dir0"); // woken on the walkway, looking along it
+                    } else if (in == 155) {
+                        command(server, "tp @s ~ ~7 ~-2 0 38");
+                    } else if (in == 185) {
+                        shoot(mc, name + "_dir1"); // from above: the stations either side
+                    } else if (in == 190) {
+                        command(server, "tp @s ~-5 ~-5 ~8 -90 12");
+                    } else if (in == 215) {
+                        shoot(mc, name + "_dir2"); // a station close, the echo at it
+                    } else if (in == 245) {
+                        shoot(mc, name + "_dir3"); // the same, later in its loop
+                    } else if (in == 250) {
+                        command(server, "abyssaldepths fracture cross");
+                    } else if (in == 300) {
+                        shoot(mc, name + "_down"); // through: at the trial's start
+                        AbyssalDepths.LOGGER.info("threshold check {}: crossed, in {}", trials[fractureTrial], mc.level.dimension().location());
+                    } else if (in == 310) {
+                        command(server, "abyssaldepths fracture end pass");
+                    } else if (in >= 420) {
+                        fractureTrial++;
+                        fractureAt = -1;
+                    }
+                } else if (fractureTrial >= trials.length) {
+                    mc.options.hideGui = false;
+                    redero.abyssaldepths.fracture.FractureTrials.skipThreshold = true;
+                    step = Step.NEXT;
+                }
+            }
             case FRACTURE -> {
                 final MinecraftServer server = mc.getSingleplayerServer();
                 final int t = ++wait;
+                redero.abyssaldepths.fracture.FractureTrials.skipThreshold = true; // (this one goes straight into the trials)
                 final String[] trials = {"hush", "fall"}; // in the dark (looked round, then passed), the fall (seen through, unharmed)
                 final boolean inTrial = mc.level.dimension() == redero.abyssaldepths.fracture.FractureTrials.DIMENSION;
                 if (mc.player.isDeadOrDying() && mc.screen instanceof net.minecraft.client.gui.screens.DeathScreen) {
@@ -572,7 +726,7 @@ public final class AutoShot {
                         server.execute(() -> {
                             final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
                             for (net.minecraft.world.entity.Entity e : p.serverLevel().getAllEntities()) {
-                                if (e instanceof redero.abyssaldepths.fracture.FracturedBody || e instanceof redero.abyssaldepths.fracture.Hollow) {
+                                if (e instanceof redero.abyssaldepths.fracture.FracturedBody || e instanceof redero.abyssaldepths.fracture.Remnant) {
                                     p.teleportTo(p.serverLevel(), e.getX(), e.getY(), e.getZ() + 3.0, 180.0F, 15.0F);
                                     AbyssalDepths.LOGGER.info("fracture check: {} there ({})", e.getType().getDescriptionId(), risen ? "risen?" : "decomposing");
                                 }
@@ -743,7 +897,7 @@ public final class AutoShot {
                                 for (int x = 0; x < 16; x += 2) {
                                     for (int z = 0; z < 16; z += 2) {
                                         for (int y = -120; y <= -66; y++) {
-                                            if (lvl.getBlockState(at.set(bx * 16 + x, y, bz * 16 + z)).is(AbyssalDepths.GLOAMCAP.get())) {
+                                            if (lvl.getBlockState(at.set(bx * 16 + x, y, bz * 16 + z)).is(AbyssalDepths.DUSKCAP.get())) {
                                                 final net.minecraft.core.BlockPos found = at.immutable();
                                                 if (glowFound.stream().noneMatch(f -> f.distSqr(found) < 30 * 30)) {
                                                     glowFound.add(found);
@@ -769,7 +923,7 @@ public final class AutoShot {
                         final net.minecraft.core.BlockPos c = glowFound.get(k);
                         server.execute(() -> {
                             final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
-                            p.teleportTo(p.serverLevel(), c.getX() + 8.5, c.getY() - 4.0, c.getZ() + 8.5, 135.0F, -12.0F); // a gloamcap, from below
+                            p.teleportTo(p.serverLevel(), c.getX() + 8.5, c.getY() - 4.0, c.getZ() + 8.5, 135.0F, -12.0F); // a duskcap, from below
                         });
                     } else if (t >= shotsFrom && k < glowFound.size() && (t - shotsFrom) % 60 == 40) {
                         shoot(mc, "glow_" + k + "_dir0");
@@ -1499,13 +1653,28 @@ public final class AutoShot {
                 } else if (t == cast + 20 * 31) {
                     shoot(mc, "oblivion_0_dir3"); // all back
                     oblivionCheck(server, "after 31 s");
+                    server.execute(() -> { // back, they are paralyzed and dazed for a while
+                        final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
+                        for (net.minecraft.world.entity.LivingEntity e : p.serverLevel().getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class,
+                                p.getBoundingBox().inflate(40), e -> e.getTags().contains("oblivion_test"))) {
+                            AbyssalDepths.LOGGER.info("oblivion check returned {}: paralyzed {} slowness {} weakness {}", e.getType().getDescription().getString(),
+                                    e.hasEffect(AbyssalDepths.PARALYZED), e.hasEffect(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN),
+                                    e.hasEffect(net.minecraft.world.effect.MobEffects.WEAKNESS));
+                        }
+                    });
                 } else if (t == cast + 20 * 31 + 5) {
                     command(server, "kill @e[tag=oblivion_test]");
                     mc.options.hideGui = false; // the screen effects show on the GUI layer
-                } else if (t > cast + 20 * 31 + 5 && t <= cast + 20 * 31 + 5 + 4 * 40) {
+                } else if (t > cast + 20 * 31 + 5 && t <= cast + 20 * 31 + 5 + redero.abyssaldepths.ClientConfig.OblivionLook.values().length * 40) {
                     // every style of the cast: zombies round, cast, shots early and late
                     final int at = t - (cast + 20 * 31 + 6), k = at / 40, in = at % 40;
                     final redero.abyssaldepths.ClientConfig.OblivionLook look = redero.abyssaldepths.ClientConfig.OblivionLook.values()[k];
+                    if (at == 0) { // ground wide enough for the mark to spread over
+                        command(server, "fill ~-24 ~-1 ~-24 ~24 ~-1 ~24 stone");
+                        command(server, "gamemode creative"); // (a spectator cannot use anything)
+                        command(server, "fill ~3 ~ ~4 ~5 ~2 ~6 stone"); // a block to climb the mark: its sides
+                        command(server, "fill ~-6 ~ ~3 ~-4 ~ ~6 snow[layers=2]"); // snow: marked where its top really is
+                    }
                     if (in == 0) { // the charge-up, held as a player would
                         redero.abyssaldepths.ClientConfig.setStyle("oblivion", look.name());
                         mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
@@ -1513,6 +1682,8 @@ public final class AutoShot {
                             final ServerPlayer p = server.getPlayerList().getPlayers().get(0);
                             p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, new net.minecraft.world.item.ItemStack(AbyssalDepths.OBLIVION.get()));
                         });
+                    } else if (in == 2) {
+                        command(server, "abyssaldepths charge 3"); // a fresh artifact has no charge yet
                     } else if (in == 3) {
                         mc.options.keyUse.setDown(true);
                         mc.gameMode.useItem(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND);
@@ -1523,8 +1694,8 @@ public final class AutoShot {
                         mc.player.getCooldowns().removeCooldown(AbyssalDepths.OBLIVION.get());
                         server.execute(() -> server.getPlayerList().getPlayers().get(0).getCooldowns().removeCooldown(AbyssalDepths.OBLIVION.get()));
                     }
-                } else if (t > cast + 20 * 31 + 5 + 4 * 40) {
-                    redero.abyssaldepths.ClientConfig.setStyle("oblivion", "INK");
+                } else if (t > cast + 20 * 31 + 5 + redero.abyssaldepths.ClientConfig.OblivionLook.values().length * 40) {
+                    redero.abyssaldepths.ClientConfig.setStyle("oblivion", "MARK");
                     mc.options.hideGui = true;
                     mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
                     step = Step.NEXT;
@@ -1665,7 +1836,10 @@ public final class AutoShot {
                         command(server, "xp query @s levels");
                         command(server, "abyssaldepths reprise status");
                     }
-                    case 120 -> command(server, "abyssaldepths reprise slow"); // late on purpose: the waiting circle shows
+                    case 120 -> {
+                        mc.options.hideGui = false; // the cover is drawn over the GUI: it shows only with it
+                        command(server, "abyssaldepths reprise slow"); // late on purpose: the waiting circle shows
+                    }
                     case 140, 160, 175, 200, 229, 233 -> shoot(mc, "reprise_0_anim" + wait); // eating, middle, waiting, withdrawing
                     case 260 -> {
                         shoot(mc, "reprise_0_dir1"); // after

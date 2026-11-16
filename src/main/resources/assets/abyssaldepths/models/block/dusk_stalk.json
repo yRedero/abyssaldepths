@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "side": "abyssaldepths:block/dusk_stalk",
+    "top": "abyssaldepths:block/dusk_stalk_top",
+    "bottom": "abyssaldepths:block/dusk_stalk_bottom"
+  }
+}

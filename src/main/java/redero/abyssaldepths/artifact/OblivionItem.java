@@ -3,7 +3,6 @@ package redero.abyssaldepths.artifact;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -23,14 +22,17 @@ import net.minecraft.world.level.Level;
  * {@link #RADIUS} blocks of its user (players and creatures, not the user) is sent into the shadow of this
  * world for {@link #TICKS}: gone for everyone outside, among themselves still alive, fighting what else is
  * there ({@link Shades}). The strong stay less long: creatures with more than {@link #STRONG_HEALTH} health
- * for that much less (a 300 health boss half the time), never under {@link #MIN_TICKS}. Three charges, one
- * back every 30 minutes.
+ * for that much less (a 300 health boss half the time), never under {@link #MIN_TICKS}. Meanwhile they are held in
+ * the circle it reached: nothing sent away can leave it till it comes back. The way back takes its toll: they return
+ * {@link #PARALYZED_TICKS} paralyzed, then dazed for {@link #DAZED_TICKS} (slow, weak, their sight darkening), the
+ * strong for less. Three charges, one back every 30 minutes.
  */
 public class OblivionItem extends ArtifactItem {
     public static final double RADIUS = 24.0;
     public static final int TICKS = 30 * 20, MIN_TICKS = 3 * 20;
     public static final float STRONG_HEALTH = 150.0F;
     private static final int USE_TICKS = 30;
+    public static final int PARALYZED_TICKS = 3 * 20, DAZED_TICKS = 8 * 20;
 
     public OblivionItem(Properties properties, ArtifactRank rank, ArtifactFrame frame, int maxCharge, int regenTicks) {
         super(properties, rank, frame, maxCharge, regenTicks);
@@ -52,29 +54,33 @@ public class OblivionItem extends ArtifactItem {
         for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, user.getBoundingBox().inflate(RADIUS),
                 e -> e != user && e.isAlive() && !(e instanceof ArmorStand) && !e.isSpectator() && e.distanceToSqr(user) <= RADIUS * RADIUS)) {
             final int ticks = ticksFor(entity);
-            Shades.sendAway(entity, ticks);
-            level.sendParticles(ParticleTypes.SQUID_INK, entity.getX(), entity.getY() + entity.getBbHeight() / 2, entity.getZ(), 12,
-                    entity.getBbWidth() / 2, entity.getBbHeight() / 3, entity.getBbWidth() / 2, 0.02);
+            Shades.sendAway(entity, ticks, user.position(), RADIUS);
             sent.add(entity.getType().getDescription().getString() + " " + ticks / 20 + " s");
         }
         // lit TNT goes too: it bursts in the shadow, harming nothing in the world
         for (net.minecraft.world.entity.item.PrimedTnt tnt : level.getEntitiesOfClass(net.minecraft.world.entity.item.PrimedTnt.class,
                 user.getBoundingBox().inflate(RADIUS), e -> e.distanceToSqr(user) <= RADIUS * RADIUS)) {
-            Shades.sendAway(tnt, TICKS);
-            level.sendParticles(ParticleTypes.SQUID_INK, tnt.getX(), tnt.getY() + 0.5, tnt.getZ(), 12, 0.3, 0.3, 0.3, 0.02);
+            Shades.sendAway(tnt, TICKS, user.position(), RADIUS);
             sent.add("tnt " + TICKS / 20 + " s");
         }
-        // a ring running out to where it reaches, and a deep boom
-        for (int ring = 1; ring <= 4; ring++) {
-            final double r = RADIUS * ring / 4;
-            final int points = (int) (r * 6);
-            for (int i = 0; i < points; i++) {
-                final double a = 2 * Math.PI * i / points;
-                level.sendParticles(ParticleTypes.REVERSE_PORTAL, user.getX() + Math.cos(a) * r, user.getY() + 0.3, user.getZ() + Math.sin(a) * r, 1, 0, 0.1, 0, 0.0);
-            }
-        }
+        // a deep boom (the mark on the ground shows how far it reached)
         level.playSound(null, user.blockPosition(), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.6F, 0.5F);
         return sent;
+    }
+
+    /** Back from the shadow Oblivion sent it to: paralyzed a moment, then dazed (the strong for less). */
+    public static void returned(LivingEntity entity) {
+        final float share = entity.getMaxHealth() > STRONG_HEALTH ? STRONG_HEALTH / entity.getMaxHealth() : 1.0F;
+        final int paralyzed = Math.max(10, Math.round(PARALYZED_TICKS * share)), dazed = Math.max(40, Math.round(DAZED_TICKS * share));
+        entity.addEffect(new net.minecraft.world.effect.MobEffectInstance(redero.abyssaldepths.AbyssalDepths.PARALYZED, paralyzed, 0, false, true, true));
+        entity.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN, paralyzed + dazed, 1, false, true, true));
+        entity.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.WEAKNESS, paralyzed + dazed, 0, false, true, true));
+        if (entity instanceof Player) {
+            entity.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.DARKNESS, paralyzed + dazed, 0, false, false, true));
+        }
+        if (entity.level() instanceof ServerLevel level) {
+            level.playSound(null, entity.blockPosition(), SoundEvents.SCULK_SHRIEKER_SHRIEK, SoundSource.HOSTILE, 0.5F, 1.6F);
+        }
     }
 
     @Override

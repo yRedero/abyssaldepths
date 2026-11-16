@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "type=bottom": {
+      "model": "abyssaldepths:block/dusk_slab"
+    },
+    "type=top": {
+      "model": "abyssaldepths:block/dusk_slab_top"
+    },
+    "type=double": {
+      "model": "abyssaldepths:block/dusk_planks"
+    }
+  }
+}

@@ -16,7 +16,7 @@ import redero.abyssaldepths.worldgen.LayerFormations.Biomes;
  * ceiling), glow moss grows on everything round them, thinning out towards the edge; about half the pockets lie
  * round a shallow pool where water gathered. One spot per grid cell at most, rare (about one cell in eight); in the thalan
  * depths (the coldest part) the gloam is fainter. Everything is decided from the cell, so a pocket spanning chunks
- * comes out whole. In the richest (largest) pockets grow gloamcaps, giant fungi: a pale stalk (the layer's only
+ * comes out whole. In the richest (largest) pockets grow duskcaps, giant fungi: a pale stalk (the layer's only
  * wood), a dark glowing cap with gloam clusters hanging under it like gills.
  */
 final class GloamPockets {
@@ -66,8 +66,8 @@ final class GloamPockets {
                 }
                 glow(px, floor, pz, radius);
                 ceiling(px, floor, pz, radius * 0.85);
-                if (radius > 9.0) { // the richest pockets: gloamcaps grow in them
-                    gloamcaps(gx, gz, px, pz, radius);
+                if (radius > 9.0) { // the richest pockets: duskcaps grow in them
+                    duskcaps(gx, gz, px, pz, radius);
                 }
             }
         }
@@ -204,8 +204,8 @@ final class GloamPockets {
         }
     }
 
-    /** One to three gloamcaps near the middle of a pocket: the biggest first, with a thick stalk in the largest pockets. */
-    void gloamcaps(int gx, int gz, int px, int pz, double radius) {
+    /** One to three duskcaps near the middle of a pocket: the biggest first, with a thick stalk in the largest pockets. */
+    void duskcaps(int gx, int gz, int px, int pz, double radius) {
         final int count = 1 + (int) (layer.random(gx, gz, 7110) * (radius > 10.5 ? 3 : 2));
         for (int k = 0; k < count; k++) {
             final double angle = layer.random(gx, gz, 7111 + k) * Math.PI * 2, dist = k == 0 ? 0.0 : 3.0 + layer.random(gx, gz, 7121 + k) * radius * 0.35;
@@ -218,7 +218,7 @@ final class GloamPockets {
             final int t = thick ? 2 : 1;
             final int height = Math.min(5 + (int) (layer.random(gx, gz, 7141 + k) * 7), c.ceiling - c.floor - 5);
             final int capR = (thick ? 3 : 2) + (layer.random(gx, gz, 7151 + k) < 0.5 ? 1 : 0);
-            final BlockState stalk = AbyssalDepths.GLOAM_STALK.get().defaultBlockState(), cap = AbyssalDepths.GLOAMCAP.get().defaultBlockState();
+            final BlockState stalk = AbyssalDepths.DUSK_STALK.get().defaultBlockState(), cap = AbyssalDepths.DUSKCAP.get().defaultBlockState();
             for (int dy = 0; dy < height; dy++) {
                 for (int dx = 0; dx < t; dx++) {
                     for (int dz = 0; dz < t; dz++) {
@@ -267,7 +267,7 @@ final class GloamPockets {
         }
     }
 
-    /** Sets a block of a gloamcap where there is room (air, or the moss, which it grows over). */
+    /** Sets a block of a duskcap where there is room (air, or the moss, which it grows over). */
     private void grow(int x, int y, int z, BlockState state) {
         if (!inChunk(x, z)) {
             return;

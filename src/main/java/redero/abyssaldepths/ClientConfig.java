@@ -130,12 +130,13 @@ public final class ClientConfig {
             .translation("abyssaldepths.config.convergence_apply")
             .defineEnum("convergenceApply", ConvergenceApply.DISSOLVE);
     private static final ModConfigSpec.EnumValue<OblivionLook> OBLIVION_LOOK = BUILDER
-            .comment("How Oblivion charges up while held: INK (rings of black pixels rushing in to its user from where it reaches),",
+            .comment("How Oblivion charges up while held: MARK (a dark tint creeping over the ground out from its user, its edge a",
+                    "border of pale violet pixels, until all it will reach is marked), INK (rings of black pixels rushing in to its user from where it reaches),",
                     "ECLIPSE (a black pixel sun swelling above its user, the world darkening, dark streams drawn up into it), GRASP",
                     "(pixel shadow fingers rising round its user and closing over them), TORN (black cracks running over the screens of",
                     "those near, shattering when it is cast).")
             .translation("abyssaldepths.config.oblivion_look")
-            .defineEnum("oblivionLook", OblivionLook.INK);
+            .defineEnum("oblivionLook", OblivionLook.MARK);
     private static final ModConfigSpec.EnumValue<EmpyreanBeamLook> EMPYREAN_BEAM = BUILDER
             .comment("Empyrean's beam, in pixels: CATHEDRAL (a radiant core, six beams falling slantwise round it out of lights in",
                     "the sky), RADIANT (a white core in bands of gold and rose), HALO (a white and gold core with four thin beams circling",
@@ -230,7 +231,7 @@ public final class ClientConfig {
 
     public enum RepulsionWave { SHOCK, RING, DOME, BURST, GUST }
 
-    public enum OblivionLook { INK, ECLIPSE, GRASP, TORN }
+    public enum OblivionLook { MARK, INK, ECLIPSE, GRASP, TORN }
 
     public enum EmpyreanBeamLook { CATHEDRAL, RADIANT, HALO, CRIMSON, SPIRAL, JUDGEMENT, RIFT, SUPERNOVA }
 

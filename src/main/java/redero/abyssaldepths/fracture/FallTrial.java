@@ -98,10 +98,26 @@ final class FallTrial extends Trial {
             }
             if (layer == 0) { // where they start: a piece of their land, gone once the trial begins
                 TrialLand.piece(level, from, home.getX(), home.getZ(), middle, HALF, null);
+                // the walls go on up past it, and an unseen wall above them: no stepping out over them and down outside
+                for (int dy = 1; dy <= 10; dy++) {
+                    for (int k = -HALF - 1; k <= HALF + 1; k++) {
+                        for (int[] w : new int[][] {{k, -HALF - 1}, {k, HALF + 1}, {-HALF - 1, k}, {HALF + 1, k}}) {
+                            final int rx = home.getX() + w[0] * 3, rz = home.getZ() + w[1] * 3;
+                            level.setBlock(middle.offset(w[0], dy, w[1]), dy <= 4
+                                    ? TrialLand.tone(TrialLand.top(from, rx, rz, real), from, real, dy % 3 == 0 ? 1 : 0)
+                                    : Blocks.BARRIER.defaultBlockState(), 2);
+                        }
+                    }
+                }
             } else if (layer < LAYERS) { // a black floor, with openings rimmed in white
                 for (int dz = -HALF; dz <= HALF; dz++) {
                     for (int dx = -HALF; dx <= HALF; dx++) {
                         level.setBlock(middle.offset(dx, 0, dz), Trial.black(), 2);
+                    }
+                }
+                for (int k = -HALF - 1; k <= HALF + 1; k++) { // the wall round it at its height grey: the black floor stands out
+                    for (int[] w : new int[][] {{k, -HALF - 1}, {k, HALF + 1}, {-HALF - 1, k}, {HALF + 1, k}}) {
+                        level.setBlock(middle.offset(w[0], 0, w[1]), Blocks.LIGHT_GRAY_CONCRETE.defaultBlockState(), 2);
                     }
                 }
                 final int size = layer < 8 ? 3 : 2, count = layer < 6 ? 3 : layer < 13 ? 2 : 1 + random.nextInt(2);
@@ -163,6 +179,11 @@ final class FallTrial extends Trial {
     }
 
     @Override
+    java.util.List<Threshold.Lesson> lessons() {
+        return java.util.List.of(new Threshold.Openings(), new Threshold.Memory());
+    }
+
+    @Override
     Vec3 spawn() {
         return Vec3.atBottomCenterOf(top.above());
     }
@@ -174,7 +195,7 @@ final class FallTrial extends Trial {
 
     @Override
     BoundingBox bounds() {
-        return new BoundingBox(origin.getX() - HALF - 6, BOTTOM_Y - 4, origin.getZ() - HALF - 6, origin.getX() + HALF + 6, BOTTOM_Y + LAYERS * GAP + 8,
+        return new BoundingBox(origin.getX() - HALF - 6, BOTTOM_Y - 4, origin.getZ() - HALF - 6, origin.getX() + HALF + 6, BOTTOM_Y + LAYERS * GAP + 14,
                 origin.getZ() + HALF + 6);
     }
 
@@ -286,8 +307,9 @@ final class FallTrial extends Trial {
             }
         }
         for (ItemEntity memory : memories) {
-            if (!memory.isRemoved() && memory.position().distanceTo(player.position().add(0, 0.8, 0)) < 1.6) {
+            if (reaches(memory)) {
                 level.sendParticles(ParticleTypes.END_ROD, memory.getX(), memory.getY(), memory.getZ(), 25, 0.3, 0.3, 0.3, 0.08);
+                boon(memory.position());
                 level.playSound(null, memory.blockPosition(), SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 1.2F, 0.8F);
                 memory.discard();
                 hits = Math.max(0, hits - 1);

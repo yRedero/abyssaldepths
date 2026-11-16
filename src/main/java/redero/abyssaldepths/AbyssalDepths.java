@@ -116,6 +116,8 @@ public class AbyssalDepths {
 
     /** Icon: textures/mob_effect/deep_pressure.png */
     public static final DeferredHolder<MobEffect, DeepPressure> DEEP_PRESSURE = MOB_EFFECTS.register("deep_pressure", DeepPressure::new);
+    /** Paralyzed: no moving, acting or thinking (Fracturing's creatures, those back from Oblivion). Icon: textures/mob_effect/paralyzed.png */
+    public static final DeferredHolder<MobEffect, Paralyzed> PARALYZED = MOB_EFFECTS.register("paralyzed", Paralyzed::new);
     /** Mirage under way: creatures overlook its holder (the effect is the sign of it; Mirage does the work). */
     public static final DeferredHolder<MobEffect, MobEffect> VEILED = MOB_EFFECTS.register("veiled",
             () -> new MobEffect(net.minecraft.world.effect.MobEffectCategory.BENEFICIAL, 0x8E52D6) {
@@ -230,45 +232,45 @@ public class AbyssalDepths {
             p -> new DropExperienceBlock(UniformInt.of(2, 5), p));
     public static final DeferredItem<Item> NUMINOR_NUGGET = ITEMS.registerSimpleItem("numinor_nugget");
     /**
-     * The gloamcap, the layer's giant fungus: it grows only in the richest gloam pockets. Its stalk is the layer's
+     * The duskcap, the layer's giant fungus: it grows only in the richest gloam pockets. Its stalk is the layer's
      * only wood (scarce: there are no trees below); its cap glows faintly from the gloam it drew up, and breaks into
-     * gloam fibre, which is woven into gloamweave.
+     * duskthread, which is woven into duskweave.
      */
-    public static final DeferredBlock<net.minecraft.world.level.block.RotatedPillarBlock> GLOAM_STALK = withItem(BLOCKS.registerBlock("gloam_stalk",
+    public static final DeferredBlock<net.minecraft.world.level.block.RotatedPillarBlock> DUSK_STALK = withItem(BLOCKS.registerBlock("dusk_stalk",
             net.minecraft.world.level.block.RotatedPillarBlock::new,
             BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE).instrument(NoteBlockInstrument.BASS).strength(2.0F).sound(SoundType.STEM)));
-    public static final DeferredBlock<Block> GLOAM_PLANKS = withItem(BLOCKS.registerSimpleBlock("gloam_planks",
+    public static final DeferredBlock<Block> DUSK_PLANKS = withItem(BLOCKS.registerSimpleBlock("dusk_planks",
             BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE).instrument(NoteBlockInstrument.BASS).strength(2.0F, 3.0F).sound(SoundType.NETHER_WOOD)));
-    public static final DeferredBlock<net.minecraft.world.level.block.RotatedPillarBlock> STRIPPED_GLOAM_STALK = withItem(BLOCKS.registerBlock(
-            "stripped_gloam_stalk", net.minecraft.world.level.block.RotatedPillarBlock::new,
+    public static final DeferredBlock<net.minecraft.world.level.block.RotatedPillarBlock> STRIPPED_DUSK_STALK = withItem(BLOCKS.registerBlock(
+            "stripped_dusk_stalk", net.minecraft.world.level.block.RotatedPillarBlock::new,
             BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE).instrument(NoteBlockInstrument.BASS).strength(2.0F).sound(SoundType.STEM)));
-    public static final DeferredBlock<net.minecraft.world.level.block.RotatedPillarBlock> GLOAM_HYPHAE = withItem(BLOCKS.registerBlock("gloam_hyphae",
+    public static final DeferredBlock<net.minecraft.world.level.block.RotatedPillarBlock> DUSK_HYPHAE = withItem(BLOCKS.registerBlock("dusk_hyphae",
             net.minecraft.world.level.block.RotatedPillarBlock::new,
             BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE).instrument(NoteBlockInstrument.BASS).strength(2.0F).sound(SoundType.STEM)));
-    public static final DeferredBlock<net.minecraft.world.level.block.RotatedPillarBlock> STRIPPED_GLOAM_HYPHAE = withItem(BLOCKS.registerBlock(
-            "stripped_gloam_hyphae", net.minecraft.world.level.block.RotatedPillarBlock::new,
+    public static final DeferredBlock<net.minecraft.world.level.block.RotatedPillarBlock> STRIPPED_DUSK_HYPHAE = withItem(BLOCKS.registerBlock(
+            "stripped_dusk_hyphae", net.minecraft.world.level.block.RotatedPillarBlock::new,
             BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE).instrument(NoteBlockInstrument.BASS).strength(2.0F).sound(SoundType.STEM)));
-    private static BlockBehaviour.Properties gloamWood() {
+    private static BlockBehaviour.Properties duskWood() {
         return BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE).instrument(NoteBlockInstrument.BASS).strength(2.0F, 3.0F).sound(SoundType.NETHER_WOOD);
     }
-    public static final DeferredBlock<net.minecraft.world.level.block.StairBlock> GLOAM_STAIRS = withItem(BLOCKS.registerBlock("gloam_stairs",
-            p -> new net.minecraft.world.level.block.StairBlock(GLOAM_PLANKS.get().defaultBlockState(), p), gloamWood()));
-    public static final DeferredBlock<net.minecraft.world.level.block.SlabBlock> GLOAM_SLAB = withItem(BLOCKS.registerBlock("gloam_slab",
-            net.minecraft.world.level.block.SlabBlock::new, gloamWood()));
-    public static final DeferredBlock<net.minecraft.world.level.block.FenceBlock> GLOAM_FENCE = withItem(BLOCKS.registerBlock("gloam_fence",
-            net.minecraft.world.level.block.FenceBlock::new, gloamWood()));
-    public static final DeferredBlock<net.minecraft.world.level.block.FenceGateBlock> GLOAM_FENCE_GATE = withItem(BLOCKS.registerBlock("gloam_fence_gate",
-            p -> new net.minecraft.world.level.block.FenceGateBlock(net.minecraft.world.level.block.state.properties.WoodType.CRIMSON, p), gloamWood()));
-    public static final DeferredBlock<net.minecraft.world.level.block.DoorBlock> GLOAM_DOOR = withItem(BLOCKS.registerBlock("gloam_door",
+    public static final DeferredBlock<net.minecraft.world.level.block.StairBlock> DUSK_STAIRS = withItem(BLOCKS.registerBlock("dusk_stairs",
+            p -> new net.minecraft.world.level.block.StairBlock(DUSK_PLANKS.get().defaultBlockState(), p), duskWood()));
+    public static final DeferredBlock<net.minecraft.world.level.block.SlabBlock> DUSK_SLAB = withItem(BLOCKS.registerBlock("dusk_slab",
+            net.minecraft.world.level.block.SlabBlock::new, duskWood()));
+    public static final DeferredBlock<net.minecraft.world.level.block.FenceBlock> DUSK_FENCE = withItem(BLOCKS.registerBlock("dusk_fence",
+            net.minecraft.world.level.block.FenceBlock::new, duskWood()));
+    public static final DeferredBlock<net.minecraft.world.level.block.FenceGateBlock> DUSK_FENCE_GATE = withItem(BLOCKS.registerBlock("dusk_fence_gate",
+            p -> new net.minecraft.world.level.block.FenceGateBlock(net.minecraft.world.level.block.state.properties.WoodType.CRIMSON, p), duskWood()));
+    public static final DeferredBlock<net.minecraft.world.level.block.DoorBlock> DUSK_DOOR = withItem(BLOCKS.registerBlock("dusk_door",
             p -> new net.minecraft.world.level.block.DoorBlock(net.minecraft.world.level.block.state.properties.BlockSetType.CRIMSON, p),
-            gloamWood().strength(3.0F).noOcclusion().pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)));
-    public static final DeferredBlock<net.minecraft.world.level.block.TrapDoorBlock> GLOAM_TRAPDOOR = withItem(BLOCKS.registerBlock("gloam_trapdoor",
+            duskWood().strength(3.0F).noOcclusion().pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)));
+    public static final DeferredBlock<net.minecraft.world.level.block.TrapDoorBlock> DUSK_TRAPDOOR = withItem(BLOCKS.registerBlock("dusk_trapdoor",
             p -> new net.minecraft.world.level.block.TrapDoorBlock(net.minecraft.world.level.block.state.properties.BlockSetType.CRIMSON, p),
-            gloamWood().strength(3.0F).noOcclusion().isValidSpawn(Blocks::never)));
-    public static final DeferredBlock<net.minecraft.world.level.block.PressurePlateBlock> GLOAM_PRESSURE_PLATE = withItem(BLOCKS.registerBlock(
-            "gloam_pressure_plate", p -> new net.minecraft.world.level.block.PressurePlateBlock(net.minecraft.world.level.block.state.properties.BlockSetType.CRIMSON, p),
-            gloamWood().noCollission().strength(0.5F).pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)));
-    public static final DeferredBlock<net.minecraft.world.level.block.ButtonBlock> GLOAM_BUTTON = withItem(BLOCKS.registerBlock("gloam_button",
+            duskWood().strength(3.0F).noOcclusion().isValidSpawn(Blocks::never)));
+    public static final DeferredBlock<net.minecraft.world.level.block.PressurePlateBlock> DUSK_PRESSURE_PLATE = withItem(BLOCKS.registerBlock(
+            "dusk_pressure_plate", p -> new net.minecraft.world.level.block.PressurePlateBlock(net.minecraft.world.level.block.state.properties.BlockSetType.CRIMSON, p),
+            duskWood().noCollission().strength(0.5F).pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)));
+    public static final DeferredBlock<net.minecraft.world.level.block.ButtonBlock> DUSK_BUTTON = withItem(BLOCKS.registerBlock("dusk_button",
             p -> new net.minecraft.world.level.block.ButtonBlock(net.minecraft.world.level.block.state.properties.BlockSetType.CRIMSON, 30, p),
             BlockBehaviour.Properties.of().noCollission().strength(0.5F).sound(SoundType.NETHER_WOOD).pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)));
     /** Ice of the deep: dark, nearly black, slippery like packed ice and never melting (the frozen fall is made of it). */
@@ -276,14 +278,14 @@ public class AbyssalDepths {
             net.minecraft.world.level.block.HalfTransparentBlock::new,
             BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK).instrument(NoteBlockInstrument.CHIME).friction(0.98F).strength(0.5F).sound(SoundType.GLASS)
                     .noOcclusion().isRedstoneConductor((s, l, p) -> false).isViewBlocking((s, l, p) -> false)));
-    public static final DeferredBlock<Block> GLOAMCAP = withItem(BLOCKS.registerSimpleBlock("gloamcap",
+    public static final DeferredBlock<Block> DUSKCAP = withItem(BLOCKS.registerSimpleBlock("duskcap",
             BlockBehaviour.Properties.of().mapColor(MapColor.TERRACOTTA_PURPLE).instrument(NoteBlockInstrument.BASS).strength(1.0F).sound(SoundType.WART_BLOCK)
                     .lightLevel(state -> 8)));
-    public static final DeferredItem<Item> GLOAM_FIBRE = ITEMS.registerSimpleItem("gloam_fibre");
-    /** The layer's cloth: fibre of the gloamcaps and the gloam moss, woven; the camps' tents, curtains and mats. */
-    public static final DeferredBlock<Block> GLOAMWEAVE = withItem(BLOCKS.registerSimpleBlock("gloamweave",
+    public static final DeferredItem<Item> DUSKTHREAD = ITEMS.registerSimpleItem("duskthread");
+    /** The layer's cloth: fibre of the duskcaps and the gloam moss, woven; the camps' tents, curtains and mats. */
+    public static final DeferredBlock<Block> DUSKWEAVE = withItem(BLOCKS.registerSimpleBlock("duskweave",
             BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE).instrument(NoteBlockInstrument.GUITAR).strength(0.8F).sound(SoundType.WOOL).ignitedByLava()));
-    public static final DeferredBlock<net.minecraft.world.level.block.CarpetBlock> GLOAMWEAVE_MAT = withItem(BLOCKS.registerBlock("gloamweave_mat",
+    public static final DeferredBlock<net.minecraft.world.level.block.CarpetBlock> DUSKWEAVE_MAT = withItem(BLOCKS.registerBlock("duskweave_mat",
             net.minecraft.world.level.block.CarpetBlock::new,
             BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE).strength(0.1F).sound(SoundType.WOOL).ignitedByLava()));
     /**
@@ -302,6 +304,20 @@ public class AbyssalDepths {
             "gloam_cluster", p -> new net.minecraft.world.level.block.AmethystClusterBlock(7.0F, 3.0F, p),
             BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLUE).forceSolidOn().noOcclusion().strength(1.5F)
                     .sound(SoundType.AMETHYST_CLUSTER).lightLevel(state -> 7).pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)));
+    /** Storm crystals of the dunes: charged (glowing, breakable) only while a dune storm rages. */
+    public static final DeferredBlock<redero.abyssaldepths.block.StormClusterBlock> STORM_CLUSTER = withItem(BLOCKS.registerBlock("storm_crystal_cluster",
+            redero.abyssaldepths.block.StormClusterBlock::new,
+            BlockBehaviour.Properties.of().mapColor(MapColor.SAND).forceSolidOn().noOcclusion().strength(1.5F, 1200.0F)
+                    .sound(SoundType.AMETHYST_CLUSTER).pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK)
+                    .lightLevel(state -> state.getValue(redero.abyssaldepths.block.StormClusterBlock.CHARGED) ? 10 : 0)));
+    /** Storm crystal in blocks: the dunes' spires (landmarks) are built of it; charged like the clusters. */
+    public static final DeferredBlock<redero.abyssaldepths.block.StormCrystalBlock> STORM_CRYSTAL = withItem(BLOCKS.registerBlock("storm_crystal",
+            redero.abyssaldepths.block.StormCrystalBlock::new,
+            BlockBehaviour.Properties.of().mapColor(MapColor.SAND).strength(3.0F, 1200.0F).sound(SoundType.AMETHYST)
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK).requiresCorrectToolForDrops()
+                    .lightLevel(state -> state.getValue(redero.abyssaldepths.block.StormClusterBlock.CHARGED) ? 12 : 0)));
+    /** What a charged storm crystal breaks into: the storm, held. */
+    public static final DeferredItem<Item> STORM_SHARD = ITEMS.registerSimpleItem("storm_shard");
     public static final DeferredBlock<net.minecraft.world.level.block.GlowLichenBlock> GLOAM_MOSS = withItem(BLOCKS.registerBlock(
             "gloam_moss", net.minecraft.world.level.block.GlowLichenBlock::new,
             BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_CYAN).replaceable().noCollission().strength(0.2F).sound(SoundType.MOSS_CARPET)
@@ -425,9 +441,17 @@ public class AbyssalDepths {
     public static final DeferredHolder<EntityType<?>, EntityType<redero.abyssaldepths.fracture.FractureDouble>> FRACTURE_DOUBLE = ENTITY_TYPES.register("fracture_double",
             () -> EntityType.Builder.<redero.abyssaldepths.fracture.FractureDouble>of(redero.abyssaldepths.fracture.FractureDouble::new, MobCategory.MISC).sized(0.6F, 1.8F)
                     .noSummon().clientTrackingRange(10).build("fracture_double"));
+    /** The thalan worm (first version): crawls, gapes, bites; its body drawn along the way its head went. */
+    public static final DeferredHolder<EntityType<?>, EntityType<redero.abyssaldepths.entity.BigWorm>> BIG_WORM = ENTITY_TYPES.register("big_worm",
+            () -> EntityType.Builder.<redero.abyssaldepths.entity.BigWorm>of(redero.abyssaldepths.entity.BigWorm::new, MobCategory.MONSTER).sized(6.0F, 6.0F)
+                    .clientTrackingRange(16).build("big_worm"));
+    /** An echo of the player on the threshold of their trial, acting out its rules. */
+    public static final DeferredHolder<EntityType<?>, EntityType<redero.abyssaldepths.fracture.TrialEcho>> TRIAL_ECHO = ENTITY_TYPES.register("trial_echo",
+            () -> EntityType.Builder.<redero.abyssaldepths.fracture.TrialEcho>of(redero.abyssaldepths.fracture.TrialEcho::new, MobCategory.MISC).sized(0.6F, 1.8F)
+                    .noSummon().clientTrackingRange(10).build("trial_echo"));
     /** A body the corruption took, risen. */
-    public static final DeferredHolder<EntityType<?>, EntityType<redero.abyssaldepths.fracture.Hollow>> HOLLOW = ENTITY_TYPES.register("hollow",
-            () -> EntityType.Builder.<redero.abyssaldepths.fracture.Hollow>of(redero.abyssaldepths.fracture.Hollow::new, MobCategory.MONSTER).sized(0.6F, 1.8F)
+    public static final DeferredHolder<EntityType<?>, EntityType<redero.abyssaldepths.fracture.Remnant>> REMNANT = ENTITY_TYPES.register("hollow",
+            () -> EntityType.Builder.<redero.abyssaldepths.fracture.Remnant>of(redero.abyssaldepths.fracture.Remnant::new, MobCategory.MONSTER).sized(0.6F, 1.8F)
                     .clientTrackingRange(10).build("hollow"));
     /** The corrupted core of the Core trial. */
     public static final DeferredHolder<EntityType<?>, EntityType<redero.abyssaldepths.fracture.FractureCore>> FRACTURE_CORE = ENTITY_TYPES.register("fracture_core",
@@ -586,6 +610,29 @@ public class AbyssalDepths {
 
     public AbyssalDepths(IEventBus modEventBus, ModContainer container) {
         container.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
+        // the fungus family was the "gloam" wood once: blocks and items of older worlds come back under their new names
+        for (String[] renamed : new String[][] {
+                {"stripped_gloam_hyphae", "stripped_dusk_hyphae"},
+                {"stripped_gloam_stalk", "stripped_dusk_stalk"},
+                {"gloam_fence_gate", "dusk_fence_gate"},
+                {"gloam_pressure_plate", "dusk_pressure_plate"},
+                {"gloamweave_mat", "duskweave_mat"},
+                {"gloam_trapdoor", "dusk_trapdoor"},
+                {"gloam_hyphae", "dusk_hyphae"},
+                {"gloam_planks", "dusk_planks"},
+                {"gloam_stairs", "dusk_stairs"},
+                {"gloam_slab", "dusk_slab"},
+                {"gloam_button", "dusk_button"},
+                {"gloam_stalk", "dusk_stalk"},
+                {"gloam_fence", "dusk_fence"},
+                {"gloam_door", "dusk_door"},
+                {"gloamweave", "duskweave"},
+                {"gloamcap", "duskcap"},
+        }) {
+            BLOCKS.addAlias(ResourceLocation.fromNamespaceAndPath(MODID, renamed[0]), ResourceLocation.fromNamespaceAndPath(MODID, renamed[1]));
+            ITEMS.addAlias(ResourceLocation.fromNamespaceAndPath(MODID, renamed[0]), ResourceLocation.fromNamespaceAndPath(MODID, renamed[1]));
+        }
+        ITEMS.addAlias(ResourceLocation.fromNamespaceAndPath(MODID, "gloam_fibre"), ResourceLocation.fromNamespaceAndPath(MODID, "duskthread"));
         BLOCKS.register(modEventBus);
         ITEMS.register(modEventBus);
         DATA_COMPONENTS.register(modEventBus);
@@ -596,7 +643,9 @@ public class AbyssalDepths {
                     event.put(MIRAGE_DECOY.get(), net.minecraft.world.entity.LivingEntity.createLivingAttributes().build());
                     event.put(FRACTURED_BODY.get(), net.minecraft.world.entity.LivingEntity.createLivingAttributes().build());
                     event.put(FRACTURE_DOUBLE.get(), net.minecraft.world.entity.LivingEntity.createLivingAttributes().build());
-                    event.put(HOLLOW.get(), redero.abyssaldepths.fracture.Hollow.attributes().build());
+                    event.put(TRIAL_ECHO.get(), net.minecraft.world.entity.LivingEntity.createLivingAttributes().build());
+                    event.put(BIG_WORM.get(), redero.abyssaldepths.entity.BigWorm.attributes().build());
+                    event.put(REMNANT.get(), redero.abyssaldepths.fracture.Remnant.attributes().build());
                 });
         FEATURES.register(modEventBus);
         CREATIVE_TABS.register(modEventBus);

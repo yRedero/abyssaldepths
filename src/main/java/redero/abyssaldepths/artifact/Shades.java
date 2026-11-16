@@ -45,8 +45,15 @@ import redero.abyssaldepths.network.EffectPayload;
 public final class Shades {
     /** Server: shades seen this tick (kept so by their artifact), with the tick. */
     private static final Map<UUID, Long> SERVER = new HashMap<>();
-    /** Server: what was sent into the shadow for a while (Oblivion), with where it is and when it comes back. */
-    private record Sent(net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dimension, int id, long until) {
+    /**
+     * Server: what was sent into the shadow for a while (Oblivion), with where it is and when it comes back, and the
+     * circle it is held in meanwhile (radius 0: none).
+     */
+    private record Sent(net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dimension, int id, long until,
+                        double cx, double cz, double radius) {
+        Sent withId(int id) {
+            return new Sent(dimension, id, until, cx, cz, radius);
+        }
     }
 
     private static final Map<UUID, Sent> SENT = new HashMap<>();
@@ -73,6 +80,14 @@ public final class Shades {
      * and players that were after it, or it after them, lose each other.
      */
     public static void sendAway(Entity entity, int ticks) {
+        sendAway(entity, ticks, null, 0.0);
+    }
+
+    /**
+     * Sends an entity into the shadow for {@code ticks}, held inside the circle round {@code centre} meanwhile (it
+     * cannot leave it till it comes back; a player sees its edge as a wall).
+     */
+    public static void sendAway(Entity entity, int ticks, net.minecraft.world.phys.Vec3 centre, double radius) {
         if (!(entity.level() instanceof net.minecraft.server.level.ServerLevel level)) {
             return;
         }
@@ -81,7 +96,12 @@ public final class Shades {
         if (before != null && before.until() >= until) {
             return;
         }
-        SENT.put(entity.getUUID(), new Sent(level.dimension(), entity.getId(), until));
+        SENT.put(entity.getUUID(), new Sent(level.dimension(), entity.getId(), until, centre != null ? centre.x : 0.0,
+                centre != null ? centre.z : 0.0, centre != null ? radius : 0.0));
+        if (centre != null && entity instanceof ServerPlayer player) {
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player, new redero.abyssaldepths.network.EffectPayload(
+                    String.format(java.util.Locale.ROOT, "oblivion_bound/%.2f/%.2f/%.2f/%.2f", centre.x, centre.y, centre.z, radius), ticks));
+        }
         send(entity.getId(), ticks);
         loseTargets(level, entity);
         hideBossBars(entity);
@@ -97,11 +117,39 @@ public final class Shades {
         if (SENT.remove(entity.getUUID()) == null || !(entity.level() instanceof net.minecraft.server.level.ServerLevel level)) {
             return;
         }
+        unbound(entity);
         if (!SERVER.containsKey(entity.getUUID())) {
             send(entity.getId(), 0);
         }
         loseTargets(level, entity);
         showBossBars(entity);
+    }
+
+    /** A player let out of the circle they were held in. */
+    private static void unbound(Entity entity) {
+        if (entity instanceof ServerPlayer player) {
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player, new redero.abyssaldepths.network.EffectPayload("oblivion_bound/clear", 0));
+        }
+    }
+
+    /** Holds what was sent back inside its circle: past the edge, it is set back just inside, its outward speed gone. */
+    private static void holdIn(Entity entity, Sent sent) {
+        final double dx = entity.getX() - sent.cx(), dz = entity.getZ() - sent.cz();
+        final double d = Math.sqrt(dx * dx + dz * dz), edge = sent.radius() - 0.35;
+        if (d <= edge || d < 1.0e-6) {
+            return;
+        }
+        final double nx = dx / d, nz = dz / d;
+        final double x = sent.cx() + nx * (edge - 0.1), z = sent.cz() + nz * (edge - 0.1);
+        final net.minecraft.world.phys.Vec3 v = entity.getDeltaMovement();
+        final double out = v.x * nx + v.z * nz;
+        entity.setDeltaMovement(out > 0 ? v.subtract(nx * out, 0, nz * out) : v);
+        if (entity instanceof ServerPlayer player) {
+            player.connection.teleport(x, player.getY(), z, player.getYRot(), player.getXRot());
+        } else {
+            entity.teleportTo(x, entity.getY(), z);
+        }
+        entity.hurtMarked = true;
     }
 
     // ---- boss bars: a boss in the shadow shows its bar only to shades -----------------------
@@ -250,7 +298,7 @@ public final class Shades {
             return true;
         });
         // the sent come back when their time is up (or are forgotten when gone)
-        final java.util.List<Entity> back = new java.util.ArrayList<>();
+        final java.util.List<Entity> back = new java.util.ArrayList<>(), cast = new java.util.ArrayList<>();
         SENT.entrySet().removeIf(entry -> {
             final Sent sent = entry.getValue();
             final net.minecraft.server.level.ServerLevel level = server.getLevel(sent.dimension());
@@ -260,10 +308,17 @@ public final class Shades {
                 return true;
             }
             if (sent.until() > now) {
+                if (sent.radius() > 0) {
+                    holdIn(entity, sent);
+                }
                 return false;
             }
             if (!SERVER.containsKey(entry.getKey())) {
                 send(sent.id(), 0);
+            }
+            if (sent.radius() > 0) {
+                unbound(entity);
+                cast.add(entity);
             }
             back.add(entity);
             return true;
@@ -271,6 +326,9 @@ public final class Shades {
         for (Entity entity : back) { // now back on the world's side: they and those after them let go
             loseTargets((net.minecraft.server.level.ServerLevel) entity.level(), entity);
             showBossBars(entity);
+            if (cast.contains(entity) && entity instanceof net.minecraft.world.entity.LivingEntity living) {
+                OblivionItem.returned(living); // the way back takes its toll
+            }
         }
         if (now % 5 == 0) { // players coming near a sent boss: its bar is for shades only
             for (Map.Entry<UUID, Sent> entry : SENT.entrySet()) {
@@ -295,7 +353,7 @@ public final class Shades {
                 final Entity entity = level == null ? null : level.getEntity(entry.getKey());
                 final int id = entity != null ? entity.getId() : sent.id();
                 if (id != sent.id()) {
-                    entry.setValue(new Sent(sent.dimension(), id, sent.until()));
+                    entry.setValue(sent.withId(id));
                 }
                 send(id, (int) Math.min(Integer.MAX_VALUE, sent.until() - now));
             }

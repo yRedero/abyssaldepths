@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "##"
+  ],
+  "key": {
+    "#": {
+      "item": "abyssaldepths:duskweave"
+    }
+  },
+  "result": {
+    "id": "abyssaldepths:duskweave_mat",
+    "count": 3
+  }
+}

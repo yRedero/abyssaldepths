@@ -70,11 +70,11 @@ public final class HavenFade {
         }
     }
 
-    private static void draw(GuiGraphics g, float partialTick) {
+    private static void draw(GuiGraphics g, float partialTick, float lift) {
         final float a = Mth.lerp(partialTick, previous, alpha);
         if (a > 0.003F) {
             g.pose().pushPose();
-            g.pose().translate(0.0F, 0.0F, 3000.0F); // over everything, tooltips included
+            g.pose().translate(0.0F, 0.0F, lift); // over a screen: above its tooltips; as the top layer: none (more would push it past the GUI's depth, unseen)
             g.fill(0, 0, g.guiWidth(), g.guiHeight(), (int) (a * 255) << 24 | COLOUR);
             g.pose().popPose();
         }
@@ -82,7 +82,7 @@ public final class HavenFade {
 
     @SubscribeEvent
     public static void onScreen(ScreenEvent.Render.Post event) {
-        draw(event.getGuiGraphics(), event.getPartialTick());
+        draw(event.getGuiGraphics(), event.getPartialTick(), 500.0F);
     }
 
     @EventBusSubscriber(modid = AbyssalDepths.MODID, value = Dist.CLIENT)
@@ -90,7 +90,7 @@ public final class HavenFade {
         @SubscribeEvent
         public static void register(RegisterGuiLayersEvent event) {
             event.registerAboveAll(ResourceLocation.fromNamespaceAndPath(AbyssalDepths.MODID, "haven_fade"),
-                    (graphics, delta) -> draw(graphics, delta.getGameTimeDeltaPartialTick(true)));
+                    (graphics, delta) -> draw(graphics, delta.getGameTimeDeltaPartialTick(true), 0.0F));
         }
     }
 }

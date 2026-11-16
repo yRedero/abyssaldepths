@@ -26,7 +26,7 @@ import redero.abyssaldepths.network.EffectPayload;
  * Fracturing: corruption that breaks the structure of what it touches. It builds up ({@link #corrupt}: so many per
  * cent at a time; it fades again, {@link #FADE} every {@link #FADE_EVERY} ticks once nothing has added to it for
  * {@link #FADE_AFTER}), shown as cracks spreading (over a player's screen, over a creature); at 100 % it breaks
- * through. A creature is frozen solid for
+ * through. A creature is paralyzed ({@link redero.abyssaldepths.Paralyzed}) for
  * {@link #CREATURE_TICKS} (a boss for half), unable to move, attack or do anything, drawn in black and white
  * corruption, fragments coming away ({@code client.FractureView}). A player goes through a trial
  * ({@link FractureTrials}). Rare by design: for now only {@code /abyssaldepths fracture} brings it.
@@ -35,8 +35,8 @@ import redero.abyssaldepths.network.EffectPayload;
 public final class Fracturing {
     public static final int CREATURE_TICKS = 20 * 20;
 
-    /** Creatures frozen: until which tick, and whether they had no AI of their own before. */
-    private record Frozen(ServerLevel level, long until, boolean hadNoAi) {
+    /** Creatures fractured (paralyzed by it): until which tick, to keep showing them in corruption to those who come near. */
+    private record Frozen(ServerLevel level, long until) {
     }
 
     private static final Map<UUID, Frozen> FROZEN = new HashMap<>();
@@ -110,19 +110,17 @@ public final class Fracturing {
             FractureTrials.fracture(player, type);
         } else if (target instanceof Mob mob && mob.level() instanceof ServerLevel level) {
             final int ticks = mob.getType().is(Tags.EntityTypes.BOSSES) ? CREATURE_TICKS / 2 : CREATURE_TICKS;
-            final Frozen before = FROZEN.get(mob.getUUID());
-            FROZEN.put(mob.getUUID(), new Frozen(level, level.getGameTime() + ticks, before != null ? before.hadNoAi() : mob.isNoAi()));
-            mob.setNoAi(true);
+            FROZEN.put(mob.getUUID(), new Frozen(level, level.getGameTime() + ticks));
+            mob.addEffect(new net.minecraft.world.effect.MobEffectInstance(AbyssalDepths.PARALYZED, ticks, 0, false, false, true));
             mob.setDeltaMovement(Vec3.ZERO);
-            mob.setTarget(null);
             showCorrupted(mob, ticks);
             level.playSound(null, mob.blockPosition(), SoundEvents.GLASS_BREAK, SoundSource.HOSTILE, 1.0F, 0.4F);
         }
     }
 
-    /** Whether the creature is frozen by Fracturing now. */
+    /** Whether the creature is frozen by Fracturing now (paralyzed by it). */
     public static boolean frozen(Entity entity) {
-        return !FROZEN.isEmpty() && FROZEN.containsKey(entity.getUUID());
+        return !FROZEN.isEmpty() && FROZEN.containsKey(entity.getUUID()) && redero.abyssaldepths.Paralyzed.is(entity);
     }
 
     /** Tells those who see it (and itself) that it is drawn in corruption for that long. */
@@ -190,24 +188,14 @@ public final class Fracturing {
             if (entity == null || !entity.isAlive()) {
                 return true;
             }
-            if (frozen.level().getGameTime() < frozen.until()) {
+            if (frozen.level().getGameTime() < frozen.until() && redero.abyssaldepths.Paralyzed.is(entity)) {
                 if (entity.tickCount % 40 == 0) {
                     showCorrupted(entity, (int) (frozen.until() - frozen.level().getGameTime())); // for those who come near meanwhile
                 }
                 return false;
             }
-            if (entity instanceof Mob mob) {
-                mob.setNoAi(frozen.hadNoAi());
-            }
-            return true;
+            return true; // its paralysis ran out (or was taken away): the effect gives its mind back
         });
     }
 
-    /** A frozen creature does no harm: its blows (and whatever else it would do to others) come to nothing. */
-    @SubscribeEvent
-    public static void onDamage(LivingIncomingDamageEvent event) {
-        if (!FROZEN.isEmpty() && event.getSource().getEntity() != null && frozen(event.getSource().getEntity())) {
-            event.setCanceled(true);
-        }
-    }
 }

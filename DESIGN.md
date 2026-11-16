@@ -79,17 +79,17 @@ Established or strongly developed design points:
 Biome and environment concepts include:
 
 - **Shale Flats** — broad, relatively open areas associated with the region's shale-like stone family.
-- **Silt Dunes** — a dune-like environment with fine sediment and a sandstorm concept. Sandstorms should have a visible and gameplay-relevant presence, not merely be a cosmetic overlay.
+- **Silt Dunes** — a dune-like environment with fine sediment and a sandstorm concept. Sandstorms should have a visible and gameplay-relevant presence, not merely be a cosmetic overlay. **Storm crystals** (built): landmarks of the dunes, spires of storm crystal 3 to 5 blocks high standing on the silt with small crystals round their feet. They charge only while a storm rages: the light climbs each spire from its foot and it flashes, then it glows, draws the storm's lightning, and only then can it be broken (storm shards), so a storm is a reason to go out into it. **Storm dangers** (decided): low visibility (storm goggles to come), gusts shoving players along the wind (crouching braces them), silt grinding the armour of the unsheltered, lightning drawn to charged crystals (warned by crackling), burrowers surfacing and turning aggressive, and things the storm uncovers (some better left buried). Built: visibility, gusts, grinding silt, lightning; the burrowers and the uncovering wait for the creature and the buried caches.
 - **Thermal Reaches** — a warmer or geothermally influenced area, with its own environmental blocks and features.
 
 **Decided direction for the layer's identity (the gloam and the set pieces are built; camps not yet):**
 
 - **Never safe, never deadly:** there should always be something that makes the player careful. Deep Pressure exists to say "this is no safe place, prepare first"; later things may negate most of it once it has done that job.
-- **Food and light are scarce.**
-- **The gloam ties the layer together** (the glow; its family: Gloam Crystal, Gloam Cluster, Gloam Moss, the giant Gloamcap fungus with Gloam Stalk wood and Gloam Planks, Gloamweave and Gloamweave Mat): crystal seams glowing deep blue/violet in the rock, with living gloam (moss) growing on and around them. Life gathers round the gloam pockets, water pools where it meets them, Shadeborn camps sit near them, Numinor forms where the gloam is strongest. Blue/violet colour appears only in the glows; stone and fog stay as they are. The Silt Dunes have no gloam (the silt keeps it buried). The biomes are stages of one system: the Thermal Reaches bring the heat up, the heat drives the winds that build the Silt Dunes, the Shale Flats are rock the heat cracked, the Thalan Depths are the coldest, where the gloam is faintest.
-- **Water in places:** a few dark lakes and falls, rare enough to be landmarks.
+- **Food and light are scarce.** Food comes mostly from the layer's animals and a few rare plants (new berries and the like), not from fishing.
+- **The gloam ties the layer together:** a mineral, a crystal that holds light (Gloam Crystal, Gloam Cluster), in seams glowing deep blue/violet in the rock. Living things do not glow of themselves: they live off the gloam, which is why life gathers round it (Gloam Moss on and around the seams; the giant **Duskcap** fungus with Dusk Stalk wood and Dusk Planks, whose caps give Duskthread, woven into Duskweave and Duskweave Mat). Only the crystal is called gloam; the moss's name may still change. Life gathers round the gloam pockets, water pools where it meets them, Shadeborn camps sit near them, Numinor forms where the gloam is strongest. Blue/violet colour appears only in the glows; stone and fog stay as they are. The Silt Dunes have no gloam (the silt keeps it buried). The biomes are stages of one system: the Thermal Reaches bring the heat up, the heat drives the winds that build the Silt Dunes, the Shale Flats are rock the heat cracked, the Thalan Depths are the coldest, where the gloam is faintest.
+- **Water in places:** a few dark lakes and falls, rare enough to be landmarks. Be careful with water: no more water features or water-based content than that.
 - **Rare set pieces:** a buried giant skeleton (Silt Dunes), a fracture canyon (Shale Flats), a lava fall into a steaming lake (Thermal Reaches), a gloam grotto (Thalan Depths), the vent lung (vents erupting in a rolling wave, Thermal Reaches), a tide lake (still, mirror-black water whose glow pulses like a tide; at low tide a sunken path appears; Thalan Depths), a few camp graveyards (old camps abandoned round a dead gloam pocket), a frozen fall (dark ice with gloam trapped inside, Thalan Depths). All of these are built except the camp graveyards, which wait for the camps. The Fallen Spire (a broken Solit pillar in the dark) waits until a Solit biome exists and only lies beneath one.
-- **Camps** are built mainly of the layer's stone, with a new wood from the giant Gloamcap fungi (Gloam Stalk; scarce, found in the richest gloam pockets) and Gloamweave (fibre from the fungi and the gloam moss) for tents, curtains and mats. Shadeborn camps exist from the start, spread out; they grow stronger as the player progresses. A camp's find is supplies: a little food and light, what the layer lacks. (Camps are deferred for now.)
+- **Camps** are built mainly of the layer's stone, with a new wood from the giant Duskcap fungi (Dusk Stalk; scarce, found in the richest gloam pockets) and Duskweave (fibre from the fungi and the gloam moss) for tents, curtains and mats. Shadeborn camps exist from the start, spread out; they grow stronger as the player progresses. A camp's find is supplies: a little food and light, what the layer lacks. (Camps are deferred for now.)
 
 These are working biome concepts, not a complete final biome specification. Their visual identity should be supported by distinctive blocks, terrain shapes, ambient details and gameplay features. Avoid making them feel empty simply because they are sparse; their scale, silhouettes and environmental storytelling should do some of the work.
 
@@ -171,6 +171,70 @@ Longer-term possibilities include:
 
 The people should primarily enrich the world and create local relationships. Their existence should not turn the whole mod into a mandatory faction or quest system.
 
+### 5.2.1 The Shadeborn system (working outline, proposed)
+
+**Who they are:** hooded figures in Duskweave, faces hidden, a faint light in the eyes. Their history stays open.
+
+**They do not speak the player's language.** Mood shows in posture (cowering, wary, open); wants show by holding up what they need.
+
+**Camps** hold 3 to 8 Shadeborn, near the gloam, built of the layer's stone, Dusk Stalk and Duskweave. A camp has:
+- a **hearth**;
+- a **store**;
+- **tents**;
+- a **watch post**.
+
+Camps differ by region:
+- **Dunes:** stormwatchers.
+- **Thermal Reaches:** smiths at the vents.
+- **Shale Flats:** delvers.
+- **Thalan Depths:** seers and lamp-keepers.
+
+**Each Shadeborn has a temperament:** fearful, wary, neutral or hostile. Some bands are hostile outright.
+
+**Roles:**
+
+| Role | What they do for the player |
+|---|---|
+| **Keeper** | the camp's leader; where trust is decided, and in the end the role the player can take |
+| **Trader** | everyday trade (supplies, materials) |
+| **Smith** | metalwork: teaches the Vent Forge, works Kerun and Numinor |
+| **Weaver** | Duskweave work: linings, capes, bags, quivers |
+| **Lamp-keeper** | keeps the camp's lights; trades and refills light (the layer's scarcest thing) |
+| **Forager / Hunter** | goes out and comes back with food; met out hunting; trades food, shows where game is |
+| **Mender** | heals, cures harmful effects, eases Deep Pressure for a while; perhaps the way to cleanse a Corruption Scar |
+| **Seer** | senses the deep: warns of the worm, points the way to it; keeps a few fragments of the old stories (told sparingly) |
+| **Pathfinder** | sells marks on the map (set pieces, rich pockets), can guide to them |
+| **Delver** | mines; trades ores, knows where Numinor forms |
+| **Stormwatcher** | dune camps: reads the storms, makes storm goggles, trades storm shards |
+| **Watcher** | guards the camp; turns on whoever harms it |
+| **Wanderer** | travels alone between camps; timid; the usual first contact |
+| **Mourner** | tends the dead at the camp graveyards; perhaps lays Remnants to rest |
+| **Young** | fearful, follow a trusted player round the camp |
+| **Outcast** | lives apart; rare and odd trades; sometimes hostile |
+| **Raider** | hostile bands that prey on camps (and players) |
+
+**Trust is kept per camp** and rises through five stages:
+
+| Stage | Unlocks |
+|---|---|
+| **Stranger** | they hide or watch |
+| **Tolerated** | basic trade |
+| **Welcome** | crafters' knowledge; rest at the hearth (eases Deep Pressure); supplies |
+| **Kin** | the best trades; map marks; the Seer's warnings |
+| **Keeper** | they follow the player: the camp grows, sends supplies, can be expanded |
+
+**How trust changes:**
+- **Rises** through trade and gifts of what they lack (food, light).
+- **Rises** by defending the camp, warning it of the worm, and returning relics the storms uncover.
+- **Falls** by harming them, taking from the store, or leading the worm to them.
+
+**Growth:** camps grow with the world's progress (*Huddle → Camp → Hold*: more inhabitants, better stock), faster where the player is trusted.
+
+**Ties into the rest:**
+- **Graveyards:** camp graveyards are camps that died with their gloam pocket.
+- **The worm:** it threatens camps.
+- **Fracturing:** a Mender may know of it.
+
 ### 5.3 Monsters and horror encounters
 
 The dark region can contain creatures that create a sense of danger without making every expedition a constant fight. One planned large creature is an earthworm-like Thalan monster / boss. It is intended as a rare horror encounter unlocked through a combination of playtime, exploration and discovering a trigger.
@@ -178,6 +242,13 @@ The dark region can contain creatures that create a sense of danger without maki
 The encounter should provide signs and directional sound cues. A player who pays attention should have a chance to escape; the goal is dread and anticipation, not an unavoidable surprise death. A possible compass-like item could indicate the creature's direction and approximate distance through colour or intensity. Its pathfinding may be limited beyond the render distance.
 
 Fighting it should make sense only with very strong equipment. Recurring or strengthened versions and higher-difficulty rewards are possible, but the encounter's tension and escape gameplay are central.
+
+**First version (built, summoned by command only):**
+- **The Thalan Worm:** the user's Blockbench model, 85 to 125 blocks long, burrowing along the floor of the thalan layer (it bores down into the layer from outside and never leaves it). Its body is solid, follows the way its head went and can be struck anywhere along it. Fire and lava do not hurt it.
+- **Behaviour:** within about 96 blocks (the boss bar's range) it hunts the nearest player: it rears its maw open, comes for them through the rock if need be, and bites hard (72).
+- **Its range:** it keeps going while no one is near, within 128 chunks of the players. For now one comes 5 minutes into a world, about 100 chunks away (a stand-in for the trigger).
+- **Warning signs (built):** faint growls from its head from far off, then dust and grit from the ceiling, stone crackling from its direction, stones breaking round the player, pebbles, the ground trembling. Hunted, the player hears their heart and the view darkens at the edges.
+- **Still open:** what makes it appear (the trigger), the compass, its own sounds and its rewards.
 
 ---
 
@@ -271,6 +342,8 @@ Fracturing is a special corruption-type damage effect. It should be rare and dif
 
 Its visual identity is **black and white**, separate from the distinctive colours of Hollow and Zenith. The monochrome treatment communicates that Fracturing is a universal force rather than something belonging to either region.
 
+**What it is (in-world):** weapons and beings that deal Fracturing touch a creature on a deeper level: they hurt the soul. Through the wound the two core forces of the world (the light and the dark) slip in. Once they do, the mind gives way, the soul is torn from the body, and the player has to face themselves to win their body back. The trials are that struggle; it is why they take place in a broken copy of the player's own land, why their own double stands against them, and why their memories help. Keep this as the meaning behind the system; the details stay unspoken in play.
+
 ### 8.1 Visual signature
 
 Pixel cracks spread over the screen as the corruption builds up, growing from a few places that differ every time (not always the edges), into a network of fractures; how many pieces it forms varies and is configurable, and how much of the network shows matches the corruption level exactly. At 100 % the screen breaks away along those lines (after the view has left the body), revealing a black layer underneath. The effect should feel like the screen or the visible world is being fractured, not like a conventional coloured damage vignette.
@@ -298,6 +371,20 @@ Losing control (three hits, or a fall) fails the trial. The earlier list of sepa
 
 Fracturing is inflicted only by rare, hard enemies and by specific weapons the player can use — both to come later. Ordinary mobs and the environment do not cause it. Until then it is command-only.
 
+**Fracturing weapons (decided direction, not built; class name open, working name "Fault weapons"):** an end-game weapon class (around and beyond full enchanted netherite):
+- **Their hits build corruption in the target.** A creature at 100 % is paralyzed, and the next hit **shatters** it for heavy bonus damage, its corruption reset. Bosses build up at half speed.
+- **The weapon feeds on its wielder:** every shatter adds a little corruption to them, fading if they ease off. Pushed too hard, they are fractured themselves and face a trial.
+- **Scars could make the weapons build faster,** a reason to keep one.
+- **Shapes,** each building corruption its own way:
+  - an Edge (sword, steady);
+  - a Maul (slow, a ground slam cracking a line);
+  - a Glaive (the corruption jumps to a second target);
+  - a Splinter (ranged, shards set off together);
+  - a Shiv (finisher, strong against the paralyzed).
+- **They temper by trials passed while carried.**
+- **Made from a material dropped by shattered creatures and the top metals,** the first of it from the rare enemy that fractures.
+- **Strictly black and white.**
+
 ### 8.5 Communicating objectives
 
 The player should be able to understand what to do through the environment and clear visual signals. A large objective label may communicate that a task exists, but it is not enough by itself to explain why the player is there or what the trial represents.
@@ -311,6 +398,8 @@ A small contextual interface or stability indicator was considered as supplement
 The proposed failure outcome is that failing a trial results in the player's death and normal respawn, but the player returns with a lasting **Corruption Scar**. The scar represents damage left behind by the corruption.
 
 A suggested primary consequence is a reduction in maximum health (one proposed value was two hearts per scar). Additional possible effects included occasional subtle monochrome visual distortions or increased vulnerability to future corruption damage. These values and secondary effects are proposals, not necessarily final rules.
+
+A failed player's body rises as a **Remnant** (built): a black-and-white walker in their likeness; killing it takes the scar back.
 
 Scars should be removable through a deliberate recovery method, such as a rare cleansing item or a special cleansing station requiring particular materials. The punishment should matter, but it should not create an irreversible death spiral. The number or severity of scars may need limits or diminishing effects so repeated failures do not make recovery impossible.
 
@@ -371,7 +460,10 @@ The following areas should be treated as evolving rather than fixed:
 - The original purpose of Gründerwelt and who changed it.
 - Several artifact abilities, names, rarities and upgrade details.
 - Final Fracturing trial selection, difficulty, communication and failure balancing.
-- Name clash: the risen body of a failed player is currently the mob **Hollow**, the same as a working name of the dark region. To be decided.
+- The new materials beyond the ores (found by exploring, bosses, trading, a few by mining) and what they make.
+- Names for the glowing family: whether "gloam" stays for everything, and what the gloam itself is (mineral, living or both).
+- The Shadeborn system (camps, roles, trust, trading, leadership).
+- The dangers of the dune storms.
 - Exact crafting recipes, station unlock requirements and final armour values.
 
 Do not fill these gaps automatically. Propose options and let the user choose.

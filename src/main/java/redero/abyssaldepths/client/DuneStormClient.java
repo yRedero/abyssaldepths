@@ -35,8 +35,12 @@ public final class DuneStormClient {
     private DuneStormClient() {
     }
 
-    static void set(int ticks) {
-        if (remaining <= 0 && ticks > 0) {
+    /** A storm for so long, its wind from the server (the gusts blow along it); NaN: one of our own. */
+    static void set(int ticks, double wind) {
+        if (!Double.isNaN(wind)) {
+            windX = Math.cos(wind);
+            windZ = Math.sin(wind);
+        } else if (remaining <= 0 && ticks > 0) {
             final double a = RANDOM.nextDouble() * 2 * Math.PI; // a new storm, a new wind direction
             windX = Math.cos(a);
             windZ = Math.sin(a);

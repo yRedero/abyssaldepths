@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "group": "bark",
+  "pattern": [
+    "##",
+    "##"
+  ],
+  "key": {
+    "#": {
+      "item": "abyssaldepths:stripped_dusk_stalk"
+    }
+  },
+  "result": {
+    "id": "abyssaldepths:stripped_dusk_hyphae",
+    "count": 3
+  }
+}

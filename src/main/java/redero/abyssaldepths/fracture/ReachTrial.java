@@ -57,7 +57,7 @@ final class ReachTrial extends Trial {
         final BlockPos middle;
         final int half, offset;
         final Kind kind;
-        long stepped = -1;
+        long stepped = -1, left = -1;
         boolean gone, open;
         int shown;
         /** Its blocks as copied (to bring a phasing one back). */
@@ -85,6 +85,8 @@ final class ReachTrial extends Trial {
     private int hits, invulnerable, stage, heartPart, partStart, heartNext = FractureCore.SHOCKWAVE, lastLeft = HEART;
     private int blockUntil, staggerUntil, nextEvent = 100, strikeAt = -1, maxX = 10, gateBlows;
     private Island guarding;
+    /** The body free to take (shown once); the double beaten at a gate, gone till the next one. */
+    private boolean freed, resting;
     private double strikeFloor;
     private final List<int[]> strikeCells = new ArrayList<>();
     /** Things they carried, to remember; where they float. */
@@ -314,6 +316,12 @@ final class ReachTrial extends Trial {
     }
 
     @Override
+    List<Threshold.Lesson> lessons() {
+        return fight ? List.of(new Threshold.Duel(), new Threshold.Strike(), new Threshold.Crumble())
+                : List.of(new Threshold.Crumble(), new Threshold.Hunt(), new Threshold.Phase(), new Threshold.Gate(), new Threshold.Strike(), new Threshold.Memory());
+    }
+
+    @Override
     Vec3 spawn() {
         return Vec3.atBottomCenterOf(islands.get(0).middle.above());
     }
@@ -395,8 +403,9 @@ final class ReachTrial extends Trial {
         final long now = level.getGameTime();
         pieces(t, now);
         for (net.minecraft.world.entity.item.ItemEntity memory : memories) { // remembered: a lost control won back
-            if (!memory.isRemoved() && memory.position().distanceTo(player.position().add(0, 0.8, 0)) < 1.4) {
+            if (reaches(memory)) {
                 level.sendParticles(ParticleTypes.END_ROD, memory.getX(), memory.getY(), memory.getZ(), 25, 0.3, 0.3, 0.3, 0.08);
+                boon(memory.position());
                 level.playSound(null, memory.blockPosition(), SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 1.2F, 0.8F);
                 memory.discard();
                 hits = Math.max(0, hits - 1);
@@ -409,6 +418,14 @@ final class ReachTrial extends Trial {
             case 0 -> hunt(t);
             case 1 -> heart(t);
             default -> {
+                if (!freed) { // the body is theirs to take: it shows (green light on it, their screen shimmering)
+                    freed = true;
+                    boon(body.position().add(0, 1.0, 0));
+                    body.setGlowingTag(true);
+                }
+                if (t % 6 == 0) {
+                    level.sendParticles(player, ParticleTypes.HAPPY_VILLAGER, true, body.getX(), body.getY() + 1.0, body.getZ(), 3, 0.35, 0.7, 0.35, 0.0);
+                }
                 if (player.position().distanceTo(body.position()) < 1.6) { // touched: back in it
                     voice("pass");
                     return Result.PASSED;
@@ -467,15 +484,23 @@ final class ReachTrial extends Trial {
             if (island.kind != Kind.CRUMBLE) {
                 continue;
             }
+            // stood on, it cracks; once they have left it, it gives way behind them (never under them)
+            final boolean over = Math.abs(player.getX() - (island.middle.getX() + 0.5)) <= island.half + 0.8
+                    && Math.abs(player.getZ() - (island.middle.getZ() + 0.5)) <= island.half + 0.8;
             if (island.stepped < 0 && island.under(player) && player.onGround()) {
                 island.stepped = now;
                 level.playSound(null, island.middle, SoundEvents.AMETHYST_BLOCK_STEP, SoundSource.HOSTILE, 1.0F, 0.6F);
+                level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, level.getBlockState(island.middle)), island.middle.getX() + 0.5,
+                        island.middle.getY() + 1.0, island.middle.getZ() + 0.5, 12, island.half * 0.5 + 0.3, 0.1, island.half * 0.5 + 0.3, 0.0);
             }
-            if (island.stepped >= 0 && now - island.stepped == CRUMBLE_TICKS - 8) {
+            if (island.stepped >= 0 && island.left < 0 && !over) {
+                island.left = now;
                 level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, level.getBlockState(island.middle)), island.middle.getX() + 0.5,
                         island.middle.getY() + 1.0, island.middle.getZ() + 0.5, 25, island.half * 0.5 + 0.3, 0.2, island.half * 0.5 + 0.3, 0.0);
+            } else if (island.left >= 0 && over && player.getY() > island.middle.getY()) {
+                island.left = -1; // back on it: it holds while they are
             }
-            if (island.stepped >= 0 && now - island.stepped >= CRUMBLE_TICKS) {
+            if (island.left >= 0 && now - island.left >= 10) {
                 island.gone = true;
                 for (BlockPos pos : island.blocks) {
                     final BlockState state = level.getBlockState(pos);
@@ -494,6 +519,14 @@ final class ReachTrial extends Trial {
      * suddenly ahead, standing in the way. A blow staggers it.
      */
     private void hunt(int t) {
+        if (resting) { // beaten at a gate: back only at the next one, standing guard there
+            final Island on = islands.get(islandOf());
+            if (on.kind != Kind.GATE || on.open || !on.under(player)) {
+                return;
+            }
+            resting = false;
+            twin = FractureDouble.of(player, level, Vec3.atBottomCenterOf(on.middle.offset(0, 1, on.half - 1)));
+        }
         if (!fight && (twin == null || twin.isRemoved())) { // (gone somehow: it comes back, a gate needs its guard)
             twin = FractureDouble.of(player, level, player.position().add(0, 0, 8));
         }
@@ -516,7 +549,11 @@ final class ReachTrial extends Trial {
             staggerUntil = t + 35;
             final Vec3 away = twin.position().subtract(player.position()).multiply(1, 0, 1);
             final Vec3 push = away.lengthSqr() < 1.0E-4 ? new Vec3(0, 0, 1) : away.normalize();
-            twin.setPos(twin.position().add(push.scale(guarding != null ? 1.0 : 2.5)));
+            Vec3 reeled = twin.position().add(push.scale(guarding != null ? 1.0 : 2.5));
+            if (guarding != null) { // never pinned against the wall it guards
+                reeled = new Vec3(reeled.x, reeled.y, Math.min(reeled.z, guarding.middle.getZ() + guarding.half + 0.5 - 1.8));
+            }
+            twin.setPos(reeled);
             level.playSound(null, twin.blockPosition(), SoundEvents.AMETHYST_BLOCK_BREAK, SoundSource.HOSTILE, 1.0F, 0.6F);
         }
         twin.face(player.position());
@@ -538,6 +575,12 @@ final class ReachTrial extends Trial {
                 level.playSound(null, guarding.middle, SoundEvents.GLASS_BREAK, SoundSource.HOSTILE, 1.5F, 0.4F);
                 guarding = null;
                 nextEvent = t + 60;
+                // beaten: it is gone, till it waits at the next gate (after the last, for good)
+                level.sendParticles(ParticleTypes.SQUID_INK, twin.getX(), twin.getY() + 1.0, twin.getZ(), 40, 0.4, 0.8, 0.4, 0.03);
+                twin.discard();
+                twin = null;
+                resting = true;
+                return;
             } else if (t >= staggerUntil) { // guarding: stepping back to the wall, lunging at them when near
                 final Vec3 post = Vec3.atBottomCenterOf(guarding.middle.offset(0, 1, guarding.half - 1));
                 final Vec3 to = (player.position().distanceTo(post) < 3.5 ? player.position() : post).subtract(twin.position());

@@ -73,6 +73,10 @@ public abstract class Trial {
     /** The player's scars: the corruption has an easier time with the scarred. */
     protected final int scars;
     protected int age;
+    /** What the player carried (copies), for memories. */
+    List<net.minecraft.world.item.ItemStack> carried = List.of();
+    /** Where they wake first, the rules acted out round them (null: straight into the trial). */
+    Threshold threshold;
 
     protected Trial(ServerPlayer player, ServerLevel level, BlockPos origin, int scars) {
         this.player = player;
@@ -90,6 +94,11 @@ public abstract class Trial {
     /** Builds the arena round the origin. */
     abstract void build();
 
+    /** The rules shown on the threshold before the trial, one echo each (none: no threshold). */
+    List<Threshold.Lesson> lessons() {
+        return List.of();
+    }
+
     /** Where the player arrives, and which way they face. */
     abstract Vec3 spawn();
 
@@ -102,6 +111,10 @@ public abstract class Trial {
     final Result tick() {
         if (!ready && ++waited < READY_TICKS) {
             return Result.RUNNING; // the player does not see the arena yet
+        }
+        if (threshold != null && !threshold.crossed) {
+            threshold.tick(); // on the threshold, watching the echoes: it begins once they step through
+            return Result.RUNNING;
         }
         age++;
         if (age <= ORIENT_TICKS) {
@@ -125,7 +138,13 @@ public abstract class Trial {
 
     /** Empties the arena (and what was in it). */
     void clear() {
-        final BoundingBox box = bounds();
+        if (threshold != null) {
+            clear(threshold.bounds());
+        }
+        clear(bounds());
+    }
+
+    void clear(BoundingBox box) {
         final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         for (int y = box.minY(); y <= box.maxY(); y++) {
             for (int z = box.minZ(); z <= box.maxZ(); z++) {
@@ -175,6 +194,20 @@ public abstract class Trial {
         memory.setGlowingTag(true);
         level.addFreshEntity(memory);
         return memory;
+    }
+
+    /** Whether the player reaches a floating memory (beside it, whether on the ground below it or jumping up to it). */
+    protected boolean reaches(net.minecraft.world.entity.item.ItemEntity memory) {
+        final double dx = memory.getX() - player.getX(), dz = memory.getZ() - player.getZ(), dy = memory.getY() - player.getY();
+        return !memory.isRemoved() && dx * dx + dz * dz < 1.7 * 1.7 && dy > -1.4 && dy < 2.8;
+    }
+
+    /** Something good happened (a memory won back, the body free): green light round them and on their screen. */
+    protected void boon(Vec3 at) {
+        level.sendParticles(player, net.minecraft.core.particles.ParticleTypes.HAPPY_VILLAGER, true, at.x, at.y, at.z, 18, 0.5, 0.5, 0.5, 0.0);
+        level.sendParticles(player, net.minecraft.core.particles.ParticleTypes.HAPPY_VILLAGER, true, player.getX(), player.getY() + 1.0, player.getZ(), 14, 0.5, 0.7, 0.5, 0.0);
+        level.playSound(null, player.blockPosition(), net.minecraft.sounds.SoundEvents.PLAYER_LEVELUP, net.minecraft.sounds.SoundSource.PLAYERS, 0.5F, 1.6F);
+        PacketDistributor.sendToPlayer(player, new EffectPayload("trial_boon", 0));
     }
 
     /** Things to remember: what they carried (copies), their own head where there is too little. */

@@ -136,6 +136,7 @@ public class TunnelFeature extends Feature<NoneFeatureConfiguration> {
         new LavaFall(level, layer, biomes, x0, z0).apply(); // where the heat comes up
         new VentLung(level, layer, biomes, x0, z0).apply(); // where the ground breathes
         new TideLake(level, layer, biomes, world.formations, x0, z0).apply(); // a lake whose path comes and goes
+        new StormSpires(level, layer, biomes, x0, z0).apply(); // the dunes' storm crystals
         if (marks != null) {
             mark(marks, 7);
             WorldgenProfile.add(marks, near.size());
