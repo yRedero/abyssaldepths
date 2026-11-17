@@ -35,13 +35,13 @@ NeoForge 21.1 / Minecraft 1.21.1 mod (ModDevGradle). Adds the thalan layer below
   kept inventory, pass/fail, death and `Scars`; one class per `Trial`: Fracturing picks one of `ReachTrial` (way or duel: a black-and-white copy of the land round the player via `TrialLand`, their body at the far end, their `FractureDouble`, the heart), `HushTrial` (a maze in the dark, the double hunting by sound), `FallTrial` (down a shaft of black floors); the older three by command only); a failed body rises as a `Remnant` (registry id `hollow` for older worlds; killing it takes the scar back); `client/FractureControl` (control slipping from 50 %); client side in `client/FractureScreen`
   (screen breaking), `FractureView` (corruption look, strikes), `TrialHud`, `FractureCoreRenderer`, `FractureSky`.
   Check with `tools/autoshot.sh <round> fracture` (trials, endings, the body left decomposing) and `fracmarks` (the mark styles, config `fractureMarks`, the auras, config `fractureAura`, the Core's warnings, a passed trial); `/abyssaldepths fracture end pass|fail` ends one's trial; `/abyssaldepths fracture [targets|trial <name>]`, `/abyssaldepths scars <n>`.
-- The thalan worm (first version): `entity/BigWorm` (burrows along the ground of the thalan layer, boring down into it from outside, gapes, bites; a solid body; its body follows the way the
+- The thalan worm (first version): `entity/BigWorm` (burrows along the ground of the thalan layer, boring down into it from outside, gapes, bites; four levels of cunning (circling, cutting off); a solid body one can stand on; its body follows the way the
   head went, struck through `entity/BigWormPart`s; boss bar; kept going up to 128 chunks out by `entity/WormManager`, which also sends
   the crackling heard from 400 blocks, played by `client/WormRumble` with the growls, dust, pebbles, trembling and, hunted, the heartbeat and darkening view), drawn by `client/BigWormRenderer` from the
   user's Blockbench model through `client/BbModel` (bones, box-UV cubes and the model's animations, as Blockbench shows
   them). Update it from a new .bbmodel with `python tools/bbmodel_to_entity.py <in.bbmodel> <models/entity/big_worm.json>
   <textures/entity/big_worm.png> <out.bbmodel>` (lays out the UVs and paints the texture; the out.bbmodel carries both
-  back to Blockbench). `/abyssaldepths worm`; check with `tools/autoshot.sh <round> worm`.
+  back to Blockbench). `/abyssaldepths worm [1-4]`, `/abyssaldepths wormskill <name>`; check with `tools/autoshot.sh <round> worm` and `wormskills` (every skill in turn).
 - `block/`, `mixin/`, `network/` (one server-to-client effect payload), config in `ClientConfig`.
 - `src/dev/java`: dev-only (AutoShot, LayerMap, TunnelLayerCheck); not in the jar.
 - `src/test/java`: JUnit regressions of the generation (`./gradlew test`).

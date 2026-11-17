@@ -53,7 +53,7 @@ public final class AutoShot {
     private static final String SPOT_COMMANDS = System.getProperty("abyssaldepths.autoshot.spotCommands", "");
     private static final int SETTLE_TICKS = 220, TURN_TICKS = 15;
 
-    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, VANISH, OBLIVION, NEWARTIFACTS, FIRMAMENT, SMALL, LOOKS, EMPYREAN, MARKS, WAKE, FRACTURE, THRESHOLD, STORMWAKE, WORM, FRACMARKS, FRACLEVELS, GLOW, GROTTO, VARIANTS, DONE }
+    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, VANISH, OBLIVION, NEWARTIFACTS, FIRMAMENT, SMALL, LOOKS, EMPYREAN, MARKS, WAKE, FRACTURE, THRESHOLD, STORMWAKE, WORM, WORMSKILLS, FRACMARKS, FRACLEVELS, GLOW, GROTTO, VARIANTS, DONE }
 
     private static Step step = Step.TITLE;
     private static final Deque<String> BIOMES = new ArrayDeque<>();
@@ -171,6 +171,14 @@ public final class AutoShot {
                     if (biome.endsWith("#0")) {
                         wait = 0;
                         step = Step.VARIANTS;
+                    }
+                    return;
+                }
+                if (biome != null && biome.startsWith("wormskills#")) {
+                    // not a place: the thalan worm's skills, one after another, at the player
+                    if (biome.endsWith("#0")) {
+                        wait = 0;
+                        step = Step.WORMSKILLS;
                     }
                     return;
                 }
@@ -482,6 +490,39 @@ public final class AutoShot {
                     step = Step.NEXT;
                 }
             }
+            case WORMSKILLS -> {
+                final MinecraftServer server = mc.getSingleplayerServer();
+                final int t = ++wait;
+                final String[] skills = {"erupt", "charge", "inhale", "spit", "sweep", "slam", "ceiling", "cavein", "undermine"};
+                if (t == 1) {
+                    command(server, "gamemode survival");
+                    command(server, "tp @s ~ -100 ~ 0 15");
+                    mc.options.hideGui = true;
+                    mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+                } else if (t == 8) {
+                    command(server, "gamerule commandModificationBlockLimit 1000000");
+                    command(server, "fill ~-40 ~ ~-40 ~40 ~24 ~48 air");
+                    command(server, "fill ~-40 ~-1 ~-40 ~40 ~-1 ~48 stone");
+                    command(server, "fill ~-40 ~25 ~-40 ~40 ~25 ~48 stone");
+                    command(server, "effect give @s night_vision 99999 0 true");
+                    command(server, "effect give @s resistance 99999 4 true");
+                    command(server, "effect give @s regeneration 99999 4 true");
+                } else if (t == 20) {
+                    command(server, "abyssaldepths worm 2");
+                } else if (t >= 80) {
+                    final int k = (t - 80) / 140, o = (t - 80) % 140;
+                    if (k >= skills.length) {
+                        command(server, "kill @e[type=abyssaldepths:big_worm]");
+                        command(server, "effect clear @s");
+                        mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+                        step = Step.NEXT;
+                    } else if (o == 0) {
+                        command(server, "abyssaldepths wormskill " + skills[k]);
+                    } else if (o == 22 || o == 40 || o == 70) {
+                        shoot(mc, "wormskill_" + skills[k] + "_" + o);
+                    }
+                }
+            }
             case WORM -> {
                 final MinecraftServer server = mc.getSingleplayerServer();
                 final int t = ++wait;
@@ -538,7 +579,25 @@ public final class AutoShot {
                     command(server, "tp @s ~-20 ~6 ~10 -90 10");
                 } else if (t == 470) {
                     shoot(mc, "worm_1_side");
-                } else if (t > 470) {
+                } else if (t == 471) { // the most cunning, round a player on a pillar: does it ring them in?
+                    command(server, "kill @e[type=abyssaldepths:big_worm]");
+                    command(server, "gamemode survival");
+                    command(server, "fill ~20 ~-6 ~-10 ~20 ~11 ~-10 stone");
+                    command(server, "tp @s ~20 ~12 ~-10 90 90");
+                } else if (t == 476) {
+                    command(server, "abyssaldepths worm 4");
+                } else if (t == 600 || t == 700 || t == 800) {
+                    shoot(mc, "worm_2_ring" + t);
+                } else if (t == 801) { // and does it finish a player on the ground (no protection)?
+                    command(server, "kill @e[type=abyssaldepths:big_worm]");
+                    command(server, "tp @s ~-12 ~-18 ~ 0 10");
+                    command(server, "effect clear @s");
+                    command(server, "effect give @s night_vision 99999 0 true");
+                } else if (t == 806) {
+                    command(server, "abyssaldepths worm 4");
+                } else if (t == 900 || t == 1000) {
+                    shoot(mc, "worm_3_hunt" + t);
+                } else if (t > 1200 || (t > 806 && mc.player != null && mc.player.isDeadOrDying())) {
                     command(server, "kill @e[type=abyssaldepths:big_worm]");
                     command(server, "effect clear @s");
                     step = Step.NEXT;

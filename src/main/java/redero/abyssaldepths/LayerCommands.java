@@ -92,18 +92,24 @@ public final class LayerCommands {
                 .then(Commands.literal("showcase").executes(c -> send(c, "showcase")))
                 .then(setPiece("frozenfall", "Frozen fall", redero.abyssaldepths.worldgen.TunnelFeature::nearestFrozenFall, 14.5, 4, 14.5, 135.0F, -10.0F))
                 .then(setPiece("grotto", "Gloam grotto", redero.abyssaldepths.worldgen.TunnelFeature::nearestGrotto, 18.5, 6, 18.5, 135.0F, 15.0F))
-                .then(Commands.literal("worm").executes(c -> { // the thalan worm, some way ahead of you
-                    final net.minecraft.server.level.ServerPlayer player = c.getSource().getPlayerOrException();
-                    final redero.abyssaldepths.entity.BigWorm worm = AbyssalDepths.BIG_WORM.get().create(player.serverLevel());
-                    if (worm == null) {
-                        return 0;
-                    }
-                    final net.minecraft.world.phys.Vec3 ahead = player.position().add(net.minecraft.world.phys.Vec3.directionFromRotation(0, player.getYRot()).scale(24));
-                    worm.moveTo(ahead.x, player.getY(), ahead.z, player.getYRot() + 180.0F, 0.0F);
-                    player.serverLevel().addFreshEntity(worm);
-                    c.getSource().sendSuccess(() -> Component.literal("A thalan worm, 24 blocks ahead"), false);
-                    return 1;
-                }))
+                .then(Commands.literal("worm").executes(c -> worm(c.getSource(), 0)) // the thalan worm, some way ahead of you
+                        .then(Commands.argument("smarts", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1, 4))
+                                .executes(c -> worm(c.getSource(), com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "smarts")))))
+                .then(Commands.literal("wormskill").then(Commands.argument("skill", com.mojang.brigadier.arguments.StringArgumentType.word())
+                        .suggests((c, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(java.util.Arrays.stream(redero.abyssaldepths.entity.BigWorm.SKILLS).filter(n -> !n.isEmpty()), b))
+                        .executes(c -> { // the nearest worm uses a skill at you now
+                            final net.minecraft.server.level.ServerPlayer player = c.getSource().getPlayerOrException();
+                            final String name = com.mojang.brigadier.arguments.StringArgumentType.getString(c, "skill");
+                            for (redero.abyssaldepths.entity.BigWorm worm : player.serverLevel().getEntitiesOfClass(redero.abyssaldepths.entity.BigWorm.class,
+                                    player.getBoundingBox().inflate(160))) {
+                                if (worm.force(name, player)) {
+                                    c.getSource().sendSuccess(() -> Component.literal("The worm: " + name), false);
+                                    return 1;
+                                }
+                            }
+                            c.getSource().sendFailure(Component.literal("No worm near, or no such skill"));
+                            return 0;
+                        })))
                 .then(Commands.literal("stormcrystal").executes(c -> { // to the nearest storm crystal in the loaded land round you
                     final net.minecraft.server.level.ServerPlayer player = c.getSource().getPlayerOrException();
                     final net.minecraft.server.level.ServerLevel level = player.serverLevel();
@@ -204,6 +210,22 @@ public final class LayerCommands {
                 .then(Commands.literal("charge")
                         .then(Commands.argument("charge", IntegerArgumentType.integer(0))
                                 .executes(c -> charge(c, IntegerArgumentType.getInteger(c, "charge"))))));
+    }
+
+    /** A thalan worm 24 blocks ahead, facing the player, as cunning as asked (0: drawn as for a new worm). */
+    private static int worm(CommandSourceStack source, int smarts) throws CommandSyntaxException {
+        final net.minecraft.server.level.ServerPlayer player = source.getPlayerOrException();
+        final redero.abyssaldepths.entity.BigWorm worm = AbyssalDepths.BIG_WORM.get().create(player.serverLevel());
+        if (worm == null) {
+            return 0;
+        }
+        worm.setSmarts(smarts > 0 ? smarts : redero.abyssaldepths.entity.BigWorm.drawSmarts(player.getRandom()));
+        final net.minecraft.world.phys.Vec3 ahead = player.position().add(net.minecraft.world.phys.Vec3.directionFromRotation(0, player.getYRot()).scale(24));
+        worm.moveTo(ahead.x, player.getY(), ahead.z, player.getYRot() + 180.0F, 0.0F);
+        player.serverLevel().addFreshEntity(worm);
+        final int level = worm.smarts();
+        source.sendSuccess(() -> Component.literal("A thalan worm, 24 blocks ahead (cunning " + level + ")"), false);
+        return 1;
     }
 
     private static int send(CommandContext<CommandSourceStack> context, String effect) throws CommandSyntaxException {

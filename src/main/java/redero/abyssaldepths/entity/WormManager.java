@@ -52,6 +52,7 @@ public final class WormManager extends SavedData {
         UUID id;
         double x, y, z;
         float yaw, health, length;
+        int smarts;
     }
 
     /** Whether the world's first worm has come (some minutes in, far off). */
@@ -78,6 +79,7 @@ public final class WormManager extends SavedData {
             k.yaw = w.getFloat("yaw");
             k.health = w.getFloat("health");
             k.length = w.contains("length") ? w.getFloat("length") : (float) BigWorm.LENGTH;
+            k.smarts = w.contains("smarts") ? w.getInt("smarts") : 1;
             m.kept.add(k);
         }
         m.first = tag.getBoolean("first");
@@ -104,6 +106,7 @@ public final class WormManager extends SavedData {
             w.putFloat("yaw", k.yaw);
             w.putFloat("health", k.health);
             w.putFloat("length", k.length);
+            w.putInt("smarts", k.smarts);
             list.add(w);
         }
         tag.put("worms", list);
@@ -131,6 +134,7 @@ public final class WormManager extends SavedData {
         k.yaw = worm.getYRot();
         k.health = worm.getHealth();
         k.length = worm.length();
+        k.smarts = worm.smarts();
         return k;
     }
 
@@ -171,6 +175,7 @@ public final class WormManager extends SavedData {
             k.yaw = level.random.nextFloat() * 360.0F;
             k.health = 400.0F;
             k.length = BigWorm.SHORTEST + level.random.nextFloat() * (BigWorm.LONGEST - BigWorm.SHORTEST);
+            k.smarts = BigWorm.drawSmarts(level.random);
             kept.add(k);
         }
         // real worms whose land runs no more: kept here instead
@@ -206,7 +211,7 @@ public final class WormManager extends SavedData {
                 final BigWorm worm = AbyssalDepths.BIG_WORM.get().create(level);
                 if (worm != null) {
                     worm.setUUID(k.id);
-                    worm.restore(k.x, ground(level, k.x, k.y, k.z), k.z, k.yaw, k.health, k.length);
+                    worm.restore(k.x, ground(level, k.x, k.y, k.z), k.z, k.yaw, k.health, k.length, k.smarts);
                     level.addFreshEntity(worm);
                 }
                 kept.remove(i);
@@ -214,8 +219,16 @@ public final class WormManager extends SavedData {
             }
             // on its way: towards a player it senses, else wandering
             float want = k.yaw;
-            if (near < SENSE || near > FAR * 16) { // sensing a player, or straying too far from them: towards them
-                want = (float) (Mth.atan2(-(nearest.getX() - k.x), nearest.getZ() - k.z) * Mth.RAD_TO_DEG);
+            ServerPlayer sensed = null; // the nearest down in the layer it can sense (those above it does not notice)
+            for (ServerPlayer p : players) {
+                if (BigWorm.inLayer(p) && Math.hypot(p.getX() - k.x, p.getZ() - k.z) < SENSE
+                        && (sensed == null || p.distanceToSqr(k.x, p.getY(), k.z) < sensed.distanceToSqr(k.x, sensed.getY(), k.z))) {
+                    sensed = p;
+                }
+            }
+            final ServerPlayer toward = sensed != null ? sensed : near > FAR * 16 ? nearest : null; // sensing one, or straying too far
+            if (toward != null) {
+                want = (float) (Mth.atan2(-(toward.getX() - k.x), toward.getZ() - k.z) * Mth.RAD_TO_DEG);
             } else if (level.random.nextInt(24) == 0) {
                 want = k.yaw + (level.random.nextFloat() - 0.5F) * 140.0F;
             }
@@ -249,7 +262,7 @@ public final class WormManager extends SavedData {
         for (ServerPlayer player : level.players()) {
             Vec3 nearest = null, head = null;
             double near = Double.MAX_VALUE;
-            for (BigWorm worm : level.getEntities(AbyssalDepths.BIG_WORM.get(), Entity::isAlive)) {
+            for (BigWorm worm : level.getEntities(AbyssalDepths.BIG_WORM.get(), w -> w.isAlive() && !w.silent())) {
                 for (Vec3 p : points(worm)) {
                     final double d = p.distanceTo(player.position());
                     if (d < near) {

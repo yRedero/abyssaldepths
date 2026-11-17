@@ -71,7 +71,8 @@ public class BigWormRenderer extends EntityRenderer<BigWorm> {
         pose.scale(1 / 16.0F, 1 / 16.0F, 1 / 16.0F);
         pose.translate(-AXIS_X, -AXIS_Y, -HEAD_MIDDLE);
         final String animation = worm.animation();
-        final float time = (worm.tickCount - worm.animationStart() + partial) / 20.0F;
+        final float now = worm.level().getGameTime() + partial;
+        final float time = (now - worm.animationStart()) / 20.0F;
         final BbModel.Bone head = model.bone("head");
         if (head != null) {
             model.draw(head, pose, out, light, overlay, animation.isEmpty() ? null : animation, time);
@@ -84,15 +85,37 @@ public class BigWormRenderer extends EntityRenderer<BigWorm> {
             return;
         }
         final Vec3 back = fallback;
-        final int segments = (int) (worm.length() / SPACING);
-        for (int i = 0; i < segments; i++) {
-            final double s = BigWorm.JOINT + FIRST + i * SPACING;
-            final Vec3 p = worm.along(start, back, s)[0];
+        final double length = worm.length();
+        // the tail sweeping (coiling back, lashing across, settling) and the body slamming (a stretch rising, crashing)
+        final int sweep = worm.sweep();
+        final float sweepT = sweep < 0 ? -1 : now - (sweep >> 1);
+        final float sweepSide = (sweep & 1) == 1 ? 1 : -1;
+        final float sweepAmount = sweepT < 0 || sweepT > 40 ? 0
+                : sweepT < 12 ? -0.35F * Mth.sin(sweepT / 12 * Mth.HALF_PI)
+                : sweepT < 20 ? Mth.lerp(smooth((sweepT - 12) / 8), -0.35F, 1.0F)
+                : 1.0F - smooth((sweepT - 20) / 20);
+        final int slam = worm.slam();
+        final float slamT = slam < 0 ? -1 : now - slam;
+        final float slamLift = slamT < 0 || slamT > 34 ? 0 : slamT < 18 ? 7 * smooth(slamT / 18) : slamT < 24 ? 7 : slamT < 28 ? 7 * (1 - (slamT - 24) / 4) : 0;
+        final double slamAt = BigWorm.JOINT + worm.slamShare() * length;
+        // the segments, each spaced by its own thickness (so the narrowing tail stays whole)
+        for (double s = BigWorm.JOINT + FIRST; s < BigWorm.JOINT + length; ) {
+            final double share = (s - BigWorm.JOINT) / length;
+            final float k = (float) BigWorm.thickness(share); // the tail narrowing
+            Vec3 p = worm.along(start, back, s)[0];
             // turned along the way over a little stretch (not the single step it lies on), so it bends smoothly
             final Vec3 forward = worm.along(start, back, Math.max(0, s - 1.25))[0].subtract(worm.along(start, back, s + 1.25)[0]).normalize();
             final float sYaw = (float) (Mth.atan2(-forward.x, forward.z) * Mth.RAD_TO_DEG);
             final float sPitch = (float) (Math.asin(Mth.clamp(-forward.y, -1, 1)) * Mth.RAD_TO_DEG);
-            final float k = (float) BigWorm.thickness((double) i / segments); // the tail narrowing
+            if (sweepAmount != 0 && share > 0.7) {
+                final double w = Math.pow((share - 0.7) / 0.3, 1.5);
+                final Vec3 lat = new Vec3(-forward.z, 0, forward.x).normalize();
+                p = p.add(lat.scale(sweepSide * 6.0 * w * sweepAmount));
+            }
+            if (slamLift > 0) {
+                final double d = (s - slamAt) / 7.0;
+                p = p.add(0, slamLift * Math.exp(-d * d), 0);
+            }
             pose.pushPose();
             pose.translate(p.x - at.x, p.y - at.y, p.z - at.z);
             pose.mulPose(Axis.YP.rotationDegrees(-sYaw));
@@ -102,7 +125,13 @@ public class BigWormRenderer extends EntityRenderer<BigWorm> {
             final int segLight = LevelRenderer.getLightColor(worm.level(), BlockPos.containing(p));
             model.draw(segment, pose, out, segLight, overlay, null, 0);
             pose.popPose();
+            s += SPACING * Math.max(k, 0.25);
         }
         super.render(worm, entityYaw, partial, pose, buffers, light);
+    }
+
+    private static float smooth(float x) {
+        final float c = Mth.clamp(x, 0, 1);
+        return c * c * (3 - 2 * c);
     }
 }
