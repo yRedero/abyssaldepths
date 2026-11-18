@@ -18,6 +18,10 @@ public final class ClientConfig {
                     "0 turns them off, 1 is the default, 2 doubles them.")
             .translation("abyssaldepths.config.particles")
             .defineInRange("particles", 1.0, 0.0, 2.0);
+    private static final ModConfigSpec.BooleanValue OPENING = BUILDER
+            .comment("The opening when the game has finished loading: light and dark meeting in the black. Any key or click skips it.")
+            .translation("abyssaldepths.config.opening")
+            .define("opening", true);
     private static final ModConfigSpec.BooleanValue DUNE_STORMS = BUILDER
             .comment("Show the storms of the silt dunes (dust and close fog). Off: the storm still happens, you just don't see it.")
             .translation("abyssaldepths.config.dune_storms")
@@ -257,6 +261,10 @@ public final class ClientConfig {
 
     public static float particles() {
         return SPEC.isLoaded() ? PARTICLES.get().floatValue() : 1.0F;
+    }
+
+    public static boolean opening() {
+        return !SPEC.isLoaded() || OPENING.get();
     }
 
     public static boolean duneStorms() {

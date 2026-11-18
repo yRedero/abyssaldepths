@@ -48,6 +48,13 @@ public final class DuneStormClient {
         remaining = ticks;
     }
 
+    /** How much of the storm the eyes see (storm goggles keep most of the silt out of sight). */
+    public static float sight() {
+        final net.minecraft.client.player.LocalPlayer p = Minecraft.getInstance().player;
+        final boolean goggles = p != null && p.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD).is(AbyssalDepths.STORM_GOGGLES.get());
+        return goggles ? strength * 0.35F : strength;
+    }
+
     /** 0 .. 1: how much of a storm the camera is in right now. */
     public static float strength() {
         return strength;

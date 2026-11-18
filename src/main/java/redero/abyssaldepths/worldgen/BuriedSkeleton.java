@@ -1,31 +1,33 @@
 package redero.abyssaldepths.worldgen;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import redero.abyssaldepths.AbyssalDepths;
 import redero.abyssaldepths.worldgen.LayerFormations.Biomes;
 
 /**
- * The buried skeleton: a rare set piece of the silt dunes. Something enormous died here long ago and lies on its back,
- * sunk in the silt: its spine runs under the dunes, rising out of them only along its middle; its ribs arch up out of
- * the silt in pairs like the frame of a hall, curving in towards each other, some broken short; its skull lies half
- * buried at one end, its jaw fallen away. The bones carry on under the silt, so digging finds them. At most one in a
- * large grid cell, only in the dunes and under a tall ceiling. Everything is decided from the cell, so each chunk lays
- * its own part.
+ * The dead worm: a rare set piece of the silt dunes. A thalan worm died here long ago (why stays open). A worm has no
+ * bones; what lasts of it is what was hard: the armoured skin it wore (and sheds when hurt) and its fangs. So it lies
+ * as a hollow shell of hardened skin, half sunk in the silt where it last lay, curving the way it crawled: its upper
+ * half arches out of the dunes, ringed where its segments met, broken and fallen in along stretches; its tail runs on
+ * under the silt; at its head the jaw plates gape and its fangs lie in the silt round them. The wind buries it and the
+ * storms lay it bare again, more or less each time (see {@link Live}): its fangs, under the silt, only then. The dry
+ * silt kept the shell; little lives in the layer to break it down. At most one in a large grid cell, only in the dunes
+ * under a tall ceiling. Everything is decided from the cell, so each chunk lays its own part. (The class keeps its old
+ * name for older worlds' sake: it was a buried skeleton.)
  */
 final class BuriedSkeleton {
     static final int CELL = 520, REACH = 48;
     private static final double CHANCE = 0.5;
 
-    /**
-     * A skeleton: the middle of its spine (x, z), the floor there, the way it lies (unit vector from tail to head), its
-     * length and how high its ribs rise.
-     */
+    /** A dead worm: the middle of its body (x, z), the floor there, the way it lay (unit vector from tail to head), its length, its girth. */
     record Spot(int x, int z, int floor, double dirX, double dirZ, double length, double rise) {
+        /** Its shell's radius. */
+        double radius() {
+            return 3.2 + rise * 0.06;
+        }
     }
 
     private final WorldGenLevel level;
@@ -65,59 +67,64 @@ final class BuriedSkeleton {
                     continue;
                 }
                 scour(s);
-                spine(s);
-                ribs(s, gx, gz);
-                skull(s);
+                shell(s, gx, gz);
+                head(s, gx, gz);
             }
         }
     }
 
-    /** Where a point along the body (u from the middle towards the head, v to its left, y up) lies in the world. */
-    private double wx(Spot s, double u, double v) {
-        return s.x() + 0.5 + u * s.dirX() - v * s.dirZ();
+    // ------------------------------------------------------------------ its shape
+
+    /** The body's middle line: sideways off the straight (it lay curving, as it crawled) at u along it (head at +half). */
+    static double sway(TunnelLayer layer, Spot s, double u) {
+        return 4.0 * Math.sin(u / 9.0 + layer.random(s.x(), s.z(), 8307) * 6.0);
     }
 
-    private double wz(Spot s, double u, double v) {
-        return s.z() + 0.5 + u * s.dirZ() + v * s.dirX();
-    }
-
-    /** The spine's height at u: deep under the silt at both ends, just above the ground along the middle. */
-    private double spineY(Spot s, double u) {
+    /** The body's axis height at u: at the silt's level along most of it, sinking under the silt towards the tail. */
+    static double axisY(Spot s, double u) {
         final double t = u / (s.length() / 2); // -1 at the tail, 1 at the head
-        return s.floor() - 4.0 + 5.0 * Math.cos(t * Math.PI / 2);
+        return s.floor() + 1.0 - (t < -0.4 ? (-0.4 - t) * 10.0 : 0.0); // (its upper half arching out of the silt)
     }
 
-    /** A bone: only into air and silt (it lies in the silt, not in the rock), turned along the way it runs. */
-    private void bone(double x, double y, double z, Direction.Axis axis) {
-        final int bx = (int) Math.floor(x), by = (int) Math.floor(y), bz = (int) Math.floor(z);
-        if (bx < x0 || bx > x0 + 15 || bz < z0 || bz > z0 + 15) {
+    /** Its girth at u: full along the body, narrowing into the tail (as a living worm's). */
+    static double girth(Spot s, double u) {
+        final double t = u / (s.length() / 2);
+        return s.radius() * (t < -0.3 ? Math.max(0.35, 1.0 - (-0.3 - t) * 0.9) : 1.0);
+    }
+
+    /** Where a column lies in the body's frame: u along it, v off its middle line. */
+    static double[] frame(TunnelLayer layer, Spot s, double x, double z) {
+        final double dx = x - s.x() - 0.5, dz = z - s.z() - 0.5;
+        final double u = dx * s.dirX() + dz * s.dirZ();
+        return new double[] {u, -dx * s.dirZ() + dz * s.dirX() - sway(layer, s, u)};
+    }
+
+    private boolean inChunk(int x, int z) {
+        return x >= x0 && x < x0 + 16 && z >= z0 && z < z0 + 16;
+    }
+
+    /** Only into air and silt (it lies in the silt, not in the rock). */
+    private void put(int x, int y, int z, BlockState state) {
+        if (!inChunk(x, z)) {
             return;
         }
-        final BlockState here = level.getBlockState(pos.set(bx, by, bz));
-        if (here.isAir() || here.is(AbyssalDepths.FINE_SILT.get()) || here.is(AbyssalDepths.PACKED_SILT.get()) || here.is(AbyssalDepths.QUICKSILT.get())
-                || here.is(Blocks.BONE_BLOCK)) {
-            level.setBlock(pos, Blocks.BONE_BLOCK.defaultBlockState().setValue(RotatedPillarBlock.AXIS, axis), 2);
+        final BlockState here = level.getBlockState(pos.set(x, y, z));
+        if (here.isAir() || here.is(AbyssalDepths.FINE_SILT.get()) || here.is(AbyssalDepths.PACKED_SILT.get()) || here.is(AbyssalDepths.QUICKSILT.get())) {
+            level.setBlock(pos, state, 2);
         }
-    }
-
-    /** The axis closest to a direction in the world (dx, dy, dz). */
-    private static Direction.Axis axis(double dx, double dy, double dz) {
-        final double ax = Math.abs(dx), ay = Math.abs(dy), az = Math.abs(dz);
-        return ay >= ax && ay >= az ? Direction.Axis.Y : ax >= az ? Direction.Axis.X : Direction.Axis.Z;
     }
 
     /**
-     * The hollow the wind scoured round the bones: the dunes lie low along the body (the silt no higher than a block
-     * over the floor), rising back to their own height over a few blocks round it, so the bones stand clear.
+     * The hollow the wind scoured round it: the dunes lie low along the body (the silt no higher than a block over the
+     * floor), rising back to their own height over a few blocks round it, so the shell stands clear.
      */
     private void scour(Spot s) {
-        final double half = s.length() / 2, tail = -half - 6, head = half + 14, clear = 4.5 + s.rise() * 0.45 + 4.0;
+        final double half = s.length() / 2, clear = s.radius() + 5.0;
         for (int x = x0; x < x0 + 16; x++) {
             for (int z = z0; z < z0 + 16; z++) {
-                final double dx = x + 0.5 - s.x() - 0.5, dz = z + 0.5 - s.z() - 0.5;
-                final double u = dx * s.dirX() + dz * s.dirZ(), v = -dx * s.dirZ() + dz * s.dirX();
-                final double along = u < tail ? tail - u : u > head ? u - head : 0.0;
-                final double d = Math.hypot(along, v) / clear; // 0 on the body, 1 at the hollow's edge
+                final double[] f = frame(layer, s, x + 0.5, z + 0.5);
+                final double along = f[0] < -half - 4 ? -half - 4 - f[0] : f[0] > half + 8 ? f[0] - half - 8 : 0.0;
+                final double d = Math.hypot(along, f[1]) / clear; // 0 on the body, 1 at the hollow's edge
                 if (d >= 1.6) {
                     continue;
                 }
@@ -131,115 +138,77 @@ final class BuriedSkeleton {
         }
     }
 
-    /** The spine: a thick row of vertebrae from tail to head, a short spur on each, tapering into the tail. */
-    private void spine(Spot s) {
-        final Direction.Axis along = axis(s.dirX(), 0, s.dirZ());
-        final double half = s.length() / 2;
-        for (double u = -half - 6; u <= half; u += 0.5) {
-            final double y = spineY(s, u);
-            final double thick = u < -half ? 0.6 : 1.4; // the tail thins out
-            for (double v = -thick; v <= thick; v += 0.5) {
-                for (double dy = -thick; dy <= thick; dy += 0.5) {
-                    if (v * v + dy * dy <= thick * thick) {
-                        bone(wx(s, u, v), y + dy, wz(s, u, v), along);
-                    }
-                }
-            }
-            // on its back: the spurs of the vertebrae point down into the silt, every third block
-            if (Math.floorMod((int) Math.floor(u), 3) == 0 && u > -half) {
-                for (int k = 2; k <= 3; k++) {
-                    bone(wx(s, u, 0), y - k, wz(s, u, 0), Direction.Axis.Y);
-                }
-            }
-        }
-    }
-
     /**
-     * The ribs: pairs along the chest, rising out of the silt from both sides of the spine, out and up, then curving in
-     * towards each other without meeting; tallest in the middle of the chest, swept a little back; a few broken short.
+     * The shell: a hollow tube of hardened skin round the axis, a ring standing out where each segment met, silt drifted
+     * into its lower half; broken and fallen in along stretches (its top gone there).
      */
-    private void ribs(Spot s, int gx, int gz) {
+    private void shell(Spot s, int gx, int gz) {
+        final BlockState shell = AbyssalDepths.WORM_SHELL.get().defaultBlockState();
         final double half = s.length() / 2;
-        final double from = -half * 0.2, to = half * 0.6;
-        int k = 0;
-        for (double u0 = from; u0 <= to; u0 += 3.5, k++) {
-            final double t = (u0 - from) / (to - from); // 0 at the back of the chest, 1 at the front
-            final double size = 0.55 + 0.45 * Math.sin(Math.PI * (0.15 + 0.8 * t));
-            final double width = (4.5 + s.rise() * 0.45) * size, height = s.rise() * size;
-            final double base = spineY(s, u0);
-            for (int side = -1; side <= 1; side += 2) {
-                final double roll = layer.random(gx * 31 + k, gz * 17 + side, 8310);
-                if (roll < 0.08) {
-                    continue; // lost
+        for (int x = x0; x < x0 + 16; x++) {
+            for (int z = z0; z < z0 + 16; z++) {
+                final double[] f = frame(layer, s, x + 0.5, z + 0.5);
+                final double u = f[0], v = f[1];
+                if (u < -half || u > half) {
+                    continue;
                 }
-                final double end = roll < 0.3 ? 0.45 + roll : 1.0; // broken short, or whole
-                // a half ellipse from the spine: out to its width and up to its height, then in again over the top
-                final double tipAngle = Math.PI * 0.42;
-                for (double a = -Math.PI / 2; a <= -Math.PI / 2 + (Math.PI / 2 + tipAngle) * end; a += 0.03) {
-                    final double v = side * (1.2 + width * Math.cos(a));
-                    final double y = base + height + height * Math.sin(a);
-                    final double u = u0 - 0.18 * (y - base); // swept back towards the tail
-                    // the way it runs here, for the bone's grain
-                    final double dv = -side * width * Math.sin(a), dy = height * Math.cos(a);
-                    final Direction.Axis grain = axis(-dv * s.dirZ(), dy, dv * s.dirX());
-                    bone(wx(s, u, v), y, wz(s, u, v), grain);
-                    if (y - base < height * 0.8) { // thicker low down, where they leave the spine
-                        bone(wx(s, u - 0.7, v), y, wz(s, u - 0.7, v), grain);
-                    }
+                final double r = girth(s, u), ay = axisY(s, u);
+                if (Math.abs(v) > r + 1.2) {
+                    continue;
                 }
-            }
-        }
-    }
-
-    /**
-     * The skull, half buried at the head end: a long hollow head lying on its side (its shell, two sockets, nostrils
-     * at the snout) with the lower jaw fallen away beside it.
-     */
-    private void skull(Spot s) {
-        final double half = s.length() / 2;
-        final double cu = half + 6.5, cy = s.floor() + 2.5;
-        final double lu = 7.5, lv = 4.5, ly = 4.0; // half length, width, height
-        final Direction.Axis along = axis(s.dirX(), 0, s.dirZ());
-        for (double u = -lu; u <= lu; u += 0.5) {
-            for (double v = -lv; v <= lv; v += 0.5) {
-                for (double dy = -ly; dy <= ly; dy += 0.5) {
-                    final double taper = 1.0 - 0.45 * Math.max(0, u / lu); // narrower towards the snout
-                    final double e = (u / lu) * (u / lu) + (v / (lv * taper)) * (v / (lv * taper)) + (dy / (ly * taper)) * (dy / (ly * taper));
-                    if (e > 1.0) {
-                        continue;
-                    }
-                    if (e < 0.62) { // inside it is hollow: the silt that blew in is gone, so the sockets show dark
-                        final int ix = (int) Math.floor(wx(s, cu + u, v)), iy = (int) Math.floor(cy + dy), iz = (int) Math.floor(wz(s, cu + u, v));
-                        if (dy > -ly * 0.35 && ix >= x0 && ix <= x0 + 15 && iz >= z0 && iz <= z0 + 15
-                                && level.getBlockState(pos.set(ix, iy, iz)).is(AbyssalDepths.FINE_SILT.get())) {
-                            level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2);
+                final boolean ring = Math.floorMod((int) Math.floor(u), 3) == 0; // where the segments met
+                final double thick = ring ? 1.6 : 1.0;
+                final boolean broken = layer.noise3(u / 7.0, gx * 0.7, gz * 0.7, 18) > 0.5; // fallen in along this stretch
+                for (int y = (int) Math.floor(ay - r) - 1; y <= (int) Math.ceil(ay + r) + 1; y++) {
+                    final double dy = y + 0.5 - ay;
+                    final double d = Math.hypot(v, dy);
+                    if (d <= r && d > r - thick) {
+                        if (broken && dy > r * 0.15) {
+                            continue; // the top fell in here
                         }
-                        continue;
+                        put(x, y, z, shell);
+                    } else if (d <= r - thick && y < s.floor()) {
+                        put(x, y, z, AbyssalDepths.FINE_SILT.get().defaultBlockState()); // silt drifted inside
+                    } else if (d <= r - thick && inChunk(x, z) && level.getBlockState(pos.set(x, y, z)).is(AbyssalDepths.FINE_SILT.get())) {
+                        level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2); // hollow above it
                     }
-                    if (dy < -ly * 0.35) {
-                        continue; // its underside is open: the jaw is gone
-                    }
-                    final boolean socket = Math.abs(u + lu * 0.2) < 1.8 && Math.abs(v) > lv * 0.35 && dy > 0.3 && dy < 2.6; // looking out to both sides
-                    final boolean nostril = u > lu * 0.7 && Math.abs(v) < 1.0 && dy > 0;
-                    if (socket || nostril) {
-                        continue;
-                    }
-                    bone(wx(s, cu + u, v), cy + dy, wz(s, cu + u, v), along);
                 }
-            }
-        }
-        // the lower jaw: a long open V lying beside the skull, sunk in the silt
-        final double jawV = lv + 3.5;
-        for (double u = -lu; u <= lu * 0.9; u += 0.5) {
-            final double spread = 2.8 * (1.0 - (u + lu) / (lu * 1.9));
-            for (int side = -1; side <= 1; side += 2) {
-                bone(wx(s, cu + u, jawV + side * spread), s.floor() - 0.5, wz(s, cu + u, jawV + side * spread), along);
-                bone(wx(s, cu + u, jawV + side * spread), s.floor() + 0.5, wz(s, cu + u, jawV + side * spread), along);
             }
         }
     }
 
-    /** The nearest skeleton to a place (the middle of its spine and the floor there), or null. */
+    /** Its head: the jaw plates gaping (top and bottom) at the front, its fangs lying sunk in the silt round them. */
+    private void head(Spot s, int gx, int gz) {
+        final BlockState shell = AbyssalDepths.WORM_SHELL.get().defaultBlockState();
+        final double half = s.length() / 2, r = s.radius();
+        final double ay = axisY(s, half);
+        for (int x = x0; x < x0 + 16; x++) {
+            for (int z = z0; z < z0 + 16; z++) {
+                final double[] f = frame(layer, s, x + 0.5, z + 0.5);
+                final double w = f[0] - half; // past the end of the body: the plates
+                if (w < 0 || w > r * 1.6 || Math.abs(f[1]) > r) {
+                    continue;
+                }
+                final double open = w * 0.55; // the plates part as they reach forward
+                final int top = (int) Math.floor(ay + r * 0.6 + open), bottom = (int) Math.floor(ay - r * 0.6 - open * 0.5);
+                if (Math.abs(f[1]) < r * (1.0 - w / (r * 2.2))) {
+                    put(x, top, z, shell);
+                    put(x, bottom, z, shell);
+                }
+            }
+        }
+        // the fangs: a ring of them round the mouth, fallen into the silt below it
+        for (int k = 0; k < 6; k++) {
+            final double a = k * Math.PI / 3 + layer.random(gx, gz, 8340 + k) * 0.5;
+            final double u = half + 1.0 + layer.random(gx, gz, 8350 + k) * r, v = Math.cos(a) * r * 0.9;
+            final double wx = s.x() + 0.5 + u * s.dirX() - (v + sway(layer, s, u)) * s.dirZ();
+            final double wz = s.z() + 0.5 + u * s.dirZ() + (v + sway(layer, s, u)) * s.dirX();
+            put((int) Math.floor(wx), s.floor() - 1 - (int) (layer.random(gx, gz, 8360 + k) * 2), (int) Math.floor(wz),
+                    AbyssalDepths.WORM_FANG.get().defaultBlockState());
+        }
+    }
+
+    /** The nearest dead worm to a place (its middle and the floor there), or null. */
     static BlockPos nearest(TunnelLayer layer, Biomes biomes, int x, int z, int cells) {
         BlockPos best = null;
         double near = Double.MAX_VALUE;
@@ -254,5 +223,57 @@ final class BuriedSkeleton {
             }
         }
         return best;
+    }
+
+    // ------------------------------------------------------------------ the wind and the storms (run time)
+
+    /**
+     * What the weather does to it: while a dune storm rages the wind strips the silt off it (more each storm, never
+     * below its own level), laying the shell and, at its mouth, the fangs bare; in calm the drifting silt slowly covers
+     * its lower parts again. Called for dead worms near players.
+     */
+    static final class Live {
+        private Live() {
+        }
+
+        static void tick(net.minecraft.server.level.ServerLevel level, TunnelLayer layer, Spot s) {
+            final boolean storm = redero.abyssaldepths.DuneStorm.remaining() > 0;
+            final long time = level.getGameTime();
+            if (time % (storm ? 4 : 30) != 0) {
+                return;
+            }
+            final net.minecraft.util.RandomSource random = level.random;
+            final double half = s.length() / 2;
+            final double u = -half + random.nextDouble() * (s.length() + s.radius() * 2.5), v = (random.nextDouble() - 0.5) * 2 * (s.radius() + 3);
+            final double sv = v + sway(layer, s, u);
+            final int x = (int) Math.floor(s.x() + 0.5 + u * s.dirX() - sv * s.dirZ()), z = (int) Math.floor(s.z() + 0.5 + u * s.dirZ() + sv * s.dirX());
+            final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(x, s.floor() + 12, z);
+            if (!level.isLoaded(pos)) {
+                return;
+            }
+            while (pos.getY() > s.floor() - 4 && level.getBlockState(pos).isAir()) {
+                pos.move(0, -1, 0);
+            }
+            final BlockState top = level.getBlockState(pos);
+            if (storm) { // the wind strips a layer of silt off what lies under it
+                if (top.is(AbyssalDepths.FINE_SILT.get()) && pos.getY() >= s.floor() - 3 && hasRemains(level, pos)) {
+                    level.setBlock(pos, Blocks.AIR.defaultBlockState(), net.minecraft.world.level.block.Block.UPDATE_ALL);
+                }
+            } else if ((top.is(AbyssalDepths.WORM_SHELL.get()) || top.is(AbyssalDepths.WORM_FANG.get())) && pos.getY() < s.floor()
+                    && level.getBlockState(pos.above()).isAir()) { // calm: silt drifts over its low parts again
+                level.setBlock(pos.above(), AbyssalDepths.FINE_SILT.get().defaultBlockState(), net.minecraft.world.level.block.Block.UPDATE_ALL);
+            }
+        }
+
+        /** Whether the worm's remains lie under a place (within a few blocks down). */
+        private static boolean hasRemains(net.minecraft.server.level.ServerLevel level, BlockPos at) {
+            for (int k = 1; k <= 4; k++) {
+                final BlockState below = level.getBlockState(at.below(k));
+                if (below.is(AbyssalDepths.WORM_SHELL.get()) || below.is(AbyssalDepths.WORM_FANG.get())) {
+                    return true;
+                }
+            }
+            return false;
+        }
     }
 }

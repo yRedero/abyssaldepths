@@ -7,12 +7,15 @@ import redero.abyssaldepths.AbyssalDepths;
 import redero.abyssaldepths.worldgen.LayerFormations.Biomes;
 
 /**
- * The frozen fall: a rare set piece of the thalan depths, the cold end of the layer. A fall of water froze where it
- * poured from a crack in a tall hall's ceiling: a column of dark ice from the ceiling to the floor, leaning a little
- * as if still falling, fluted where it ran, narrowing as it fell and spreading where it struck; gloam caught in its
- * core glows through the ice. Round its foot the floor is a frozen pool with splashes frozen as they rose; round its
- * source, icicles hang. At most one in a large grid cell, only in the depths and under a tall ceiling. Everything is
- * decided from the cell, so each chunk freezes its own part.
+ * The stilled fall: a rare set piece of the thalan depths. Seep water falls from a crack in a tall hall's ceiling,
+ * carrying grains of gloam washed loose from a seam in the crack. Behind it a seep of pure darkness opened, and pure
+ * darkness consumes light and warmth: the fall froze in an instant, and still does, so every new drop freezes as it
+ * falls and the fall grows, layer on layer. A column of dark ice from the ceiling to the floor, leaning a little as if
+ * still falling, fluted where it ran, narrowing as it fell and spreading where it struck; its oldest core holds the
+ * first gloam, stilled; its newest skin holds fresh grains glowing. Round its foot a frozen pool with splashes frozen as
+ * they rose; round its source, icicles. The darkness at work (motes, lights dying, the cold, the growing) is in
+ * {@link SetPieceLife}. At most one in a large grid cell, only in the depths and under a tall ceiling. Everything is
+ * decided from the cell, so each chunk freezes its own part. (The class keeps its old name: it was the frozen fall.)
  */
 final class FrozenFall {
     static final int CELL = 400, REACH = 14;
@@ -93,8 +96,11 @@ final class FrozenFall {
                     if (!here.isAir() && here.getFluidState().isEmpty()) {
                         continue; // only the air of the hall freezes
                     }
-                    final boolean core = d < Math.max(0.9, radius - 1.3) && layer.random(x, z, 8210 + y) < 0.55;
-                    level.setBlock(pos, core ? AbyssalDepths.GLOAM_CRYSTAL.get().defaultBlockState() : ice(), 2);
+                    // the oldest ice is its core: there the first gloam froze, stilled; the newest is its skin, fresh grains glowing in it
+                    final boolean core = d < Math.max(0.9, radius - 1.6), skin = d > radius - 1.0;
+                    final BlockState here2 = core && t > 0.45 && layer.random(x, z, 8210 + y) < 0.3 ? AbyssalDepths.STILLED_GLOAM.get().defaultBlockState()
+                            : skin && layer.random(x, z, 8215 + y) < 0.12 ? AbyssalDepths.GLOAM_CRYSTAL.get().defaultBlockState() : ice();
+                    level.setBlock(pos, here2, 2);
                 }
             }
         }

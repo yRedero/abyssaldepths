@@ -53,7 +53,7 @@ public final class AutoShot {
     private static final String SPOT_COMMANDS = System.getProperty("abyssaldepths.autoshot.spotCommands", "");
     private static final int SETTLE_TICKS = 220, TURN_TICKS = 15;
 
-    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, VANISH, OBLIVION, NEWARTIFACTS, FIRMAMENT, SMALL, LOOKS, EMPYREAN, MARKS, WAKE, FRACTURE, THRESHOLD, STORMWAKE, WORM, WORMSKILLS, FRACMARKS, FRACLEVELS, GLOW, GROTTO, VARIANTS, DONE }
+    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, VANISH, OBLIVION, NEWARTIFACTS, FIRMAMENT, SMALL, LOOKS, EMPYREAN, MARKS, WAKE, FRACTURE, THRESHOLD, STORMWAKE, WORM, WORMSKILLS, CAMP, FRACMARKS, FRACLEVELS, GLOW, GROTTO, VARIANTS, DONE }
 
     private static Step step = Step.TITLE;
     private static final Deque<String> BIOMES = new ArrayDeque<>();
@@ -104,12 +104,25 @@ public final class AutoShot {
     }
 
     private static void tick(Minecraft mc) throws Exception {
-        if (step.ordinal() > Step.LOADING.ordinal() && step != Step.PREVIEW && step != Step.HAVEN && step != Step.REPRISE && mc.screen != null) {
+        if (step.ordinal() > Step.LOADING.ordinal() && step != Step.PREVIEW && step != Step.HAVEN && step != Step.REPRISE && step != Step.CAMP && mc.screen != null) {
             mc.setScreen(null); // a pause menu that opened anyway
         }
         switch (step) {
             case TITLE -> {
-                if (mc.screen instanceof TitleScreen) {
+                if (mc.screen instanceof redero.abyssaldepths.client.OpeningScreen opening) { // the opening: three moments of it, then on
+                    final int t = ++wait;
+                    if (t == 30 || t == 100 || t == 135) {
+                        shoot(mc, "opening_" + t);
+                    } else if (t > 175) {
+                        opening.onClose();
+                        wait = 0;
+                    }
+                    return;
+                }
+                if (mc.screen instanceof TitleScreen && mc.getOverlay() == null && titleWait++ < 10) {
+                    return; // (a moment on the title screen first: the opening comes over it)
+                }
+                if (mc.screen instanceof TitleScreen && mc.getOverlay() == null) {
                     toSecondMonitor(mc);
                     for (String b : PLAN.split(",")) {
                         BIOMES.add(b.trim() + "#0");   // two places per biome: formations are a matter of chance
@@ -134,6 +147,21 @@ public final class AutoShot {
                 }
             }
             case LOADING -> {
+                if (mc.screen instanceof redero.abyssaldepths.client.CrestScreen crest) { // first join: the crest screen, shot, then a crest taken
+                    final int cw = ++crestWait;
+                    if (cw == 3) {
+                        crest.pick(2); // (one near the middle)
+                    } else if (cw == 6) {
+                        shoot(mc, "crest_screen");
+                    } else if (cw == 8) {
+                        for (var child : crest.children()) {
+                            if (child instanceof net.minecraft.client.gui.components.Button b) {
+                                b.onPress();
+                            }
+                        }
+                    }
+                    return;
+                }
                 if (mc.player != null && mc.getSingleplayerServer() != null && ++wait > 60) {
                     final MinecraftServer server = mc.getSingleplayerServer();
                     server.execute(() -> {
@@ -171,6 +199,14 @@ public final class AutoShot {
                     if (biome.endsWith("#0")) {
                         wait = 0;
                         step = Step.VARIANTS;
+                    }
+                    return;
+                }
+                if (biome != null && biome.startsWith("camp#")) {
+                    // not a place: the nearest Shadeborn camp, its people, and a cutscene played there
+                    if (biome.endsWith("#0")) {
+                        wait = 0;
+                        step = Step.CAMP;
                     }
                     return;
                 }
@@ -490,6 +526,57 @@ public final class AutoShot {
                     step = Step.NEXT;
                 }
             }
+            case CAMP -> {
+                final MinecraftServer server = mc.getSingleplayerServer();
+                final int t = ++wait;
+                if (t == 1) {
+                    command(server, "gamemode creative");
+                    command(server, "abyssaldepths camp");
+                    command(server, "effect give @s night_vision 99999 0 true");
+                    mc.options.hideGui = true;
+                } else if (t == 60) {
+                    command(server, "tp @s ~ ~1 ~ 180 15");
+                } else if (t == 140) {
+                    shoot(mc, "camp_0_near"); // strangers: they shrink back, hold up what they want
+                    command(server, "tp @s ~ ~10 ~-4 180 60");
+                } else if (t == 200) {
+                    shoot(mc, "camp_0_above");
+                    command(server, "tp @s ~ ~-10 ~4 180 15");
+                    command(server, "abyssaldepths trust 40");
+                } else if (t == 300) {
+                    shoot(mc, "camp_0_welcome"); // welcome: open
+                    mc.options.hideGui = false;
+                    command(server, "abyssaldepths cutscene abyssaldepths:demo");
+                } else if (t == 345 || t == 420 || t == 480) {
+                    shoot(mc, "camp_0_cutscene" + t);
+                } else if (t == 525) {
+                    mc.options.hideGui = false;
+                    command(server, "abyssaldepths trade");
+                } else if (t == 560) {
+                    shoot(mc, "camp_0_trade"); // the trading screen
+                    if (mc.screen != null) {
+                        mc.screen.onClose();
+                    }
+                } else if (t == 562) {
+                    mc.options.hideGui = true;
+                } else if (t == 572) {
+                    shoot(mc, "camp_0_holds"); // the trader before you, holding up what it wants
+                } else if (t == 573) {
+                    command(server, "tp @s ^2.2 ^ ^1.6 ~-55 ~");
+                } else if (t == 578) {
+                    shoot(mc, "camp_0_holds_side"); // the same from the side: the arm out before it
+                } else if (t == 580) {
+                    command(server, "abyssaldepths hut");
+                } else if (t == 655) {
+                    command(server, "tp @s ~ ~ ~ 180 25");
+                } else if (t == 700) {
+                    shoot(mc, "camp_0_hut"); // an outcast's hut
+                } else if (t > 705) {
+                    command(server, "abyssaldepths trust 0");
+                    command(server, "effect clear @s");
+                    step = Step.NEXT;
+                }
+            }
             case WORMSKILLS -> {
                 final MinecraftServer server = mc.getSingleplayerServer();
                 final int t = ++wait;
@@ -614,10 +701,13 @@ public final class AutoShot {
                 } else if (t == 90) {
                     shoot(mc, "stormwake_0_dir0"); // dull, before
                     command(server, "abyssaldepths storm start 600");
-                } else if (t == 115 || t == 145 || t == 175 || t == 205 || t == 235 || t == 290) {
-                    shoot(mc, "stormwake_0_anim" + (t - 90)); // the charge rising through it, then glowing
-                } else if (t > 300) {
+                } else if (t == 120 || t == 160 || t == 200 || t == 240 || t == 290 || t == 340) {
+                    shoot(mc, "stormwake_0_anim" + (t - 90)); // the charge spreading from the lowest point, then glowing
+                } else if (t == 360) {
                     command(server, "abyssaldepths storm stop");
+                } else if (t == 390 || t == 440 || t == 490 || t == 540 || t == 600) {
+                    shoot(mc, "stormwake_0_sleep" + (t - 360)); // and draining back down when the storm leaves
+                } else if (t > 610) {
                     step = Step.NEXT;
                 }
             }
@@ -915,6 +1005,11 @@ public final class AutoShot {
                     command(server, "gamemode spectator");
                     mc.options.hideGui = true;
                     command(server, grottoCommand);
+                } else if (t == 150 && grottoName.equals("tidelake")) {
+                    command(server, "abyssaldepths tide high"); // the tidal lake: high water from two sides, then low water
+                } else if (t == 450 && grottoName.equals("tidelake")) {
+                    shoot(mc, grottoName + "_0_highabove"); // from above at high water, then low
+                    command(server, "abyssaldepths tide low");
                 } else if (t == 200) {
                     shoot(mc, grottoName + "_0_dir0"); // from one corner, looking in
                     command(server, grottoName.equals("canyon") ? "tp @s ~ ~5 ~ ~ 45" // the canyon: from its end, steeper, then from inside
@@ -2087,6 +2182,8 @@ public final class AutoShot {
             return;
         }
     }
+
+    private static int crestWait, titleWait;
 
     private static void shoot(Minecraft mc, String name) {
         Screenshot.grab(mc.gameDirectory, "autoshot_" + name + ".png", mc.getMainRenderTarget(), msg -> { });

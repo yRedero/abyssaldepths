@@ -110,7 +110,7 @@ public final class WormRumble {
         beat = Math.max(0.0F, beat - 0.08F);
         float wantDark = 0.0F;
         final Vec3 ear = mc.player.getEyePosition();
-        if (dist < HEAR) {
+        if (dist < HEAR && mc.player.getY() < redero.abyssaldepths.worldgen.TunnelLayer.LAYER_TOP_Y) { // (only down in the layer)
             final float close = (float) (1.0 - dist / HEAR);
             // crackling: only once it is near enough to be heard through the rock, faint and deep at first
             if (dist < CRACK && now >= nextCrack) {
@@ -178,9 +178,16 @@ public final class WormRumble {
         final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         for (int t = 0; t < times; t++) {
             final double x = mc.player.getX() + (level.random.nextDouble() - 0.5) * 20, z = mc.player.getZ() + (level.random.nextDouble() - 0.5) * 20;
+            pos.set(x, mc.player.getY() + 1, z);
+            if (!level.getBlockState(pos).getCollisionShape(level, pos).isEmpty()) {
+                continue; // inside the rock there: no dust (only from a ceiling over open air)
+            }
             for (int up = 2; up < 24; up++) {
                 pos.set(x, mc.player.getY() + up, z);
                 final BlockState above = level.getBlockState(pos);
+                if (!above.getCollisionShape(level, pos).isEmpty() && !above.isCollisionShapeFullBlock(level, pos)) {
+                    break; // something not a whole block: no clean ceiling
+                }
                 if (above.isCollisionShapeFullBlock(level, pos)) {
                     for (int i = 0; i < 2 + level.random.nextInt(4); i++) {
                         level.addParticle(new BlockParticleOption(ParticleTypes.FALLING_DUST, above), x + level.random.nextGaussian() * 0.4,
@@ -199,7 +206,7 @@ public final class WormRumble {
         final BlockPos under = BlockPos.containing(mc.player.getX() + (level.random.nextDouble() - 0.5) * 8, mc.player.getY() - 0.5,
                 mc.player.getZ() + (level.random.nextDouble() - 0.5) * 8);
         final BlockState ground = level.getBlockState(under);
-        if (!ground.isAir()) {
+        if (!ground.isAir() && level.getBlockState(under.above()).getCollisionShape(level, under.above()).isEmpty()) {
             for (int i = 0; i < 3; i++) {
                 level.addParticle(new BlockParticleOption(ParticleTypes.BLOCK, ground), under.getX() + level.random.nextDouble(), under.getY() + 1.05,
                         under.getZ() + level.random.nextDouble(), 0, 0.12, 0);

@@ -14,6 +14,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -26,9 +27,9 @@ import redero.abyssaldepths.network.EffectPayload;
 
 /**
  * Keeps the thalan worms going beyond where the world runs (it runs only near players): a worm whose land is no longer
- * active is kept here as a place, a heading and its health, and goes on crawling (wandering, drawn towards players it
- * senses from far off); near a player, in active land, it is a real worm again. A worm keeps within
- * {@link #KEEP_CHUNKS} chunks of the players: straying past {@link #FAR} it turns back towards them, and left far
+ * active is kept here as a place, a heading and its health, and goes on crawling (wandering: it senses no one from
+ * afar, a rare threat met by chance and avoided with a worm compass); near a player, in active land, it is a real worm
+ * again. A worm keeps within {@link #KEEP_CHUNKS} chunks of the players: straying past {@link #FAR} it turns back towards them, and left far
  * behind it follows. Worms are saved with the world (here, not with the land). The first comes
  * {@link #FIRST_AT} ticks into the world, about {@link #FIRST_CHUNKS} chunks from a player.
  * <p>
@@ -42,7 +43,7 @@ public final class WormManager extends SavedData {
     private static final int KEEP_CHUNKS = 128, FAR = 112, FIRST_CHUNKS = 100;
     /** When the first worm comes (ticks into the world). */
     private static final long FIRST_AT = 5 * 60 * 20;
-    private static final double REAL = 120.0, HEAR = 400.0, SENSE = 640.0;
+    private static final double REAL = 120.0, HEAR = 400.0;
     private static final int STEP = 5;
     private static final double SPEED = 0.22 * STEP;
     private static final float TURN = 2.5F * STEP;
@@ -157,6 +158,7 @@ public final class WormManager extends SavedData {
         }
         if (now % 10 == 0) {
             m.sounds(level);
+            m.compasses(level);
         }
     }
 
@@ -217,16 +219,9 @@ public final class WormManager extends SavedData {
                 kept.remove(i);
                 continue;
             }
-            // on its way: towards a player it senses, else wandering
+            // on its way: wandering (it hunts only within its range, as a real worm); straying too far, back towards the players
             float want = k.yaw;
-            ServerPlayer sensed = null; // the nearest down in the layer it can sense (those above it does not notice)
-            for (ServerPlayer p : players) {
-                if (BigWorm.inLayer(p) && Math.hypot(p.getX() - k.x, p.getZ() - k.z) < SENSE
-                        && (sensed == null || p.distanceToSqr(k.x, p.getY(), k.z) < sensed.distanceToSqr(k.x, sensed.getY(), k.z))) {
-                    sensed = p;
-                }
-            }
-            final ServerPlayer toward = sensed != null ? sensed : near > FAR * 16 ? nearest : null; // sensing one, or straying too far
+            final ServerPlayer toward = near > FAR * 16 ? nearest : null;
             if (toward != null) {
                 want = (float) (Mth.atan2(-(toward.getX() - k.x), toward.getZ() - k.z) * Mth.RAD_TO_DEG);
             } else if (level.random.nextInt(24) == 0) {
@@ -260,6 +255,9 @@ public final class WormManager extends SavedData {
     /** Each player hears the nearest worm (any part of a real one, the head of one kept here) from its direction. */
     private void sounds(ServerLevel level) {
         for (ServerPlayer player : level.players()) {
+            if (!BigWorm.inLayer(player)) {
+                continue; // above the layer nothing of it is heard
+            }
             Vec3 nearest = null, head = null;
             double near = Double.MAX_VALUE;
             for (BigWorm worm : level.getEntities(AbyssalDepths.BIG_WORM.get(), w -> w.isAlive() && !w.silent())) {
@@ -285,6 +283,82 @@ public final class WormManager extends SavedData {
             PacketDistributor.sendToPlayer(player, new EffectPayload(String.format(Locale.ROOT, "worm_near/%.1f/%.1f/%.1f/%.1f/%.1f/%.1f/%.1f",
                     nearest.x, nearest.y, nearest.z, near, head.x, head.y, head.z), 0));
         }
+    }
+
+    /** For each player holding a worm compass: where the nearest worm is, how far, and whether it hunts them. */
+    private void compasses(ServerLevel level) {
+        for (ServerPlayer p : level.players()) {
+            if (!p.getMainHandItem().is(AbyssalDepths.WORM_COMPASS.get()) && !p.getOffhandItem().is(AbyssalDepths.WORM_COMPASS.get())) {
+                continue;
+            }
+            BigWorm real = null;
+            for (BigWorm worm : level.getEntities(AbyssalDepths.BIG_WORM.get(), Entity::isAlive)) {
+                if (real == null || worm.distanceTo(p) < real.distanceTo(p)) {
+                    real = worm;
+                }
+            }
+            Kept far = null;
+            for (Kept k : kept) {
+                if (far == null || p.distanceToSqr(k.x, k.y, k.z) < p.distanceToSqr(far.x, far.y, far.z)) {
+                    far = k;
+                }
+            }
+            String data = "0/0/0/0";
+            if (real != null && (far == null || real.distanceToSqr(p) <= p.distanceToSqr(far.x, far.y, far.z))) {
+                data = String.format(Locale.ROOT, "%.1f/%.1f/%.1f/%d/%d", real.getX(), real.getZ(), real.distanceTo(p), real.hunting() == p ? 3 : 2, real.smarts());
+            } else if (far != null) {
+                data = String.format(Locale.ROOT, "%.1f/%.1f/%.1f/1/%d", far.x, far.z, Math.sqrt(p.distanceToSqr(far.x, far.y, far.z)), far.smarts);
+            }
+            PacketDistributor.sendToPlayer(p, new EffectPayload("wormcompass/" + data, 0));
+        }
+    }
+
+    /** The nearest worm for a player, in words: where, how far, its state (kept far off, wandering, hunting whom). */
+    public static String describe(ServerPlayer player) {
+        final ServerLevel level = player.serverLevel();
+        BigWorm real = null;
+        for (BigWorm worm : level.getEntities(AbyssalDepths.BIG_WORM.get(), Entity::isAlive)) {
+            if (real == null || worm.distanceTo(player) < real.distanceTo(player)) {
+                real = worm;
+            }
+        }
+        Kept far = null;
+        for (Kept k : of(level).kept) {
+            if (far == null || player.distanceToSqr(k.x, k.y, k.z) < player.distanceToSqr(far.x, far.y, far.z)) {
+                far = k;
+            }
+        }
+        if (real != null && (far == null || real.distanceToSqr(player) <= player.distanceToSqr(far.x, far.y, far.z))) {
+            final Player hunted = real.hunting();
+            return String.format(Locale.ROOT, "Worm at %d %d %d, %d blocks away, cunning %d, %s", real.getBlockX(), real.getBlockY(), real.getBlockZ(),
+                    (int) real.distanceTo(player), real.smarts(), hunted == null ? (real.silent() ? "silent" : "wandering")
+                            : hunted == player ? "HUNTING YOU" : "hunting " + hunted.getGameProfile().getName());
+        }
+        if (far != null) {
+            return String.format(Locale.ROOT, "Worm at %d %d %d, %d blocks away, cunning %d, far off (moving unseen)", (int) far.x, (int) far.y, (int) far.z,
+                    (int) Math.sqrt(player.distanceToSqr(far.x, far.y, far.z)), far.smarts);
+        }
+        return "No worm";
+    }
+
+    /** Where the nearest worm is (real or kept here), or null. */
+    public static Vec3 nearestWorm(ServerLevel level, Vec3 from) {
+        Vec3 best = null;
+        double near = Double.MAX_VALUE;
+        for (BigWorm worm : level.getEntities(AbyssalDepths.BIG_WORM.get(), Entity::isAlive)) {
+            if (worm.position().distanceTo(from) < near) {
+                near = worm.position().distanceTo(from);
+                best = worm.position();
+            }
+        }
+        for (Kept k : of(level).kept) {
+            final Vec3 at = new Vec3(k.x, k.y, k.z);
+            if (at.distanceTo(from) < near) {
+                near = at.distanceTo(from);
+                best = at;
+            }
+        }
+        return best;
     }
 
     private static List<Vec3> points(BigWorm worm) {

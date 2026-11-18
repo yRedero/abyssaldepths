@@ -9,12 +9,13 @@ import redero.abyssaldepths.AbyssalDepths;
 import redero.abyssaldepths.worldgen.LayerFormations.Biomes;
 
 /**
- * The lava fall: a rare set piece of the thermal reaches, where the heat comes up. Lava pours from a crack in a tall
- * hall's ceiling (the rock round the crack glowing) and falls the whole height of the hall into a cup of smouldering
- * rock standing in the middle of a lake; the lake steams round it (water in the reaches always does). The cup's lip
- * keeps the lava from the water, so it stays a fall of lava into a steaming lake and never crusts over. At most one in
- * a large grid cell, only in the reaches under a tall ceiling. Everything is decided from the cell, so each chunk lays
- * its own part; the lava itself starts flowing where it is placed, like a spring.
+ * The lava fall: a rare set piece of the thermal reaches, where the heat comes up from below. Magma pushed up by that
+ * heat has spread into a pocket in the rock over a tall hall (as rising magma spreads into weak layers) and broken
+ * through the hall's roof: lava pours from the breach (the rock round it glowing) into a cup of smouldering rock
+ * standing in a lake of seep water gathered at that low point; the lake steams round it. Where the lava meets the water
+ * at the cup's lip it is quenched into fire-hardened slag. It only happens where the heat comes from below, so only in
+ * the reaches. At most one in a large grid cell, under a tall ceiling. Everything is decided from the cell, so each
+ * chunk lays its own part; the lava itself starts flowing where it is placed, like a spring.
  */
 final class LavaFall {
     static final int CELL = 440, REACH = 22;
@@ -23,7 +24,7 @@ final class LavaFall {
     private static final double POOL = 2.2, LIP = 3.6, CUP = 5.2;
 
     /** A fall: where it lands (x, z), the hall's floor there and its ceiling, the lake's radius. */
-    record Spot(int x, int z, int floor, int ceiling, double lake) {
+    record Spot(int x, int z, int floor, int ceiling, double lake, double dirX, double dirZ, int height) {
     }
 
     private final WorldGenLevel level;
@@ -50,7 +51,7 @@ final class LavaFall {
         if (biomes.at(x, z) != Biomes.THERMAL || !layer.column(x, z, c) || c.ceiling - c.floor < 16) {
             return null; // not in the reaches, or no tall hall there
         }
-        return new Spot(x, z, c.floor, c.ceiling, 10.0 + layer.random(gx, gz, 8504) * 5.0);
+        return new Spot(x, z, c.floor, c.ceiling, 10.0 + layer.random(gx, gz, 8504) * 5.0, 1, 0, c.ceiling);
     }
 
     void apply() {
@@ -103,9 +104,10 @@ final class LavaFall {
                     for (int y = surface - depth + 1; y <= surface; y++) {
                         level.setBlock(pos.set(x, y, z), y == surface ? Blocks.LAVA.defaultBlockState() : smoulder, 2);
                     }
-                } else if (d < LIP) { // the lip: a block over the water, so the lava never reaches it
+                } else if (d < LIP) { // the lip: a block over the water, so the lava never reaches it; quenched into slag where both met
+                    final BlockState slag = AbyssalDepths.FIRE_HARDENED_SLAG.get().defaultBlockState();
                     for (int y = surface - depth + 1; y <= surface + 1; y++) {
-                        level.setBlock(pos.set(x, y, z), smoulder, 2);
+                        level.setBlock(pos.set(x, y, z), y >= surface && layer.random(x, z, 8530 + y) < 0.4 ? slag : smoulder, 2);
                     }
                 } else if (d < CUP + 0.8 * layer.noise3(x / 3.0, 0.2, z / 3.0, 22)) { // its shore, flush with the water
                     for (int y = surface - depth + 1; y <= surface; y++) {
@@ -121,44 +123,63 @@ final class LavaFall {
     }
 
     /**
-     * The crack it pours from: a lava source set into the ceiling over the cup, closed in by rock on every side but
-     * below, ticked so it starts to flow; magma and smouldering rock glow round it on the ceiling.
+     * The breach it pours from: in the wall, at the height the magma broke through, a lava source set into the rock
+     * (closed in on every side but towards the hall), the wall round it glowing; the fall already falling from it into
+     * the cup below.
      */
     private void source(Spot s) {
-        final int r = 4;
-        for (int x = Math.max(x0, s.x() - r); x <= Math.min(x0 + 15, s.x() + r); x++) {
-            for (int z = Math.max(z0, s.z() - r); z <= Math.min(z0 + 15, s.z() + r); z++) {
-                final double d = Math.hypot(x - s.x(), z - s.z());
-                if (d > r) {
-                    continue;
-                }
-                int y = s.floor() + 6; // up to the ceiling's underside
-                while (y <= TunnelLayer.MAX_AIR_Y + 4 && level.getBlockState(pos.set(x, y, z)).isAir()) {
-                    y++;
-                }
-                if (y > TunnelLayer.MAX_AIR_Y + 4 || level.getBlockState(pos.set(x, y, z)).isAir()) {
-                    continue;
-                }
-                if (x == s.x() && z == s.z()) {
-                    for (int[] o : new int[][] {{1, 0, 0}, {-1, 0, 0}, {0, 0, 1}, {0, 0, -1}, {0, 1, 0}}) {
-                        final BlockState around = level.getBlockState(pos.set(x + o[0], y + o[1], z + o[2]));
-                        if (around.isAir() || !around.getFluidState().isEmpty()) {
-                            level.setBlock(pos, AbyssalDepths.THERMAL_ROCK.get().defaultBlockState(), 2);
-                        }
+        // the breach: in the roof over the cup, where the pocket of magma above the hall broke through
+        final boolean found = false;
+        int top = s.floor() + 6; // the roof over the cup
+        while (top <= TunnelLayer.MAX_AIR_Y + 4 && !solidAt(s.x(), top, s.z())) {
+            top++;
+        }
+        final int y = top, wx = s.x(), wz = s.z(), fx = s.x(), fz = s.z();
+        final int r = 3;
+        for (int x = wx - r; x <= wx + r; x++) {
+            for (int z = wz - r; z <= wz + r; z++) {
+                for (int yy = y - r; yy <= y + r; yy++) {
+                    if (x < x0 || x > x0 + 15 || z < z0 || z > z0 + 15) {
+                        continue;
                     }
-                    level.setBlock(pos.set(x, y, z), Blocks.LAVA.defaultBlockState(), 2);
-                    level.scheduleTick(pos, Fluids.LAVA, 0);
-                    // the fall itself, already falling (lava would take half a minute to get down by itself)
-                    final BlockState falling = Blocks.LAVA.defaultBlockState().setValue(net.minecraft.world.level.block.LiquidBlock.LEVEL, 8);
-                    for (int k = y - 1; k > s.floor() - 1 && level.getBlockState(pos.set(x, k, z)).isAir(); k--) {
-                        level.setBlock(pos, falling, 2);
-                        level.scheduleTick(pos, Fluids.LAVA, 1);
+                    final double d = Math.sqrt((x - wx) * (x - wx) + (z - wz) * (z - wz) + (yy - y) * (yy - y));
+                    final BlockState here = level.getBlockState(pos.set(x, yy, z));
+                    if (d <= r && !here.isAir() && here.getFluidState().isEmpty() && layer.random(x, z, 8510 + yy) < 0.75 * (1.0 - d / r) + 0.15) {
+                        level.setBlock(pos, d < 1.8 ? Blocks.MAGMA_BLOCK.defaultBlockState() : AbyssalDepths.SMOULDERING_ROCK.get().defaultBlockState(), 2);
                     }
-                } else if (layer.random(x, z, 8510) < 0.7 * (1.0 - d / r) + 0.1) {
-                    level.setBlock(pos.set(x, y, z), d < 2.0 ? Blocks.MAGMA_BLOCK.defaultBlockState() : AbyssalDepths.SMOULDERING_ROCK.get().defaultBlockState(), 2);
                 }
             }
         }
+        if (wx < x0 || wx > x0 + 15 || wz < z0 || wz > z0 + 15) {
+            return;
+        }
+        for (int[] o : new int[][] {{1, 0, 0}, {-1, 0, 0}, {0, 0, 1}, {0, 0, -1}, {0, 1, 0}, {0, -1, 0}}) {
+            final int ox = wx + o[0], oy = y + o[1], oz = wz + o[2];
+            final boolean out = found ? ox == fx && oz == fz && oy == y : o[1] == -1; // its open side: towards the fall
+            if (out || ox < x0 || ox > x0 + 15 || oz < z0 || oz > z0 + 15) {
+                continue;
+            }
+            final BlockState around = level.getBlockState(pos.set(ox, oy, oz));
+            if (around.isAir() || !around.getFluidState().isEmpty()) {
+                level.setBlock(pos, AbyssalDepths.THERMAL_ROCK.get().defaultBlockState(), 2);
+            }
+        }
+        level.setBlock(pos.set(wx, y, wz), Blocks.LAVA.defaultBlockState(), 2);
+        level.scheduleTick(pos, Fluids.LAVA, 0);
+        // the fall itself, already falling from the face (lava would take half a minute to find its way by itself)
+        if (fx >= x0 && fx <= x0 + 15 && fz >= z0 && fz <= z0 + 15) {
+            final BlockState falling = Blocks.LAVA.defaultBlockState().setValue(net.minecraft.world.level.block.LiquidBlock.LEVEL, 8);
+            for (int yy = found ? y : y - 1; yy > s.floor() - 1 && !level.getBlockState(pos.set(fx, yy, fz)).is(Blocks.LAVA) && level.getBlockState(pos).getFluidState().isEmpty(); yy--) {
+                level.setBlock(pos, falling, 2);
+                level.scheduleTick(pos, Fluids.LAVA, 1);
+            }
+        }
+    }
+
+    /** Whether the layer's rock stands at a place (from its shape, the same in every chunk; formations aside). */
+    private boolean solidAt(int x, int y, int z) {
+        final TunnelLayer.Column c = new TunnelLayer.Column();
+        return !layer.column(x, z, c) || y > c.ceiling || y < c.floor;
     }
 
     /** The nearest fall to a place (where it lands and the floor there), or null. */

@@ -135,6 +135,9 @@ public class AbyssalDepths {
     public static final Supplier<AttachmentType<Integer>> TICKS_BELOW = ATTACHMENT_TYPES.register("ticks_below",
             () -> AttachmentType.builder(() -> 0).serialize(Codec.INT).build());
 
+    /** A player's crest (-1 until they chose one on first joining; see crest.Crests), theirs for good. */
+    public static final Supplier<AttachmentType<Integer>> CREST = ATTACHMENT_TYPES.register("crest",
+            () -> AttachmentType.builder(() -> -1).serialize(Codec.INT).copyOnDeath().build());
     /** A player's Corruption Scars (failed Fracturing trials), kept through death ({@code fracture.Scars}). */
     public static final Supplier<AttachmentType<Integer>> SCARS = ATTACHMENT_TYPES.register("corruption_scars",
             () -> AttachmentType.builder(() -> 0).serialize(Codec.INT).copyOnDeath().build());
@@ -318,6 +321,49 @@ public class AbyssalDepths {
                     .lightLevel(state -> state.getValue(redero.abyssaldepths.block.StormClusterBlock.CHARGED) ? 12 : 0)));
     /** What a charged storm crystal breaks into: the storm, held. */
     public static final DeferredItem<Item> STORM_SHARD = ITEMS.registerSimpleItem("storm_shard");
+    public static final DeferredItem<net.neoforged.neoforge.common.DeferredSpawnEggItem> SHADEBORN_SPAWN_EGG = ITEMS.register("shadeborn_spawn_egg",
+            () -> new net.neoforged.neoforge.common.DeferredSpawnEggItem(AbyssalDepths.SHADEBORN, 0x0D0B10, 0xD8D2E6, new Item.Properties()));
+    /** Points to the nearest worm while held (see client.WormCompassView). */
+    public static final DeferredItem<Item> WORM_COMPASS = ITEMS.registerItem("worm_compass", Item::new, new Item.Properties().stacksTo(1));
+    /** Given by a camp's Keeper to those it counts as Kin: the camp's mark. */
+    public static final DeferredItem<Item> KIN_MARK = ITEMS.registerItem("kin_mark", Item::new, new Item.Properties().stacksTo(1)
+            .rarity(net.minecraft.world.item.Rarity.UNCOMMON));
+    /** Made by the dune camps' Stormwatchers: in a dune storm, the one wearing them sees further. */
+    public static final DeferredItem<net.minecraft.world.item.ArmorItem> STORM_GOGGLES = ITEMS.register("storm_goggles",
+            () -> new net.minecraft.world.item.ArmorItem(net.minecraft.world.item.ArmorMaterials.LEATHER, net.minecraft.world.item.ArmorItem.Type.HELMET,
+                    new Item.Properties().durability(240)));
+    /** The set pieces' finds, each found only at its own place (see the set pieces). */
+    /** From the oldest core of the stilled fall: gloam frozen in a single instant by pure darkness. */
+    public static final DeferredBlock<Block> STILLED_GLOAM = withItem(BLOCKS.registerSimpleBlock("stilled_gloam",
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLUE).requiresCorrectToolForDrops().strength(4.0F, 8.0F)
+                    .sound(SoundType.AMETHYST).lightLevel(state -> 4).friction(0.98F)));
+    /** A fang of the dead worm in the dunes (what lasts of a worm is what was hard): what summons a worm again. */
+    public static final DeferredBlock<Block> WORM_FANG = withItem(BLOCKS.registerSimpleBlock("worm_fang",
+            BlockBehaviour.Properties.of().mapColor(MapColor.SAND).requiresCorrectToolForDrops().strength(3.0F, 6.0F).sound(SoundType.BONE_BLOCK)));
+    /** The hardened skin of a thalan worm, left as the shell of the dead worm in the dunes. */
+    public static final DeferredBlock<Block> WORM_SHELL = withItem(BLOCKS.registerSimpleBlock("worm_shell",
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK).requiresCorrectToolForDrops().strength(4.0F, 8.0F).sound(SoundType.NETHERITE_BLOCK)));
+    /** From round the lava fall's cup: lava quenched in the pool below it. */
+    public static final DeferredBlock<Block> FIRE_HARDENED_SLAG = withItem(BLOCKS.registerSimpleBlock("fire_hardened_slag",
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK).requiresCorrectToolForDrops().strength(5.0F, 9.0F)
+                    .sound(SoundType.BASALT).lightLevel(state -> 2)));
+    /** From the walls of the fracture canyon, where the heat that cracked the flats forged them. */
+    public static final DeferredBlock<net.minecraft.world.level.block.AmethystClusterBlock> HEAT_FORGED_CRYSTAL = withItem(BLOCKS.registerBlock(
+            "heat_forged_crystal", p -> new net.minecraft.world.level.block.AmethystClusterBlock(6.0F, 3.0F, p),
+            BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_RED).forceSolidOn().noOcclusion().strength(1.5F).requiresCorrectToolForDrops()
+                    .sound(SoundType.AMETHYST_CLUSTER).lightLevel(state -> 5).pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)));
+    /** Grown layer on layer in the tidal lake's churning siphon throat. */
+    public static final DeferredItem<Item> CAVE_PEARL = ITEMS.registerSimpleItem("cave_pearl");
+    /** Thrown out of the vent lung with its bursts. */
+    public static final DeferredItem<Item> LUNG_ASH = ITEMS.registerSimpleItem("lung_ash");
+    /** Pure light drawn at the wellspring in a glass bottle. */
+    public static final DeferredItem<Item> VESSEL_OF_LIGHT = ITEMS.registerItem("vessel_of_light",
+            p -> new Item(p) {
+                @Override
+                public boolean isFoil(net.minecraft.world.item.ItemStack stack) {
+                    return true;
+                }
+            }, new Item.Properties().stacksTo(16).rarity(net.minecraft.world.item.Rarity.UNCOMMON));
     public static final DeferredBlock<net.minecraft.world.level.block.GlowLichenBlock> GLOAM_MOSS = withItem(BLOCKS.registerBlock(
             "gloam_moss", net.minecraft.world.level.block.GlowLichenBlock::new,
             BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_CYAN).replaceable().noCollission().strength(0.2F).sound(SoundType.MOSS_CARPET)
@@ -445,6 +491,10 @@ public class AbyssalDepths {
     public static final DeferredHolder<EntityType<?>, EntityType<redero.abyssaldepths.entity.BigWorm>> BIG_WORM = ENTITY_TYPES.register("big_worm",
             () -> EntityType.Builder.<redero.abyssaldepths.entity.BigWorm>of(redero.abyssaldepths.entity.BigWorm::new, MobCategory.MONSTER).sized(6.0F, 6.0F)
                     .clientTrackingRange(16).build("big_worm"));
+    /** The Shadeborn, the people of the dark region (see shadeborn.Shadeborn). */
+    public static final DeferredHolder<EntityType<?>, EntityType<redero.abyssaldepths.shadeborn.Shadeborn>> SHADEBORN = ENTITY_TYPES.register("shadeborn",
+            () -> EntityType.Builder.<redero.abyssaldepths.shadeborn.Shadeborn>of(redero.abyssaldepths.shadeborn.Shadeborn::new, MobCategory.CREATURE)
+                    .sized(0.6F, 1.9F).eyeHeight(1.6F).clientTrackingRange(10).build("shadeborn"));
     /** An echo of the player on the threshold of their trial, acting out its rules. */
     public static final DeferredHolder<EntityType<?>, EntityType<redero.abyssaldepths.fracture.TrialEcho>> TRIAL_ECHO = ENTITY_TYPES.register("trial_echo",
             () -> EntityType.Builder.<redero.abyssaldepths.fracture.TrialEcho>of(redero.abyssaldepths.fracture.TrialEcho::new, MobCategory.MISC).sized(0.6F, 1.8F)
@@ -610,6 +660,7 @@ public class AbyssalDepths {
 
     public AbyssalDepths(IEventBus modEventBus, ModContainer container) {
         container.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
+        container.registerConfig(ModConfig.Type.SERVER, ServerConfig.SPEC);
         // the fungus family was the "gloam" wood once: blocks and items of older worlds come back under their new names
         for (String[] renamed : new String[][] {
                 {"stripped_gloam_hyphae", "stripped_dusk_hyphae"},
@@ -645,9 +696,12 @@ public class AbyssalDepths {
                     event.put(FRACTURE_DOUBLE.get(), net.minecraft.world.entity.LivingEntity.createLivingAttributes().build());
                     event.put(TRIAL_ECHO.get(), net.minecraft.world.entity.LivingEntity.createLivingAttributes().build());
                     event.put(BIG_WORM.get(), redero.abyssaldepths.entity.BigWorm.attributes().build());
+                    event.put(SHADEBORN.get(), redero.abyssaldepths.shadeborn.Shadeborn.attributes().build());
                     event.put(REMNANT.get(), redero.abyssaldepths.fracture.Remnant.attributes().build());
                 });
         FEATURES.register(modEventBus);
+        redero.abyssaldepths.worldgen.ShadebornStructure.TYPES.register(modEventBus);
+        redero.abyssaldepths.worldgen.ShadebornStructure.PIECES.register(modEventBus);
         CREATIVE_TABS.register(modEventBus);
         MOB_EFFECTS.register(modEventBus);
         SOUND_EVENTS.register(modEventBus);

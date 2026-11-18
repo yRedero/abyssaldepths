@@ -10,11 +10,13 @@ import redero.abyssaldepths.AbyssalDepths;
 import redero.abyssaldepths.worldgen.LayerFormations.Biomes;
 
 /**
- * The gloam grotto: a rare set piece of the thalan depths, the heart of the gloam. In a tall hall lies a still, dark
- * lake, deeper in its middle, held in by a rim of rock; spires of gloam crystal rise round it and out of it, the
- * ceiling over it is thick with crystal and hanging clusters, every wall round it carries moss, and duskcaps stand on
- * its shore. At most one in a large grid cell, and only where the cell's spot lies in the depths with room overhead.
- * Everything is decided from the cell, so each chunk paints its own part of it.
+ * The wellspring: a rare set piece of the thalan depths, where pure light rises from deep below. The gloam is pure
+ * light settled into crystal, so here, where the most of it rises, it settles thickest: spires of gloam crystal round
+ * the lake and out of it, the ceiling over it thick with crystal and hanging clusters, moss on every wall round it,
+ * duskcaps on its shore. The lake is seep water gathered in a low basin; the light rises through its bed, so it glows
+ * from below. The light itself (rising motes, easing Deep Pressure, filling a bottle) is in {@link SetPieceLife}. At
+ * most one in a large grid cell, only where the spot lies in the depths with room overhead. Everything is decided from
+ * the cell, so each chunk paints its own part. (The class keeps its old name: it was the gloam grotto.)
  */
 final class GloamGrotto {
     static final int CELL = 480, REACH = 34;

@@ -1,0 +1,8 @@
+{
+  "type": "abyssaldepths:shadeborn",
+  "biomes": "#abyssaldepths:has_shadeborn",
+  "step": "surface_structures",
+  "spawn_overrides": {},
+  "terrain_adaptation": "none",
+  "kind": "hut"
+}

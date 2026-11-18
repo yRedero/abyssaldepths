@@ -57,6 +57,11 @@
     "abyssaldepths:dark_ice",
     "abyssaldepths:tide_stone",
     "abyssaldepths:storm_crystal_cluster",
-    "abyssaldepths:storm_crystal"
+    "abyssaldepths:storm_crystal",
+    "abyssaldepths:stilled_gloam",
+    "abyssaldepths:fire_hardened_slag",
+    "abyssaldepths:heat_forged_crystal",
+    "abyssaldepths:worm_fang",
+    "abyssaldepths:worm_shell"
   ]
 }

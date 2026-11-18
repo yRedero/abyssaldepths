@@ -70,9 +70,10 @@ public class BigWormRenderer extends EntityRenderer<BigWorm> {
         pose.mulPose(Axis.XP.rotationDegrees(pitch));
         pose.scale(1 / 16.0F, 1 / 16.0F, 1 / 16.0F);
         pose.translate(-AXIS_X, -AXIS_Y, -HEAD_MIDDLE);
-        final String animation = worm.animation();
+        final redero.abyssaldepths.cinema.CutsceneActor.Acting acting = worm.acted(); // in a cutscene: what it was told to play
+        final String animation = acting != null ? acting.animation() : worm.animation();
         final float now = worm.level().getGameTime() + partial;
-        final float time = (now - worm.animationStart()) / 20.0F;
+        final float time = (now - (acting != null ? acting.from() : worm.animationStart())) / 20.0F;
         final BbModel.Bone head = model.bone("head");
         if (head != null) {
             model.draw(head, pose, out, light, overlay, animation.isEmpty() ? null : animation, time);

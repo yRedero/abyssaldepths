@@ -1,0 +1,94 @@
+{
+  "length": 120,
+  "letterbox": true,
+  "hide_hud": true,
+  "skippable": true,
+  "camera": [
+    {
+      "t": 0,
+      "pos": [
+        2.5,
+        1.6,
+        -2.5
+      ],
+      "look": [
+        0,
+        1.4,
+        0
+      ],
+      "fov": 60
+    },
+    {
+      "t": 60,
+      "pos": [
+        -2.5,
+        2.2,
+        -3
+      ],
+      "look": [
+        0,
+        1.4,
+        0
+      ],
+      "fov": 55
+    },
+    {
+      "t": 120,
+      "pos": [
+        -1,
+        4,
+        -5
+      ],
+      "look": [
+        0,
+        1.2,
+        0
+      ],
+      "fov": 65
+    }
+  ],
+  "fades": [
+    {
+      "t": 0,
+      "from": 1,
+      "to": 0,
+      "over": 15
+    },
+    {
+      "t": 100,
+      "from": 0,
+      "to": 1,
+      "over": 20
+    }
+  ],
+  "titles": [
+    {
+      "t": 25,
+      "key": "cutscene.abyssaldepths.keeper.title",
+      "duration": 70,
+      "style": "title",
+      "color": "#D0B5D2"
+    },
+    {
+      "t": 40,
+      "key": "cutscene.abyssaldepths.keeper.caption",
+      "duration": 60,
+      "style": "caption",
+      "color": "#A0A8AD"
+    }
+  ],
+  "sounds": [
+    {
+      "t": 0,
+      "sound": "minecraft:block.beacon.activate",
+      "volume": 1,
+      "pitch": 0.6
+    },
+    {
+      "t": 30,
+      "sound": "minecraft:block.amethyst_block.resonate",
+      "volume": 1,
+      "pitch": 0.5
+    }
+  ]
+}

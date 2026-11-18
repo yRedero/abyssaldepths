@@ -135,7 +135,7 @@ public class TunnelFeature extends Feature<NoneFeatureConfiguration> {
         new FractureCanyon(level, layer, biomes, x0, z0).apply(); // where the heat cracked the flats
         new LavaFall(level, layer, biomes, x0, z0).apply(); // where the heat comes up
         new VentLung(level, layer, biomes, x0, z0).apply(); // where the ground breathes
-        new TideLake(level, layer, biomes, world.formations, x0, z0).apply(); // a lake whose path comes and goes
+        new TideLake(level, layer, biomes, world.formations, x0, z0).apply(); // a lake a siphon drains and the seep fills again
         new StormSpires(level, layer, biomes, x0, z0).apply(); // the dunes' storm crystals
         if (marks != null) {
             mark(marks, 7);
@@ -156,7 +156,7 @@ public class TunnelFeature extends Feature<NoneFeatureConfiguration> {
      * noise; the share of dunes around a spot 49 of those; the formations of a grid cell the cavern shape)
      * are kept in thread-safe caches instead of being worked out again for every neighbouring chunk.
      */
-    private static final class Context {
+    static final class Context {
         private static final int MAX_ENTRIES = 1_000_000;
         private static volatile Context current;
 
@@ -239,6 +239,16 @@ public class TunnelFeature extends Feature<NoneFeatureConfiguration> {
     public static BlockPos nearestTideLake(net.minecraft.server.level.ServerLevel level, BlockPos from) {
         final Context c = Context.of(level);
         return TideLake.nearest(c.layer, c.biomes, c.formations, from.getX(), from.getZ(), 8);
+    }
+
+    /** Sets the nearest tidal lake's tide (a test command): low water now, or high. */
+    public static boolean tide(net.minecraft.server.level.ServerLevel level, BlockPos from, boolean low) {
+        final BlockPos lake = nearestTideLake(level, from);
+        if (lake == null) {
+            return false;
+        }
+        TideLake.tide(level.getGameTime(), lake.getX(), lake.getZ(), low);
+        return true;
     }
 
     /** The middle of the nearest vent lung (a few thousand blocks round), or null. */

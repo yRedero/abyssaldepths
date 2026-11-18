@@ -380,7 +380,7 @@ public final class LayerAmbience {
             creatureCooldown = 9000 + RANDOM.nextInt(12000);
             final double a = RANDOM.nextDouble() * 2 * Math.PI, walk = a + Math.PI / 2;
             final double x = player.getX() + Math.cos(a) * 60, y = player.getEyeY(), z = player.getZ() + Math.sin(a) * 60;
-            final boolean roar = creatureNext == 0 ? RANDOM.nextBoolean() : creatureNext == 1;
+            final boolean roar = false; // (the distant roar is gone: not to be taken for the worm)
             creatureNext = 0;
             if (roar) {
                 play(AbyssalDepths.DISTANT_CREATURE.get(), x, y, z, 1.0F, 0.9F + RANDOM.nextFloat() * 0.2F);

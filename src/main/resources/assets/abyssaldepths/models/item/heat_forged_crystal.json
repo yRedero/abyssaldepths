@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "abyssaldepths:block/heat_forged_crystal"
+  }
+}

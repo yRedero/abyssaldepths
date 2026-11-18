@@ -1,9 +1,13 @@
 package redero.abyssaldepths.client;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.joml.Matrix4f;
 
@@ -12,20 +16,22 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
+import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.AmethystClusterBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
@@ -40,27 +46,91 @@ import redero.abyssaldepths.block.StormClusterBlock;
 import redero.abyssaldepths.worldgen.TunnelLayer;
 
 /**
- * The storm crystals waking: when a dune storm charges a spire (its blocks turn charged), the charge rises slowly
- * from the ground up through it: its dull skin (the dull texture, drawn over it) fades away from below with a soft
- * edge, a faint light at the front, sparks and a slowly rising tone; at the tip it settles with a soft pulse and a
- * crack. The small crystals round it burst into sparks.
- * Spires already charged when they come into sight just glow (it only plays as it happens).
+ * The storm crystals waking and falling asleep. Crystals standing together (storm crystal blocks and the small crystals,
+ * within two blocks of each other: a spire with those round its feet, or whatever a player built of them) are one
+ * <em>formation</em>, and the charge spreads through it as one: from its lowest point (the one nearest its middle),
+ * upwards first and outwards slower (height counts twice what distance does). Where the charge has come, the dull skin
+ * (the dull texture, drawn over the charged blocks) fades with a soft edge, a faint light at the front, sparks and a
+ * rising tone; when it is through, a soft pulse and a crack at the top. When the storm leaves, the same in reverse: the
+ * charged look (drawn over the dull blocks) drains from the top back down to the lowest point, the tone falling.
+ * Formations already charged when they come into sight just glow (it plays only as it happens).
  */
 @EventBusSubscriber(modid = AbyssalDepths.MODID, value = Dist.CLIENT)
 public final class StormCrystalView {
-    private static final int RADIUS_CHUNKS = 4, CLIMB_TICKS = 140, FLASH_TICKS = 40;
-    /** How soft the edge between dull and charged is (blocks either side of the front). */
-    private static final float SOFT = 1.4F;
-    /** Spires seen (by the column's x, z): their foot, height and whether charged when last looked at. */
-    private record Spire(int x, int z, int foot, int height, boolean charged) {
+    private static final int RADIUS_CHUNKS = 4, LINK = 2, FLASH_TICKS = 40;
+    /** Ticks for the charge to cross a block of height (two of distance); how soft the front is (in the same units). */
+    private static final float TICKS_PER_UNIT = 24, SOFT = 1.2F, OUTWARD = 0.5F;
+    private static final int LIGHT = 0xE6FBFF;
+    private static final ResourceLocation DULL = ResourceLocation.fromNamespaceAndPath(AbyssalDepths.MODID, "block/storm_crystal");
+    private static final ResourceLocation DULL_CLUSTER = ResourceLocation.fromNamespaceAndPath(AbyssalDepths.MODID, "block/storm_crystal_cluster");
+    private static final ResourceLocation CHARGED = ResourceLocation.fromNamespaceAndPath(AbyssalDepths.MODID, "block/storm_crystal_charged");
+    private static final ResourceLocation CHARGED_CLUSTER = ResourceLocation.fromNamespaceAndPath(AbyssalDepths.MODID, "block/storm_crystal_cluster_charged");
+
+    /** A formation: its crystal blocks and small crystals, its lowest point, the farthest the charge goes, whether charged. */
+    private static final class Formation {
+        final List<BlockPos> blocks = new ArrayList<>(), clusters = new ArrayList<>();
+        final Set<BlockPos> blockSet = new HashSet<>();
+        double ax, az;
+        int ay;
+        float reach;
+        boolean charged;
+        /** The animation playing: its start, and whether waking (else falling asleep); -1 for none. */
+        long start = -1;
+        boolean waking;
+
+        /** When the charge comes to a point (in units: height, then distance at half weight). */
+        float wake(double x, double y, double z) {
+            return (float) (Math.max(0, y - ay) + OUTWARD * Math.hypot(x - ax, z - az));
+        }
+
+        /** Where the front is now (units), or NaN when nothing plays. */
+        float front(float now) {
+            if (start < 0) {
+                return Float.NaN;
+            }
+            final float k = (now - start) / (TICKS_PER_UNIT * (reach + 2 * SOFT));
+            final float eased = Mth.clamp(k, 0, 1);
+            final float u = -SOFT + (reach + 2 * SOFT) * eased;
+            return waking ? u : reach + SOFT - (u + SOFT);
+        }
+
+        long duration() {
+            return (long) (TICKS_PER_UNIT * (reach + 2 * SOFT));
+        }
+
+        BlockPos top() {
+            BlockPos best = blocks.isEmpty() ? clusters.get(0) : blocks.get(0);
+            for (BlockPos p : blocks) {
+                if (p.getY() > best.getY()) {
+                    best = p;
+                }
+            }
+            return best;
+        }
     }
 
-    private static final Map<Long, Spire> SPIRES = new HashMap<>();
-    private static final Map<Long, Boolean> CLUSTERS = new HashMap<>();
-    /** Spires waking now: which, and the tick it began. */
-    private static final List<long[]> SURGES = new ArrayList<>();
+    private static final List<Formation> FORMATIONS = new ArrayList<>();
 
     private StormCrystalView() {
+    }
+
+    private static boolean charged(ClientLevel level, BlockPos p) {
+        final BlockState s = level.getBlockState(p);
+        return s.hasProperty(StormClusterBlock.CHARGED) && s.getValue(StormClusterBlock.CHARGED);
+    }
+
+    private static boolean anyCharged(ClientLevel level, Formation f) {
+        for (BlockPos p : f.blocks) {
+            if (charged(level, p)) {
+                return true;
+            }
+        }
+        for (BlockPos p : f.clusters) {
+            if (charged(level, p)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @SubscribeEvent
@@ -68,73 +138,75 @@ public final class StormCrystalView {
         final Minecraft mc = Minecraft.getInstance();
         final ClientLevel level = mc.level;
         if (level == null || mc.player == null) {
-            SPIRES.clear();
-            CLUSTERS.clear();
-            SURGES.clear();
+            FORMATIONS.clear();
             return;
         }
         final long now = level.getGameTime();
-        SURGES.removeIf(s -> now - s[1] > CLIMB_TICKS + FLASH_TICKS);
-        for (long[] s : SURGES) { // sparks on the rising band; the crack at the tip
-            final Spire spire = SPIRES.get(s[0]);
-            if (spire == null) {
-                continue;
+        for (Formation f : FORMATIONS) { // every tick: the moment the charge comes (or goes), it starts
+            final boolean c = anyCharged(level, f);
+            if (c != f.charged) {
+                f.charged = c;
+                f.waking = c;
+                f.start = now;
+                level.playLocalSound(f.ax + 0.5, f.ay + 0.5, f.az + 0.5, SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.BLOCKS, 0.7F, c ? 0.6F : 1.4F, false);
             }
-            final long t = now - s[1];
-            if (t <= CLIMB_TICKS) {
-                final double y = front(spire, t);
-                for (int k = 0; k < (t % 2 == 0 ? 1 : 0); k++) {
-                    level.addParticle(ParticleTypes.ELECTRIC_SPARK, spire.x() + 0.5 + (level.random.nextDouble() - 0.5) * 1.3, y,
-                            spire.z() + 0.5 + (level.random.nextDouble() - 0.5) * 1.3, 0, 0.05, 0);
-                }
-                if (t % 12 == 0) {
-                    level.playLocalSound(spire.x() + 0.5, y, spire.z() + 0.5, SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.BLOCKS, 0.8F,
-                            0.6F + 1.0F * t / CLIMB_TICKS, false);
-                }
-            } else if (t == CLIMB_TICKS + 1) {
-                level.playLocalSound(spire.x() + 0.5, spire.foot() + spire.height(), spire.z() + 0.5, SoundEvents.LIGHTNING_BOLT_IMPACT, SoundSource.WEATHER,
-                        0.5F, 1.8F, false);
-                for (int k = 0; k < 14; k++) {
-                    level.addParticle(ParticleTypes.ELECTRIC_SPARK, spire.x() + 0.5, spire.foot() + spire.height(), spire.z() + 0.5,
-                            (level.random.nextDouble() - 0.5) * 0.6, level.random.nextDouble() * 0.4, (level.random.nextDouble() - 0.5) * 0.6);
-                }
+            if (f.start >= 0) {
+                play(level, f, now);
             }
         }
-        // the spires and crystals known to be dull: looked at every tick, so the surge starts the moment the charge comes
-        for (Map.Entry<Long, Spire> e : SPIRES.entrySet()) {
-            final Spire spire = e.getValue();
-            if (spire.charged()) {
-                continue;
-            }
-            final BlockState foot = level.getBlockState(new BlockPos(spire.x(), spire.foot(), spire.z()));
-            if (foot.hasProperty(StormClusterBlock.CHARGED) && foot.getValue(StormClusterBlock.CHARGED)) {
-                SURGES.add(new long[] {e.getKey(), now});
-                e.setValue(new Spire(spire.x(), spire.z(), spire.foot(), spire.height(), true));
-            }
+        if (now % 10 == 0 && mc.player.getY() < TunnelLayer.MAX_AIR_Y + 40) {
+            look(level);
         }
-        for (Map.Entry<Long, Boolean> e : CLUSTERS.entrySet()) {
-            if (e.getValue()) {
-                continue;
-            }
-            final BlockPos p = BlockPos.of(e.getKey());
-            final BlockState state = level.getBlockState(p);
-            if (state.hasProperty(StormClusterBlock.CHARGED) && state.getValue(StormClusterBlock.CHARGED)) {
-                e.setValue(true);
-                sparks(level, p);
-            }
-        }
-        if (now % 10 != 0 || mc.player.getY() > TunnelLayer.MAX_AIR_Y + 40) {
-            return;
-        }
-        look(level, now);
     }
 
-    /** Looks over the crystals round the player: a spire or crystal that was dull and is charged now wakes. */
-    private static void look(ClientLevel level, long now) {
+    /** Sparks at the front, the tone rising (or falling); the crack at the top when it is through. */
+    private static void play(ClientLevel level, Formation f, long now) {
+        final long t = now - f.start;
+        if (t > f.duration() + FLASH_TICKS) {
+            f.start = -1;
+            return;
+        }
+        if (t <= f.duration()) {
+            final float front = f.front(now);
+            for (BlockPos p : f.blocks) {
+                if (Math.abs(f.wake(p.getX() + 0.5, p.getY() + 0.5, p.getZ() + 0.5) - front) < 0.5F && level.random.nextInt(4) == 0) {
+                    level.addParticle(ParticleTypes.ELECTRIC_SPARK, p.getX() + level.random.nextDouble(), p.getY() + level.random.nextDouble(),
+                            p.getZ() + level.random.nextDouble(), 0, f.waking ? 0.05 : -0.03, 0);
+                }
+            }
+            for (BlockPos p : f.clusters) { // a small crystal the front passes: a few sparks
+                final float w = f.wake(p.getX() + 0.5, p.getY() + 0.5, p.getZ() + 0.5);
+                if (Math.abs(w - front) < 0.05F) {
+                    sparks(level, p, f.waking ? 6 : 2);
+                }
+            }
+            if (t % 12 == 0) {
+                final float k = t / (float) f.duration();
+                level.playLocalSound(f.ax + 0.5, f.ay + 0.5 + Math.max(0, front), f.az + 0.5, SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.BLOCKS,
+                        0.6F, f.waking ? 0.6F + 1.0F * k : 1.6F - 1.0F * k, false);
+            }
+        } else if (t == f.duration() + 1 && f.waking && !f.blocks.isEmpty()) {
+            final BlockPos top = f.top();
+            level.playLocalSound(top.getX() + 0.5, top.getY() + 1, top.getZ() + 0.5, SoundEvents.LIGHTNING_BOLT_IMPACT, SoundSource.WEATHER, 0.5F, 1.8F, false);
+            sparks(level, top.above(), 14);
+        }
+    }
+
+    private static void sparks(ClientLevel level, BlockPos p, int n) {
+        for (int k = 0; k < n; k++) {
+            level.addParticle(ParticleTypes.ELECTRIC_SPARK, p.getX() + 0.5, p.getY() + 0.4, p.getZ() + 0.5,
+                    (level.random.nextDouble() - 0.5) * 0.3, level.random.nextDouble() * 0.25, (level.random.nextDouble() - 0.5) * 0.3);
+        }
+    }
+
+    /**
+     * Looks over the crystals round the player and groups them into formations, keeping what is known of the old ones
+     * (whether charged, what plays) for those that are still there.
+     */
+    private static void look(ClientLevel level) {
         final Minecraft mc = Minecraft.getInstance();
         final ChunkPos at = mc.player.chunkPosition();
-        final Map<Long, int[]> columns = new HashMap<>(); // x, z, lowest, highest, charged
-        final Map<Long, Boolean> clusters = new HashMap<>();
+        final Map<BlockPos, Boolean> found = new HashMap<>(); // position -> is a crystal block (else a small crystal)
         for (int dz = -RADIUS_CHUNKS; dz <= RADIUS_CHUNKS; dz++) {
             for (int dx = -RADIUS_CHUNKS; dx <= RADIUS_CHUNKS; dx++) {
                 if (!level.hasChunk(at.x + dx, at.z + dz)) {
@@ -155,18 +227,9 @@ public final class StormCrystalView {
                         for (int z = 0; z < 16; z++) {
                             for (int x = 0; x < 16; x++) {
                                 final BlockState state = section.getBlockState(x, y, z);
-                                if (!state.hasProperty(StormClusterBlock.CHARGED)) {
-                                    continue;
-                                }
-                                final int bx = chunk.getPos().getMinBlockX() + x, by = baseY + y, bz = chunk.getPos().getMinBlockZ() + z;
-                                final boolean charged = state.getValue(StormClusterBlock.CHARGED);
-                                if (state.is(AbyssalDepths.STORM_CRYSTAL.get())) {
-                                    final int[] c = columns.computeIfAbsent(BlockPos.asLong(bx, 0, bz), k -> new int[] {bx, bz, by, by, 0});
-                                    c[2] = Math.min(c[2], by);
-                                    c[3] = Math.max(c[3], by);
-                                    c[4] |= charged ? 1 : 0;
-                                } else {
-                                    clusters.put(BlockPos.asLong(bx, by, bz), charged);
+                                if (state.hasProperty(StormClusterBlock.CHARGED)) {
+                                    found.put(new BlockPos(chunk.getPos().getMinBlockX() + x, baseY + y, chunk.getPos().getMinBlockZ() + z),
+                                            state.is(AbyssalDepths.STORM_CRYSTAL.get()));
                                 }
                             }
                         }
@@ -174,55 +237,110 @@ public final class StormCrystalView {
                 }
             }
         }
-        for (Map.Entry<Long, int[]> e : columns.entrySet()) {
-            final int[] c = e.getValue();
-            final Spire before = SPIRES.get(e.getKey());
-            final Spire now2 = new Spire(c[0], c[1], c[2], c[3] - c[2] + 1, c[4] == 1);
-            if (before != null && !before.charged() && now2.charged()) {
-                SURGES.add(new long[] {e.getKey(), now});
-            }
-            SPIRES.put(e.getKey(), now2);
+        // the old formations by their members, to carry over what plays
+        final Map<BlockPos, Formation> old = new HashMap<>();
+        for (Formation f : FORMATIONS) {
+            f.blocks.forEach(p -> old.put(p, f));
+            f.clusters.forEach(p -> old.put(p, f));
         }
-        for (Map.Entry<Long, Boolean> e : clusters.entrySet()) {
-            final Boolean before = CLUSTERS.get(e.getKey());
-            if (before != null && !before && e.getValue()) { // a small crystal waking: a burst of sparks
-                sparks(level, BlockPos.of(e.getKey()));
+        final List<Formation> next = new ArrayList<>();
+        final Set<BlockPos> seen = new HashSet<>();
+        for (BlockPos seed : found.keySet()) {
+            if (!seen.add(seed)) {
+                continue;
             }
+            final Formation f = new Formation();
+            final ArrayDeque<BlockPos> open = new ArrayDeque<>();
+            open.add(seed);
+            while (!open.isEmpty()) {
+                final BlockPos p = open.poll();
+                if (found.get(p)) {
+                    f.blocks.add(p);
+                    f.blockSet.add(p);
+                } else {
+                    f.clusters.add(p);
+                }
+                for (BlockPos n : BlockPos.betweenClosed(p.offset(-LINK, -LINK, -LINK), p.offset(LINK, LINK, LINK))) {
+                    if (found.containsKey(n) && !seen.contains(n)) {
+                        final BlockPos q = n.immutable();
+                        seen.add(q);
+                        open.add(q);
+                    }
+                }
+            }
+            shape(f);
+            Formation before = null;
+            for (BlockPos p : f.blocks) {
+                before = before == null ? old.get(p) : before;
+            }
+            for (BlockPos p : f.clusters) {
+                before = before == null ? old.get(p) : before;
+            }
+            if (before != null) {
+                f.charged = before.charged;
+                f.start = before.start;
+                f.waking = before.waking;
+            } else {
+                f.charged = anyCharged(level, f); // first seen: as it is, nothing plays
+            }
+            next.add(f);
         }
-        SPIRES.keySet().retainAll(columns.keySet());
-        CLUSTERS.clear();
-        CLUSTERS.putAll(clusters);
+        FORMATIONS.clear();
+        FORMATIONS.addAll(next);
     }
 
-    private static void sparks(ClientLevel level, BlockPos p) {
-        for (int k = 0; k < 10; k++) {
-            level.addParticle(ParticleTypes.ELECTRIC_SPARK, p.getX() + 0.5, p.getY() + 0.4, p.getZ() + 0.5,
-                    (level.random.nextDouble() - 0.5) * 0.3, level.random.nextDouble() * 0.25, (level.random.nextDouble() - 0.5) * 0.3);
+    /** The formation's lowest point (of the lowest, the one nearest its middle) and how far the charge must go. */
+    private static void shape(Formation f) {
+        final List<BlockPos> all = new ArrayList<>(f.blocks);
+        all.addAll(f.clusters);
+        int low = Integer.MAX_VALUE;
+        double mx = 0, mz = 0;
+        for (BlockPos p : all) {
+            low = Math.min(low, p.getY());
+            mx += p.getX();
+            mz += p.getZ();
         }
+        mx /= all.size();
+        mz /= all.size();
+        BlockPos anchor = null;
+        for (BlockPos p : all) {
+            if (p.getY() == low && (anchor == null || Math.hypot(p.getX() - mx, p.getZ() - mz) < Math.hypot(anchor.getX() - mx, anchor.getZ() - mz))) {
+                anchor = p;
+            }
+        }
+        f.ax = anchor.getX() + 0.5;
+        f.az = anchor.getZ() + 0.5;
+        f.ay = low;
+        float reach = 0;
+        for (BlockPos p : all) {
+            for (int c = 0; c < 8; c++) { // its farthest corner
+                reach = Math.max(reach, f.wake(p.getX() + (c & 1), p.getY() + (c >> 1 & 1), p.getZ() + (c >> 2 & 1)));
+            }
+        }
+        f.reach = reach;
     }
 
     // ---- drawn ----------------------------------------------------------------------------
 
-    /** Where the charge's front is in a spire, so many ticks after it began (from below its foot to above its tip). */
-    private static double front(Spire spire, double t) {
-        final double k = Math.min(1.0, t / CLIMB_TICKS);
-        final double eased = k * k * (3 - 2 * k);
-        return spire.foot() - SOFT + (spire.height() + 2 * SOFT) * eased;
+    /** How much of the old look is left at a point: waking, the dull skin (1 where the charge has not come); asleep, the charged one. */
+    private static float left(Formation f, float front, double x, double y, double z) {
+        final float w = f.wake(x, y, z);
+        final float k = Mth.clamp((w - front + SOFT) / (2 * SOFT), 0, 1);
+        final float s = k * k * (3 - 2 * k); // 1 ahead of the front
+        return f.waking ? s : 1 - s;
     }
-
-    /** How much of the dull skin is left at a height (1 above the front, 0 below, soft between). */
-    private static float dullness(double y, double front) {
-        final double k = Mth.clamp((y - front + SOFT) / (2 * SOFT), 0.0, 1.0);
-        return (float) (k * k * (3 - 2 * k));
-    }
-
-    private static final int LIGHT = 0xE6FBFF;
-    private static final ResourceLocation DULL_SKIN = ResourceLocation.fromNamespaceAndPath(AbyssalDepths.MODID, "block/storm_crystal");
 
     @SubscribeEvent
     public static void onRender(RenderLevelStageEvent event) {
         final Minecraft mc = Minecraft.getInstance();
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS || SURGES.isEmpty() || mc.level == null) {
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS || mc.level == null) {
+            return;
+        }
+        boolean any = false;
+        for (Formation f : FORMATIONS) {
+            any |= f.start >= 0;
+        }
+        if (!any) {
             return;
         }
         final float now = mc.level.getGameTime() + event.getPartialTick().getGameTimeDeltaPartialTick(false);
@@ -231,99 +349,154 @@ public final class StormCrystalView {
         pose.pushPose();
         pose.translate(-cam.x, -cam.y, -cam.z);
         final MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        final TextureAtlasSprite skin = mc.getModelManager().getAtlas(InventoryMenu.BLOCK_ATLAS).getSprite(DULL_SKIN);
+        final var atlas = mc.getModelManager().getAtlas(InventoryMenu.BLOCK_ATLAS);
         final VertexConsumer tex = buffers.getBuffer(RenderType.entityTranslucent(InventoryMenu.BLOCK_ATLAS));
-        for (long[] s : SURGES) {
-            final Spire spire = SPIRES.get(s[0]);
-            if (spire != null && now - s[1] <= CLIMB_TICKS) {
-                skin(tex, pose.last(), mc.level, spire, front(spire, now - s[1]), skin);
+        for (Formation f : FORMATIONS) {
+            if (f.start < 0 || now - f.start > f.duration()) {
+                continue;
+            }
+            final float front = f.front(now);
+            final TextureAtlasSprite skin = atlas.getSprite(f.waking ? DULL : CHARGED), small = atlas.getSprite(f.waking ? DULL_CLUSTER : CHARGED_CLUSTER);
+            for (BlockPos p : f.blocks) {
+                block(tex, pose.last(), mc.level, f, p, front, skin);
+            }
+            for (BlockPos p : f.clusters) {
+                cluster(tex, pose.last(), mc.level, f, p, front, small);
             }
         }
         buffers.endBatch(RenderType.entityTranslucent(InventoryMenu.BLOCK_ATLAS));
         final VertexConsumer q = buffers.getBuffer(RenderType.debugQuads());
         final Matrix4f m = pose.last().pose();
-        for (long[] s : SURGES) {
-            final Spire spire = SPIRES.get(s[0]);
-            if (spire == null) {
+        for (Formation f : FORMATIONS) {
+            if (f.start < 0) {
                 continue;
             }
-            final float t = now - s[1];
-            if (t <= CLIMB_TICKS) { // a faint light at the front, soft above and below
-                final float f = (float) front(spire, t);
-                glow(q, m, spire, f - SOFT, f, 0.0F, 0.28F);
-                glow(q, m, spire, f, f + SOFT * 0.6F, 0.28F, 0.0F);
-            } else { // settled: a soft pulse over it all, fading
-                final float k = Mth.clamp(1.0F - (t - CLIMB_TICKS) / FLASH_TICKS, 0.0F, 1.0F);
-                glow(q, m, spire, spire.foot(), spire.foot() + spire.height(), 0.4F * k, 0.4F * k);
+            final float t = now - f.start;
+            for (BlockPos p : f.blocks) {
+                if (t <= f.duration()) { // a faint light at the front
+                    glow(q, m, f, p, f.front(now), -1);
+                } else if (f.waking) { // through: a soft pulse over it all, fading
+                    glow(q, m, f, p, 0, 0.4F * Mth.clamp(1 - (t - f.duration()) / FLASH_TICKS, 0, 1));
+                }
             }
         }
         buffers.endBatch(RenderType.debugQuads());
         pose.popPose();
     }
 
-    /**
-     * The dull skin over a spire, fading out below the front: each block's sides (and the top) in the dull texture, cut
-     * into slices so the fade is smooth, each corner as dull as the height it is at; lit like the air beside it.
-     */
-    private static void skin(VertexConsumer v, PoseStack.Pose pose, ClientLevel level, Spire spire, double front, TextureAtlasSprite sprite) {
-        final float e = 0.004F, x0 = spire.x() - e, x1 = spire.x() + 1 + e, z0 = spire.z() - e, z1 = spire.z() + 1 + e;
+    /** One crystal block's skin: its open sides in slices and its top, each corner as much as is left there. */
+    private static void block(VertexConsumer v, PoseStack.Pose pose, ClientLevel level, Formation f, BlockPos p, float front, TextureAtlasSprite sprite) {
+        final float e = 0.004F, x0 = p.getX() - e, x1 = p.getX() + 1 + e, z0 = p.getZ() - e, z1 = p.getZ() + 1 + e;
         final int slices = 4;
-        for (int b = 0; b < spire.height(); b++) {
-            final int y = spire.foot() + b;
-            for (int k = 0; k < slices; k++) {
-                final float ya = y + k / (float) slices, yb = y + (k + 1) / (float) slices;
-                final float da = dullness(ya, front), db = dullness(yb, front);
-                if (da <= 0.004F && db <= 0.004F) {
-                    continue;
+        final boolean bright = !f.waking;
+        for (int k = 0; k < slices; k++) {
+            final float ya = p.getY() + k / (float) slices, yb = p.getY() + (k + 1) / (float) slices;
+            final float va = sprite.getV(1.0F - k / (float) slices), vb = sprite.getV(1.0F - (k + 1) / (float) slices);
+            final float u0 = sprite.getU0(), u1 = sprite.getU1();
+            for (Direction d : Direction.Plane.HORIZONTAL) {
+                final BlockPos n = p.relative(d);
+                if (f.blockSet.contains(n)) {
+                    continue; // inside the formation: unseen
                 }
-                final float va = sprite.getV(1.0F - k / (float) slices), vb = sprite.getV(1.0F - (k + 1) / (float) slices);
-                final float u0 = sprite.getU0(), u1 = sprite.getU1();
-                side(v, pose, level, new BlockPos(spire.x(), y, spire.z() - 1), x0, z0, x1, z0, ya, yb, da, db, u0, u1, va, vb, 0, 0, -1);
-                side(v, pose, level, new BlockPos(spire.x(), y, spire.z() + 1), x1, z1, x0, z1, ya, yb, da, db, u0, u1, va, vb, 0, 0, 1);
-                side(v, pose, level, new BlockPos(spire.x() - 1, y, spire.z()), x0, z1, x0, z0, ya, yb, da, db, u0, u1, va, vb, -1, 0, 0);
-                side(v, pose, level, new BlockPos(spire.x() + 1, y, spire.z()), x1, z0, x1, z1, ya, yb, da, db, u0, u1, va, vb, 1, 0, 0);
+                final float ax, az, bx, bz;
+                switch (d) {
+                    case NORTH -> { ax = x0; az = z0; bx = x1; bz = z0; }
+                    case SOUTH -> { ax = x1; az = z1; bx = x0; bz = z1; }
+                    case WEST -> { ax = x0; az = z1; bx = x0; bz = z0; }
+                    default -> { ax = x1; az = z0; bx = x1; bz = z1; }
+                }
+                final int light = bright ? 0xF000F0 : LevelRenderer.getLightColor(level, n);
+                quad(v, pose, light, sprite, ax, ya, az, bx, ya, bz, bx, yb, bz, ax, yb, az,
+                        left(f, front, ax, ya, az), left(f, front, bx, ya, bz), left(f, front, bx, yb, bz), left(f, front, ax, yb, az),
+                        u0, va, u1, va, u1, vb, u0, vb, d.getStepX(), 0, d.getStepZ());
             }
         }
-        final float top = spire.foot() + spire.height() + e, dt = dullness(top, front);
-        if (dt > 0.004F) {
-            final int c = (int) (dt * 255) << 24 | 0xFFFFFF;
-            final int light = LevelRenderer.getLightColor(level, new BlockPos(spire.x(), spire.foot() + spire.height(), spire.z()));
-            vertex(v, pose, x0, top, z0, c, sprite.getU0(), sprite.getV0(), light, 0, 1, 0);
-            vertex(v, pose, x0, top, z1, c, sprite.getU0(), sprite.getV1(), light, 0, 1, 0);
-            vertex(v, pose, x1, top, z1, c, sprite.getU1(), sprite.getV1(), light, 0, 1, 0);
-            vertex(v, pose, x1, top, z0, c, sprite.getU1(), sprite.getV0(), light, 0, 1, 0);
+        if (!f.blockSet.contains(p.above())) {
+            final float y = p.getY() + 1 + e;
+            final int light = bright ? 0xF000F0 : LevelRenderer.getLightColor(level, p.above());
+            quad(v, pose, light, sprite, x0, y, z0, x0, y, z1, x1, y, z1, x1, y, z0,
+                    left(f, front, x0, y, z0), left(f, front, x0, y, z1), left(f, front, x1, y, z1), left(f, front, x1, y, z0),
+                    sprite.getU0(), sprite.getV0(), sprite.getU0(), sprite.getV1(), sprite.getU1(), sprite.getV1(), sprite.getU1(), sprite.getV0(), 0, 1, 0);
         }
     }
 
-    /** One slice of one side: from (ax, az) to (bx, bz) along it, ya to yb up, its alpha da below and db above. */
-    private static void side(VertexConsumer v, PoseStack.Pose pose, ClientLevel level, BlockPos air, float ax, float az, float bx, float bz, float ya, float yb,
-                             float da, float db, float u0, float u1, float va, float vb, float nx, float ny, float nz) {
-        final int light = LevelRenderer.getLightColor(level, air);
-        final int ca = (int) (da * 255) << 24 | 0xFFFFFF, cb = (int) (db * 255) << 24 | 0xFFFFFF;
-        vertex(v, pose, ax, ya, az, ca, u0, va, light, nx, ny, nz);
-        vertex(v, pose, bx, ya, bz, ca, u1, va, light, nx, ny, nz);
-        vertex(v, pose, bx, yb, bz, cb, u1, vb, light, nx, ny, nz);
-        vertex(v, pose, ax, yb, az, cb, u0, vb, light, nx, ny, nz);
-    }
-
-    private static void vertex(VertexConsumer v, PoseStack.Pose pose, float x, float y, float z, int argb, float u, float vv, int light, float nx, float ny, float nz) {
-        v.addVertex(pose, x, y, z).setColor(argb).setUv(u, vv).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(pose, nx, ny, nz);
-    }
-
-    /** A faint light round a spire from y0 to y1, its strength a0 at the bottom and a1 at the top. */
-    private static void glow(VertexConsumer q, Matrix4f m, Spire spire, float y0, float y1, float a0, float a1) {
-        y0 = Math.max(y0, spire.foot());
-        y1 = Math.min(y1, spire.foot() + spire.height());
-        if (y1 <= y0) {
+    /**
+     * A small crystal's look: its two crossed planes as the block model lays them (corner to corner, 0.05 to 0.95), in
+     * slices, both faces just off the planes; standing ones and hanging ones (those on walls just change).
+     */
+    private static void cluster(VertexConsumer v, PoseStack.Pose pose, ClientLevel level, Formation f, BlockPos p, float front, TextureAtlasSprite sprite) {
+        final BlockState state = level.getBlockState(p);
+        if (!state.hasProperty(AmethystClusterBlock.FACING)) {
             return;
         }
-        final int c0 = (int) (Mth.clamp(a0, 0, 1) * 255) << 24 | LIGHT, c1 = (int) (Mth.clamp(a1, 0, 1) * 255) << 24 | LIGHT;
-        final float e = 0.008F, x0 = spire.x() - e, x1 = spire.x() + 1 + e, z0 = spire.z() - e, z1 = spire.z() + 1 + e;
-        for (float[] s : new float[][] {{x0, z0, x1, z0}, {x1, z1, x0, z1}, {x0, z1, x0, z0}, {x1, z0, x1, z1}}) {
-            q.addVertex(m, s[0], y0, s[1]).setColor(c0);
-            q.addVertex(m, s[2], y0, s[3]).setColor(c0);
-            q.addVertex(m, s[2], y1, s[3]).setColor(c1);
-            q.addVertex(m, s[0], y1, s[1]).setColor(c1);
+        final Direction facing = state.getValue(AmethystClusterBlock.FACING);
+        if (facing != Direction.UP && facing != Direction.DOWN) {
+            return;
         }
+        final boolean hanging = facing == Direction.DOWN;
+        final float x = p.getX(), z = p.getZ(), lo = 0.05F, hi = 0.95F, off = 0.003F;
+        final int light = f.waking ? LevelRenderer.getLightColor(level, p) : 0xF000F0;
+        final int slices = 4;
+        final float[][] planes = {{lo, lo, hi, hi, 0.707F, -0.707F}, {lo, hi, hi, lo, 0.707F, 0.707F}};
+        for (int k = 0; k < slices; k++) {
+            final float ya = p.getY() + k / (float) slices, yb = p.getY() + (k + 1) / (float) slices;
+            // the texture's foot is at the block's floor (or its ceiling, hanging)
+            final float va = sprite.getV(hanging ? k / (float) slices : 1.0F - k / (float) slices);
+            final float vb = sprite.getV(hanging ? (k + 1) / (float) slices : 1.0F - (k + 1) / (float) slices);
+            for (float[] pl : planes) {
+                for (int side = -1; side <= 1; side += 2) {
+                    final float nx = pl[4] * side, nz = pl[5] * side, ox = nx * off, oz = nz * off;
+                    final float ax = x + pl[0] + ox, az = z + pl[1] + oz, bx = x + pl[2] + ox, bz = z + pl[3] + oz;
+                    quad(v, pose, light, sprite, ax, ya, az, bx, ya, bz, bx, yb, bz, ax, yb, az,
+                            left(f, front, ax, ya, az), left(f, front, bx, ya, bz), left(f, front, bx, yb, bz), left(f, front, ax, yb, az),
+                            sprite.getU0(), va, sprite.getU1(), va, sprite.getU1(), vb, sprite.getU0(), vb, nx, 0, nz);
+                }
+            }
+        }
+    }
+
+    private static void quad(VertexConsumer v, PoseStack.Pose pose, int light, TextureAtlasSprite s, float x1, float y1, float z1, float x2, float y2, float z2,
+                             float x3, float y3, float z3, float x4, float y4, float z4, float a1, float a2, float a3, float a4,
+                             float u1, float v1, float u2, float v2, float u3, float v3, float u4, float v4, float nx, float ny, float nz) {
+        if (a1 <= 0.004F && a2 <= 0.004F && a3 <= 0.004F && a4 <= 0.004F) {
+            return;
+        }
+        vertex(v, pose, x1, y1, z1, a1, u1, v1, light, nx, ny, nz);
+        vertex(v, pose, x2, y2, z2, a2, u2, v2, light, nx, ny, nz);
+        vertex(v, pose, x3, y3, z3, a3, u3, v3, light, nx, ny, nz);
+        vertex(v, pose, x4, y4, z4, a4, u4, v4, light, nx, ny, nz);
+    }
+
+    private static void vertex(VertexConsumer v, PoseStack.Pose pose, float x, float y, float z, float a, float u, float vv, int light, float nx, float ny, float nz) {
+        v.addVertex(pose, x, y, z).setColor((int) (Mth.clamp(a, 0, 1) * 255) << 24 | 0xFFFFFF).setUv(u, vv).setOverlay(OverlayTexture.NO_OVERLAY)
+                .setLight(light).setNormal(pose, nx, ny, nz);
+    }
+
+    /** A faint light round a block: at the front (alpha below 0), or evenly (the pulse). */
+    private static void glow(VertexConsumer q, Matrix4f m, Formation f, BlockPos p, float front, float even) {
+        final float e = 0.008F, x0 = p.getX() - e, x1 = p.getX() + 1 + e, z0 = p.getZ() - e, z1 = p.getZ() + 1 + e;
+        final int slices = 4;
+        for (int k = 0; k < slices; k++) {
+            final float ya = p.getY() + k / (float) slices, yb = p.getY() + (k + 1) / (float) slices;
+            for (float[] s : new float[][] {{x0, z0, x1, z0}, {x1, z1, x0, z1}, {x0, z1, x0, z0}, {x1, z0, x1, z1}}) {
+                final float a1 = band(f, front, even, s[0], ya, s[1]), a2 = band(f, front, even, s[2], ya, s[3]);
+                final float a3 = band(f, front, even, s[2], yb, s[3]), a4 = band(f, front, even, s[0], yb, s[1]);
+                if (a1 + a2 + a3 + a4 < 0.01F) {
+                    continue;
+                }
+                q.addVertex(m, s[0], ya, s[1]).setColor(color(a1));
+                q.addVertex(m, s[2], ya, s[3]).setColor(color(a2));
+                q.addVertex(m, s[2], yb, s[3]).setColor(color(a3));
+                q.addVertex(m, s[0], yb, s[1]).setColor(color(a4));
+            }
+        }
+    }
+
+    private static float band(Formation f, float front, float even, double x, double y, double z) {
+        return even >= 0 ? even : 0.3F * Mth.clamp(1 - Math.abs(f.wake(x, y, z) - front) / SOFT, 0, 1);
+    }
+
+    private static int color(float a) {
+        return (int) (Mth.clamp(a, 0, 1) * 255) << 24 | LIGHT;
     }
 }

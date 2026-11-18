@@ -81,6 +81,14 @@ public final class DeepPressure extends MobEffect {
         // no cures: the pressure only goes away by going up
     }
 
+    /** Players whose pressure eases for now (in pure light: the wellspring), till when (game tick). */
+    private static final java.util.Map<java.util.UUID, Long> EASED = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** In pure light the pressure recedes as if they had gone up (for the next ticks). */
+    public static void ease(Player player, int ticks) {
+        EASED.put(player.getUUID(), player.level().getGameTime() + ticks);
+    }
+
     /** 0 without the effect, else 1 to 4 (its level). */
     public static int stage(LivingEntity entity) {
         final MobEffectInstance effect = entity.getEffect(AbyssalDepths.DEEP_PRESSURE);
@@ -107,15 +115,17 @@ public final class DeepPressure extends MobEffect {
     @SubscribeEvent
     public static void onPlayerTick(PlayerTickEvent.Post event) {
         final Player player = event.getEntity();
-        if (player.level().isClientSide() || player.isSpectator()) {
+        if (player.level().isClientSide()) {
             return;
         }
+        // creative and spectators feel none of it (unless the world's config says they do): it eases as if they had gone up
+        final boolean exempt = (player.isCreative() || player.isSpectator()) && !ServerConfig.pressureInCreative();
         final MobEffectInstance current = player.getEffect(AbyssalDepths.DEEP_PRESSURE);
         if (current != null && current.getAmplifier() >= STAGE_TICKS.length && player.tickCount % 20 == 0
                 && player.getRandom().nextFloat() < NAUSEA_CHANCE) {
             player.addEffect(new MobEffectInstance(MobEffects.CONFUSION, 7 * 20, 0, true, false, false));
         }
-        if (player.getBlockY() > TunnelLayer.LAYER_TOP_Y) {
+        if (exempt || player.getBlockY() > TunnelLayer.LAYER_TOP_Y || player.level().getGameTime() < EASED.getOrDefault(player.getUUID(), 0L)) {
             if (player.getData(AbyssalDepths.TICKS_BELOW) != 0) {
                 player.setData(AbyssalDepths.TICKS_BELOW, 0);
             }

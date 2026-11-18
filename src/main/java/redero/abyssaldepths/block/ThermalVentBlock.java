@@ -100,6 +100,14 @@ public class ThermalVentBlock extends Block {
         level.setBlock(pos, state.setValue(ERUPTING, false), Block.UPDATE_CLIENTS);
         final double reach = wave > 0 ? LUNG_REACH : REACH;
         level.playSound(null, pos, SoundEvents.LAVA_EXTINGUISH, SoundSource.BLOCKS, wave > 0 ? 1.2F : 0.9F, wave > 0 ? 0.5F : 0.7F);
+        if (wave > 0 && random.nextFloat() < 0.05F && level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class,
+                new net.minecraft.world.phys.AABB(pos).inflate(24), e -> e.getItem().is(AbyssalDepths.LUNG_ASH.get())).size() < 6) {
+            // the lung throws out ash from the chamber below with its burst
+            final net.minecraft.world.entity.item.ItemEntity ash = new net.minecraft.world.entity.item.ItemEntity(level, pos.getX() + 0.5, pos.getY() + 1.2,
+                    pos.getZ() + 0.5, new net.minecraft.world.item.ItemStack(AbyssalDepths.LUNG_ASH.get()));
+            ash.setDeltaMovement((random.nextDouble() - 0.5) * 0.3, 0.7 + random.nextDouble() * 0.3, (random.nextDouble() - 0.5) * 0.3);
+            level.addFreshEntity(ash);
+        }
         level.sendParticles(ParticleTypes.CLOUD, pos.getX() + 0.5, pos.getY() + 1.0 + reach / 2, pos.getZ() + 0.5, wave > 0 ? 40 : 25,
                 0.2, reach / 4, 0.2, 0.05);
         if (level.getBlockState(pos.above()).isAir()) {

@@ -41,6 +41,18 @@ final class GloamPockets {
         this.z0 = z0;
     }
 
+    /** The pocket of a cell, if it has one: its middle (x, z) and radius ({x, z, radius*100}); dunes not checked. */
+    static int[] pocket(TunnelLayer layer, int gx, int gz) {
+        if (layer.random(gx, gz, 7101) >= CHANCE) {
+            return null;
+        }
+        final int px = gx * CELL + 8 + (int) (layer.random(gx, gz, 7102) * (CELL - 16));
+        final int pz = gz * CELL + 8 + (int) (layer.random(gx, gz, 7103) * (CELL - 16));
+        return new int[] {px, pz, (int) ((6.5 + layer.random(gx, gz, 7104) * 5.0) * 100)};
+    }
+
+    static final int POCKET_CELL = CELL;
+
     void apply() {
         final int pad = MAX_RADIUS + 1;
         for (int gx = Math.floorDiv(x0 - pad, CELL); gx <= Math.floorDiv(x0 + 15 + pad, CELL); gx++) {

@@ -206,11 +206,25 @@ public final class BbModel {
 
     /** Draws a bone and all below it (pose in Blockbench pixels, y up), posed by an animation at a time (or none). */
     public void draw(Bone bone, PoseStack pose, VertexConsumer out, int light, int overlay, String animation, float time) {
+        draw(bone, pose, out, light, overlay, animation, time, null);
+    }
+
+    /**
+     * Draws a bone and all below it, posed by an animation and, on top of it, extra turns of named bones (degrees x, y,
+     * z, added to the animation's: a creature's posture, where it looks).
+     */
+    public void draw(Bone bone, PoseStack pose, VertexConsumer out, int light, int overlay, String animation, float time, Map<String, float[]> extra) {
         pose.pushPose();
         final float[] o = bone.origin();
         pose.translate(o[0], o[1], o[2]);
         final Pose anim = pose(animation, bone.name(), time);
         float rx = bone.rotation()[0], ry = bone.rotation()[1], rz = bone.rotation()[2];
+        final float[] more = extra == null ? null : extra.get(bone.name());
+        if (more != null) {
+            rx += more[0];
+            ry += more[1];
+            rz += more[2];
+        }
         if (anim != null) {
             pose.translate(anim.position[0], anim.position[1], anim.position[2]);
             rx += anim.rotation[0];
@@ -226,9 +240,60 @@ public final class BbModel {
             cube(c, pose, out, light, overlay);
         }
         for (Bone b : bone.bones()) {
-            draw(b, pose, out, light, overlay, animation, time);
+            draw(b, pose, out, light, overlay, animation, time, extra);
         }
         pose.popPose();
+    }
+
+    /**
+     * Moves a pose into a bone's space as drawn (the bones above it posed alike), for placing things on it (an item in a
+     * hand). Whether the bone was found.
+     */
+    public boolean into(String name, PoseStack pose, String animation, float time, Map<String, float[]> extra) {
+        for (Bone b : bones) {
+            final List<Bone> path = new java.util.ArrayList<>();
+            if (path(b, name, path)) {
+                for (Bone step : path) {
+                    final float[] o = step.origin();
+                    pose.translate(o[0], o[1], o[2]);
+                    final Pose anim = pose(animation, step.name(), time);
+                    float rx = step.rotation()[0], ry = step.rotation()[1], rz = step.rotation()[2];
+                    final float[] more = extra == null ? null : extra.get(step.name());
+                    if (more != null) {
+                        rx += more[0];
+                        ry += more[1];
+                        rz += more[2];
+                    }
+                    if (anim != null) {
+                        pose.translate(anim.position[0], anim.position[1], anim.position[2]);
+                        rx += anim.rotation[0];
+                        ry += anim.rotation[1];
+                        rz += anim.rotation[2];
+                    }
+                    rotate(pose, rx, ry, rz);
+                    if (anim != null) {
+                        pose.scale(anim.scale[0], anim.scale[1], anim.scale[2]);
+                    }
+                    pose.translate(-o[0], -o[1], -o[2]);
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean path(Bone b, String name, List<Bone> out) {
+        out.add(b);
+        if (b.name().equals(name)) {
+            return true;
+        }
+        for (Bone c : b.bones()) {
+            if (path(c, name, out)) {
+                return true;
+            }
+        }
+        out.remove(out.size() - 1);
+        return false;
     }
 
     /** Blockbench's order: x first, then y, then z (as a matrix, Z * Y * X). */

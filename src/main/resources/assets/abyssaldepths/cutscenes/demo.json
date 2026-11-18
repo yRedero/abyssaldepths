@@ -1,0 +1,193 @@
+{
+  "length": 200,
+  "letterbox": true,
+  "hide_hud": true,
+  "skippable": true,
+  "camera": [
+    {
+      "t": 0,
+      "pos": [
+        7,
+        4,
+        2
+      ],
+      "look": [
+        0,
+        1.5,
+        9
+      ],
+      "fov": 75,
+      "ease": "out"
+    },
+    {
+      "t": 80,
+      "pos": [
+        -4,
+        2,
+        5
+      ],
+      "look": [
+        0,
+        1.5,
+        9
+      ],
+      "fov": 60,
+      "ease": "inOut",
+      "roll": -3
+    },
+    {
+      "t": 120,
+      "pos": [
+        -2.5,
+        1.8,
+        6.2
+      ],
+      "look": [
+        0,
+        1.7,
+        8
+      ],
+      "fov": 50,
+      "ease": "out",
+      "shake": 0.6
+    },
+    {
+      "t": 200,
+      "pos": [
+        0,
+        7,
+        0
+      ],
+      "look": [
+        0,
+        0,
+        14
+      ],
+      "fov": 75,
+      "ease": "inOut"
+    }
+  ],
+  "fades": [
+    {
+      "t": 0,
+      "from": 1,
+      "to": 0,
+      "over": 20
+    },
+    {
+      "t": 180,
+      "from": 0,
+      "to": 1,
+      "over": 20
+    }
+  ],
+  "titles": [
+    {
+      "t": 25,
+      "key": "cutscene.abyssaldepths.demo.title",
+      "duration": 70,
+      "style": "pop",
+      "color": "#E6DED4"
+    },
+    {
+      "t": 125,
+      "key": "cutscene.abyssaldepths.demo.caption",
+      "duration": 60,
+      "style": "caption"
+    }
+  ],
+  "sounds": [
+    {
+      "t": 0,
+      "sound": "minecraft:ambient.cave",
+      "volume": 1,
+      "pitch": 0.6
+    },
+    {
+      "t": 95,
+      "sound": "minecraft:entity.illusioner.prepare_mirror",
+      "volume": 1,
+      "pitch": 0.5,
+      "pos": [
+        0,
+        1.5,
+        8
+      ]
+    }
+  ],
+  "actors": [
+    {
+      "entity": "abyssaldepths:shadeborn",
+      "data": {
+        "role": "seer",
+        "posture": 0
+      },
+      "path": [
+        {
+          "t": 0,
+          "pos": [
+            0,
+            0,
+            12
+          ],
+          "yaw": 180
+        },
+        {
+          "t": 80,
+          "pos": [
+            0,
+            0,
+            8
+          ],
+          "yaw": 180
+        },
+        {
+          "t": 200,
+          "pos": [
+            0,
+            0,
+            8
+          ],
+          "yaw": 180
+        }
+      ],
+      "animations": [
+        {
+          "t": 0,
+          "name": "walk"
+        },
+        {
+          "t": 95,
+          "name": "zooooooosh"
+        }
+      ]
+    },
+    {
+      "entity": "abyssaldepths:shadeborn",
+      "data": {
+        "role": "young",
+        "posture": 1
+      },
+      "path": [
+        {
+          "t": 0,
+          "pos": [
+            2,
+            0,
+            13
+          ],
+          "yaw": 200
+        },
+        {
+          "t": 90,
+          "pos": [
+            1.5,
+            0,
+            10
+          ],
+          "yaw": 200
+        }
+      ]
+    }
+  ]
+}

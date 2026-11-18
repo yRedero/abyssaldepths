@@ -39,7 +39,7 @@ import net.minecraft.world.phys.Vec3;
  * <p>
  * Its position is the middle of its head; its own box is the head.
  */
-public class BigWorm extends PathfinderMob {
+public class BigWorm extends PathfinderMob implements redero.abyssaldepths.cinema.CutsceneActor {
     /** The model's animations, by number (the client plays the one the server set, from the tick it was set). */
     public static final String[] ANIMATIONS = {"", "keepMouthOpen", "shutMouth", "bite1", "bite2", "shortBite"};
     public static final int NONE = 0, GAPE = 1, SHUT = 2, BITE1 = 3, BITE2 = 4, SHORT_BITE = 5;
@@ -198,6 +198,23 @@ public class BigWorm extends PathfinderMob {
     public static double thickness(double share) {
         final double f = Mth.clamp((share - (1.0 - TAIL)) / TAIL, 0.0, 1.0);
         return 1.0 - (1.0 - TAIL_END) * f * f * (3 - 2 * f);
+    }
+
+    private Acting acting;
+
+    @Override
+    public void act(String animation, long fromTick) {
+        acting = animation.isEmpty() ? null : new Acting(animation, fromTick);
+    }
+
+    @Override
+    public Acting acted() {
+        return acting;
+    }
+
+    /** Whom it hunts now, or null. */
+    public Player hunting() {
+        return target;
     }
 
     /** Whether a player is down in the thalan layer (it does not even notice those above it). */

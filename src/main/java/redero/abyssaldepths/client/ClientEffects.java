@@ -155,6 +155,17 @@ public final class ClientEffects {
             RepriseCover.start();
         } else if (effect.equals("reprise_done")) {
             RepriseCover.done();
+        } else if (effect.startsWith("wormcompass/")) { // where the worm is, for the compass held
+            WormCompassView.told(effect.substring("wormcompass/".length()));
+        } else if (effect.equals("crest_choose")) { // first time in this world: choose a crest
+            net.minecraft.client.Minecraft.getInstance().setScreen(new CrestScreen());
+        } else if (effect.startsWith("crest/")) { // someone's crest: entity id / crest
+            final String[] c = effect.split("/");
+            CrestScreen.KNOWN.put(Integer.parseInt(c[1]), Integer.parseInt(c[2]));
+        } else if (effect.startsWith("cutscene|")) { // a cutscene: id, anchor, heading
+            final String[] c = effect.split("[|]");
+            redero.abyssaldepths.client.cinema.CutscenePlayer.play(net.minecraft.resources.ResourceLocation.parse(c[1]),
+                    new net.minecraft.world.phys.Vec3(Double.parseDouble(c[2]), Double.parseDouble(c[3]), Double.parseDouble(c[4])), Float.parseFloat(c[5]));
         } else if (effect.startsWith("worm_chase/")) { // the worm hunting this player
             WormRumble.chased(Double.parseDouble(effect.substring("worm_chase/".length())));
         } else if (effect.startsWith("worm_near/")) { // the worm heard coming

@@ -154,6 +154,7 @@ final class FractureCanyon {
                     }
                     if (inside(s, u, v, d) && !bridge(s, gx, gz, u, d)) {
                         level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2);
+                        crystal(s, x, y, z, d);
                         continue;
                     }
                     // a wall: solid next to the open crack
@@ -163,6 +164,24 @@ final class FractureCanyon {
                     }
                 }
                 bottom(s, u, v, x, z);
+            }
+        }
+    }
+
+    /**
+     * Heat-forged crystals: low in the crack, near the heat that cracked it, crystals grown out of its walls (an open
+     * cell next to a wall, deep enough).
+     */
+    private void crystal(Spot s, int x, int y, int z, int d) {
+        if (d < 8 || layer.random(x, z, 8430 + y) > 0.05) {
+            return;
+        }
+        for (net.minecraft.core.Direction dir : net.minecraft.core.Direction.Plane.HORIZONTAL) {
+            final int wx = x + dir.getStepX(), wz = z + dir.getStepZ();
+            if (!inside(s, u(s, wx + 0.5, wz + 0.5), v(s, wx + 0.5, wz + 0.5), d)) { // the wall is that way: grown out of it
+                level.setBlock(pos.set(x, y, z), AbyssalDepths.HEAT_FORGED_CRYSTAL.get().defaultBlockState()
+                        .setValue(net.minecraft.world.level.block.AmethystClusterBlock.FACING, dir.getOpposite()), 2);
+                return;
             }
         }
     }

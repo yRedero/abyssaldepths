@@ -43,7 +43,17 @@ The player should be free to explore either side of the world. Some areas can be
 
 Progression should reward exploration, preparation, experimentation and mastery. Do not make every useful item depend on mining a new ore. Structures should often reward unique items, materials, knowledge or access, while especially rich ore deposits should be placed behind meaningful locations or challenges.
 
-### 2.5 Distinguish implementation status from design status
+### 2.5 Everything has an explainable origin (decided)
+
+The user's main point from the worldbuilding videos (see the Obsidian vault): every block, creature, place and power should have an origin that can be explained — why it is here, what it lives on, what made it — even when the explanation stays unspoken in play. The living-world ideas (things doing something, stewardship over exploitation, fair consequences, restrained predators) are a **guideline**, not a rule for every feature. The layer's nature is **sparse and mostly dead**: a few creatures live off the layer's energy or its sparse plants; plants need no growth or feedback loops of their own.
+
+- **Self-change:** where the layer does change on its own (creatures moving and so on), it happens **only in the wild**, never near blocks a player placed.
+- **Grazers and hunters (decided direction, not built):** creatures that feed on the layer's energy or sparse plants, and hunters that prey on them with restraint (they eat, then rest); the player's food comes mostly from them. Designed **one creature at a time** (no rule of one per biome).
+- **The layer's energy:** the world's two core energies, **light and darkness in their pure form**, are more common in the layer, and some creatures feed on them (the same two forces that slip into the soul in Fracturing). They also feed on the layer's other energies: the gloam's held light, the reaches' heat, the storms' charge. Pure light and darkness are not visible as such yet; how to show them is open (something creative wanted).
+
+**World rules for the core energies (decided 2026-11-18):** **pure darkness consumes light and warmth** (pure light carries both); **the gloam is pure light settled into crystal**, like salt out of water: it grows where pure light gathers and rises.
+
+### 2.6 Distinguish implementation status from design status
 
 Some ideas in this brief are established; others are provisional. Never assume that a suggested ability, name, recipe, balancing value or visual effect is already final. Before changing an existing system:
 
@@ -79,16 +89,24 @@ Established or strongly developed design points:
 Biome and environment concepts include:
 
 - **Shale Flats** — broad, relatively open areas associated with the region's shale-like stone family.
-- **Silt Dunes** — a dune-like environment with fine sediment and a sandstorm concept. Sandstorms should have a visible and gameplay-relevant presence, not merely be a cosmetic overlay. **Storm crystals** (built): landmarks of the dunes, spires of storm crystal 3 to 5 blocks high standing on the silt with small crystals round their feet. They charge only while a storm rages: the light climbs each spire from its foot and it flashes, then it glows, draws the storm's lightning, and only then can it be broken (storm shards), so a storm is a reason to go out into it. **Storm dangers** (decided): low visibility (storm goggles to come), gusts shoving players along the wind (crouching braces them), silt grinding the armour of the unsheltered, lightning drawn to charged crystals (warned by crackling), burrowers surfacing and turning aggressive, and things the storm uncovers (some better left buried). Built: visibility, gusts, grinding silt, lightning; the burrowers and the uncovering wait for the creature and the buried caches.
+- **Silt Dunes** — a dune-like environment with fine sediment and a sandstorm concept. Sandstorms should have a visible and gameplay-relevant presence, not merely be a cosmetic overlay. **Storm crystals** (built): landmarks of the dunes, spires of storm crystal 3 to 5 blocks high standing on the silt with small crystals round their feet. **Storm shards** are for storm goggles, a crafting material, and a trading good with the Shadeborn tribes native to the dunes (decided). They charge only while a storm rages: crystals standing together wake as one, the light spreading from their lowest point (upwards first, outwards slower) and flashing at the top, draining back down the same way when the storm leaves; then it glows, draws the storm's lightning, and only then can it be broken (storm shards), so a storm is a reason to go out into it. **Storm dangers** (decided): low visibility (storm goggles to come), gusts shoving players along the wind (crouching braces them), silt grinding the armour of the unsheltered, lightning drawn to charged crystals (warned by crackling), burrowers surfacing and turning aggressive, and things the storm uncovers (some better left buried). Built: visibility, gusts, grinding silt, lightning; the burrowers and the uncovering wait for the creature and the buried caches.
 - **Thermal Reaches** — a warmer or geothermally influenced area, with its own environmental blocks and features.
 
 **Decided direction for the layer's identity (the gloam and the set pieces are built; camps not yet):**
 
 - **Never safe, never deadly:** there should always be something that makes the player careful. Deep Pressure exists to say "this is no safe place, prepare first"; later things may negate most of it once it has done that job.
 - **Food and light are scarce.** Food comes mostly from the layer's animals and a few rare plants (new berries and the like), not from fishing.
-- **The gloam ties the layer together:** a mineral, a crystal that holds light (Gloam Crystal, Gloam Cluster), in seams glowing deep blue/violet in the rock. Living things do not glow of themselves: they live off the gloam, which is why life gathers round it (Gloam Moss on and around the seams; the giant **Duskcap** fungus with Dusk Stalk wood and Dusk Planks, whose caps give Duskthread, woven into Duskweave and Duskweave Mat). Only the crystal is called gloam; the moss's name may still change. Life gathers round the gloam pockets, water pools where it meets them, Shadeborn camps sit near them, Numinor forms where the gloam is strongest. Blue/violet colour appears only in the glows; stone and fog stay as they are. The Silt Dunes have no gloam (the silt keeps it buried). The biomes are stages of one system: the Thermal Reaches bring the heat up, the heat drives the winds that build the Silt Dunes, the Shale Flats are rock the heat cracked, the Thalan Depths are the coldest, where the gloam is faintest.
-- **Water in places:** a few dark lakes and falls, rare enough to be landmarks. Be careful with water: no more water features or water-based content than that.
-- **Rare set pieces:** a buried giant skeleton (Silt Dunes), a fracture canyon (Shale Flats), a lava fall into a steaming lake (Thermal Reaches), a gloam grotto (Thalan Depths), the vent lung (vents erupting in a rolling wave, Thermal Reaches), a tide lake (still, mirror-black water whose glow pulses like a tide; at low tide a sunken path appears; Thalan Depths), a few camp graveyards (old camps abandoned round a dead gloam pocket), a frozen fall (dark ice with gloam trapped inside, Thalan Depths). All of these are built except the camp graveyards, which wait for the camps. The Fallen Spire (a broken Solit pillar in the dark) waits until a Solit biome exists and only lies beneath one.
+- **The gloam ties the layer together:** a mineral, a crystal that holds light (Gloam Crystal, Gloam Cluster: pure light settled into crystal), in seams glowing deep blue/violet in the rock. Living things do not glow of themselves: they live off the gloam, which is why life gathers round it (Gloam Moss on and around the seams; the giant **Duskcap** fungus with Dusk Stalk wood and Dusk Planks, whose caps give Duskthread, woven into Duskweave and Duskweave Mat). Only the crystal is called gloam; the moss's name may still change. Life gathers round the gloam pockets, water pools where it meets them, Shadeborn camps sit near them, Numinor forms where the gloam is strongest. Blue/violet colour appears only in the glows; stone and fog stay as they are. The Silt Dunes have no gloam (the silt keeps it buried). The biomes are stages of one system: the Thermal Reaches bring the heat up, the heat drives the winds that build the Silt Dunes, the Shale Flats are rock the heat cracked, the Thalan Depths are the coldest, where the gloam is faintest.
+- **Water in places:** a few dark lakes and falls, rare enough to be landmarks. **Where it comes from (decided):** thalan and deepslate barely let water through; the overworld's groundwater seeps down through the rare cracks. So water in the layer always comes from above (drips, a thin fall from a ceiling crack) and collects at low points: every body of water needs a crack above it and a low point to gather in. Be careful with water: no more water features or water-based content than that.
+- **Rare set pieces** (decided 2026-11-18, each with an origin that holds at every step and a unique find):
+  - **The Stilled Fall** (Thalan Depths): seep water falls from a ceiling crack, carrying gloam grains washed from a seam; a seep of pure darkness behind it drew the heat out and froze it, and still does, so every new drop freezes and the fall *grows*. A haze of dark motes; lights go out near it. Find: **Stilled Gloam** from its oldest core.
+  - **The Wellspring** (Thalan Depths, formerly the gloam grotto): pure light rises through the bed of a basin where seep water collects; most gloam settles here, into spires. Rising light motes; standing in them eases Deep Pressure. Find: **a vessel of pure light**.
+  - **The Tidal Lake** (Thalan Depths, formerly the tide lake): a seep fall fills a lake; a natural **siphon** (a rock channel with a bend, from the lake down to a lower cave) drains it once the water rises over the bend, until air breaks it; then the seep refills it (a real ebb-and-flow spring). At low water the lakebed's ridge lies bare as a path to the island, a rock knob where the siphon's throat gurgles. Find: **cave pearls**, grown layer on layer round grains in the throat, where the water churns with every cycle (seep water carries only dissolved minerals and fine silt, so that is what gathers).
+  - **The Dead Worm** (Silt Dunes, formerly the buried skeleton): a Thalan Worm dead long ago (why stays open). A worm has no bones; what lasts is what was hard: the armoured skin it wore (and sheds when hurt) and its fangs. So it lies as a hollow shell of hardened skin (**worm shell**), half sunk in the silt, curving the way it crawled, ringed where its segments met, broken in places; its jaw plates gape at the head. The wind buries it and the storms strip it bare again, more or less each time; the dry silt kept the shell. Find: **Worm Fangs**, the worm's summoning item, lying in the silt round its mouth, reachable only when a storm uncovers them.
+  - **The Lava Fall** (Thermal Reaches): magma pushed up by the heat from below spread into a pocket in the rock over a tall hall (as rising magma spreads into weak layers) and broke through the roof; the lava falls into a cup standing in a lake of seep water: steam (it only happens where the heat comes from below, so only in the reaches). Find: **fire-hardened slag**.
+  - **The Vent Lung** (Thermal Reaches): vents over a magma chamber whose pressure cracked the rock above it in rings; gas gathers until it lifts the inner ring and the burst runs outwards ring by ring. Find: **lung ash** thrown out with the bursts.
+  - **The Fracture Canyon** (Shale Flats): the deepest crack the heat made in the flats, reaching down to the heat (lava at its bottom). Find: **heat-forged crystals** in its walls.
+  - A few **camp graveyards** (old camps abandoned round a dead gloam pocket) wait for the camps. The **Fallen Spire** (a broken Solit pillar in the dark) waits until a Solit biome exists and only lies beneath one.
 - **Camps** are built mainly of the layer's stone, with a new wood from the giant Duskcap fungi (Dusk Stalk; scarce, found in the richest gloam pockets) and Duskweave (fibre from the fungi and the gloam moss) for tents, curtains and mats. Shadeborn camps exist from the start, spread out; they grow stronger as the player progresses. A camp's find is supplies: a little food and light, what the layer lacks. (Camps are deferred for now.)
 
 These are working biome concepts, not a complete final biome specification. Their visual identity should be supported by distinctive blocks, terrain shapes, ambient details and gameplay features. Avoid making them feel empty simply because they are sparse; their scale, silhouettes and environmental storytelling should do some of the work.
@@ -119,7 +137,7 @@ Hollow and Zenith should have recognisable identities, but avoid reducing every 
 
 The current working material concepts include:
 
-- **Kerun:** A common foundational material found throughout both sides. It is used frequently in basic recipes and is broadly comparable to an iron-tier foundational resource. It is not intended to be exceptionally powerful or rare.
+- **Kerun:** A common foundational material found throughout both sides, as an **ore on both sides** (decided). It is used frequently in basic recipes and is broadly comparable to an iron-tier foundational resource. It is not intended to be exceptionally powerful or rare.
 - **Numinor:** A rare material associated with the dark side / Hollow.
 - **Luminor:** A rare material associated with the light side / Zenith.
 
@@ -171,7 +189,9 @@ Longer-term possibilities include:
 
 The people should primarily enrich the world and create local relationships. Their existence should not turn the whole mod into a mandatory faction or quest system.
 
-### 5.2.1 The Shadeborn system (working outline, proposed)
+### 5.2.1 The Shadeborn system (built 2026-11-18, first version, on the user's temporary model; texture variants to come)
+
+**Built:** camps beside gloam pockets (open silt in the dunes) with a hearth, a store, tents and a watch post; members by region growing from a huddle (3) to a camp (6) to a hold (8) with world days (faster where a player is Kin); temperaments and posture; what they want held up, given for trust; trust per camp through the five stages; trades by role and stage; the Mender's healing, the Seer's vision (the "zooooooosh") pointing to the worm, the Pathfinder's maps to set pieces, storm goggles from the Stormwatcher; the Keeper accepting a player (a cutscene), whose camp then sends supplies; wanderers, outcasts in huts, raider bands, hostile camps; the Mourner hunting Remnants. Camps and outcast huts are real structures (`/locate structure abyssaldepths:shadeborn_camp` / `outcast_hut`). They keep together (the young in the middle, the rest round them, the fighters outside towards a threat); their day: work by day (watcher at the post, lamp-keeper tending the fire, trader by the store, forager out and back with food), the hearth in the evening, the tents at night. Trust shows: strangers warned off, the Tolerated nodded to, the Welcome waved at, the Kin bowed to; gifts only at the highest trust: the camp's Keeper is given its Kin Mark once and food by the foragers now and then. A Keeper's camp grows by the Keeper: duskweave for a tent more, a craft's item for a newcomer of that craft; a watcher escorts the Keeper on request. Gestures (nod, wave, bow, beckon, point, warn, sit) are first versions written into the user's model, to be refined in Blockbench. **Left for later:** the Vent Forge (not yet in the mod), the Weaver's capes, relics from the storms, the camp graveyards, the final trading screen (a first one built: only the trade part is theirs; the user's idea to weigh: the Keeper trades for the whole camp), a new model.
 
 **Who they are:** hooded figures in Duskweave, faces hidden, a faint light in the eyes. Their history stays open.
 
@@ -183,7 +203,7 @@ The people should primarily enrich the world and create local relationships. The
 - **tents**;
 - a **watch post**.
 
-Camps differ by region:
+Camps differ by region (one people, regional: the biomes have their own variants of the Shadeborn in roles, gear and trades, e.g. the dune tribes, who trade in storm shards):
 - **Dunes:** stormwatchers.
 - **Thermal Reaches:** smiths at the vents.
 - **Shale Flats:** delvers.
@@ -237,6 +257,8 @@ Camps differ by region:
 
 ### 5.3 Monsters and horror encounters
 
+**Bosses (decided rule):** a boss occurs **once** naturally. After it is defeated, it can be **summoned again with special items**; adding **extra ritual items** makes it stronger, smarter and more versatile, and its loot better.
+
 The dark region can contain creatures that create a sense of danger without making every expedition a constant fight. One planned large creature is an earthworm-like Thalan monster / boss. It is intended as a rare horror encounter unlocked through a combination of playtime, exploration and discovering a trigger.
 
 The encounter should provide signs and directional sound cues. A player who pays attention should have a chance to escape; the goal is dread and anticipation, not an unavoidable surprise death. A possible compass-like item could indicate the creature's direction and approximate distance through colour or intensity. Its pathfinding may be limited beyond the render distance.
@@ -249,8 +271,13 @@ Fighting it should make sense only with very strong equipment. Recurring or stre
 - **Cunning (1 to 4, each worm its own, drawn at spawn; `/abyssaldepths worm <1-4>`):** 1 comes straight on; 2 aims where its prey is going; 3 circles its prey, the ring narrowing so its body walls them in, then lunges; 4 circles the way they run to cut them off, closes the ring tighter, intercepts breakouts, and lunges when they are cornered, stand still or look away. Close in, every worm strikes: it turns tight, rears up out of the ground at its prey and snaps (the bite lands if its mouth came near at any moment of it); 3 and 4 crush a prey their ring walls in, and lunge again and again, the ring tighter each time.
 - **Skills (built, each warned first):** tail sweep (the tail coils, then lashes across; all), tremor (passing under one heaves them; all), shrug (rolls off one standing on it too long; all); eruption (dives under where one stands, the ground cracks, it bursts up; 2+), charge (rears up roaring with its maw held open, then rushes straight; into rock it stuns itself and takes blows harder; 2+), spit (throws rock in arcs, the landing marked; 2+); inhale (draws everything before it in, cover or crouching holds; 3+), body slam (a stretch of its body rises over one, dust and shadow beneath, and crashes; 3+), ceiling fall (dust pours from the roof over one, then the roof comes down there; 3+); cave-in (brings the roof down across the way of one running, walling it off; 4), undermine (the ground cracks, then gives way into a pit over its maw, filling in later; 4), ambush (goes silent and deep, gets ahead and bursts up; 4); cunning 4 chains ring, inhale, bite. As it is hurt: at two thirds it sheds its hard skin (no armour), at half it rages (faster, a red breath, skills sooner), at a quarter it slinks away silent to heal for a minute. `/abyssaldepths wormskill <name>` makes the nearest use one.
 - **Its range:** it keeps going while no one is near, within 128 chunks of the players. For now one comes 5 minutes into a world, about 100 chunks away (a stand-in for the trigger).
+- **Until then (built):** it wanders and hunts only those within its range (about 96 blocks): a rare threat for a beginner, met by chance; feared once known, and avoidable with the worm compass.
+- **Its trigger (decided, not built, later): a mix.** Noise and vibration in the layer (mining, explosions, fighting) draw it nearer; time spent in the layer raises the odds; a specific act can wake it at once.
+- **How many (decided, not built):** players close together share **one** worm; players spread apart each draw **their own**, which gives the illusion of countless worms.
+- **After its defeat (decided, the boss rule):** it does not come back by itself; special items summon it again, extra ritual items make it stronger (its cunning and skills fit this) and its loot better.
 - **Warning signs (built):** faint growls from its head from far off, then dust and grit from the ceiling, stone crackling from its direction, stones breaking round the player, pebbles, the ground trembling. Hunted, the player hears their heart and the view darkens at the edges.
-- **Still open:** what makes it appear (the trigger), the compass, its own sounds and its rewards.
+- **The worm compass (built):** made of a compass, a worm fang and an echo shard; held, a dial over the hotbar points to the nearest worm, its rim lit by nearness, the distance and its cunning (a pip per level) shown; red, pulsing and trembling when the worm hunts the one holding it. `/abyssaldepths whereis worm` tells the same in words.
+- **Still open:** the trigger's details (thresholds, which act wakes it), its own sounds and its rewards.
 
 ---
 
@@ -291,6 +318,7 @@ Artifacts are powerful, individual items with distinctive gameplay functions. Th
 - Artifacts can be upgraded through mastery. Mastery is developed through use and/or suitable materials, increasing the item's effectiveness or capacity.
 - Rarity is fixed. There should not be duplicate rarity tiers such as “Lesser I” and “Lesser II”; mastery levels belong within the artifact itself.
 - Bosses and exploration can be important sources of powerful artifacts. Strong artifacts should often feel earned through distinctive encounters or discoveries.
+- **How they are obtained (decided):** bosses mainly drop the **resources** artifacts are **crafted** from; mini bosses drop them too, fewer and worse. The more powerful artifacts also need an **extra item of their own**, one per artifact, found in the world and combined with the resources.
 - Hollow artifacts have tended towards active abilities, while Zenith artifacts may lean towards passive effects, but this is a direction rather than a strict rule.
 
 ### 7.2 Rarity and colour language
@@ -429,6 +457,15 @@ Each region and system should have a coherent visual language. Colour is useful 
 - **Zenith / light region:** white and red associations; strong vertical forms and a distinct environmental identity rather than simply a brighter recolour of Hollow.
 - **Artifact rarity:** slate/silver, petrol blue-grey, muted plum and deep crimson, as specified above.
 - **Fracturing:** strictly monochrome black and white, deliberately independent of either region's palette.
+
+**Cinematic (decided 2026-11-18):** the final product should feel truly cinematic. That needs:
+- **A cutscene library of our own** (camera paths, fades, framing, sound, models acting their animations), built so later add-ons can use it too.
+- **An opening animation** that plays when the game has finished loading.
+- **The opening's motion** should be fluid and never still, like a studio's animated end card: the scene drifting, layers at different depths, elements arriving one after another and landing with a small overshoot (decided 2026-11-18).
+- **A crest system:** when a player joins a world for the first time, they choose their crest (four crests; an opaque screen of its own, before the player is set into the world). Its effects are mostly visual, but it ties the player into the story and gives them a stronger identity. **Crests are signs of old houses or lineages from before the catastrophe; what they meant stays a mystery to uncover** (decided). Their names describe only the sigil, never a history (provisional, the user may rename them).
+- **The opening** shows **light and dark meeting**: the two core forces drifting together in the black, the title emerging where they touch (decided).
+- **The cutscene library** covers camera paths, fades, letterboxing, sound, titles, and **in-world actors** (temporary figures such as a Shadeborn or the worm moving and playing their animations), defined in data files any add-on can ship (decided).
+- The Shadeborn model's test animation ("zooooooosh") may be used for a special trigger.
 
 Use sound as an active part of environmental design. Directional cues, distant noises, silence and changes in ambience can communicate threats and scale. Do not rely exclusively on visual indicators when sound can make an encounter more memorable and readable.
 

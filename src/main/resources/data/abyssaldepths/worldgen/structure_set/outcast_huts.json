@@ -1,0 +1,14 @@
+{
+  "structures": [
+    {
+      "structure": "abyssaldepths:outcast_hut",
+      "weight": 1
+    }
+  ],
+  "placement": {
+    "type": "minecraft:random_spread",
+    "spacing": 34,
+    "separation": 14,
+    "salt": 61926351
+  }
+}

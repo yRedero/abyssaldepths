@@ -90,11 +90,99 @@ public final class LayerCommands {
                 .then(Commands.literal("vanish").then(vanishStyle).then(vanishPlay))
                 .then(shadeLook)
                 .then(Commands.literal("showcase").executes(c -> send(c, "showcase")))
-                .then(setPiece("frozenfall", "Frozen fall", redero.abyssaldepths.worldgen.TunnelFeature::nearestFrozenFall, 14.5, 4, 14.5, 135.0F, -10.0F))
-                .then(setPiece("grotto", "Gloam grotto", redero.abyssaldepths.worldgen.TunnelFeature::nearestGrotto, 18.5, 6, 18.5, 135.0F, 15.0F))
+                .then(setPiece("frozenfall", "Stilled fall", redero.abyssaldepths.worldgen.TunnelFeature::nearestFrozenFall, 14.5, 4, 14.5, 135.0F, -10.0F))
+                .then(setPiece("grotto", "Wellspring", redero.abyssaldepths.worldgen.TunnelFeature::nearestGrotto, 18.5, 6, 18.5, 135.0F, 15.0F))
                 .then(Commands.literal("worm").executes(c -> worm(c.getSource(), 0)) // the thalan worm, some way ahead of you
                         .then(Commands.argument("smarts", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1, 4))
                                 .executes(c -> worm(c.getSource(), com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "smarts")))))
+                .then(Commands.literal("cutscene").then(Commands.argument("id", net.minecraft.commands.arguments.ResourceLocationArgument.id())
+                        .executes(c -> { // a cutscene, anchored where you stand
+                            final net.minecraft.server.level.ServerPlayer player = c.getSource().getPlayerOrException();
+                            redero.abyssaldepths.cinema.Cutscenes.play(player, net.minecraft.commands.arguments.ResourceLocationArgument.getId(c, "id").toString(),
+                                    player.position());
+                            return 1;
+                        })))
+                .then(Commands.literal("camp").executes(c -> { // to the nearest Shadeborn camp's hearth
+                    final net.minecraft.server.level.ServerPlayer player = c.getSource().getPlayerOrException();
+                    final redero.abyssaldepths.worldgen.ShadebornCamps.Spot s = nearestCamp(player.serverLevel(), player.blockPosition());
+                    if (s == null) {
+                        c.getSource().sendFailure(Component.literal("No camp near"));
+                        return 0;
+                    }
+                    player.teleportTo(s.x() + 0.5, s.floor() + 0.1, s.z() + 6.5);
+                    c.getSource().sendSuccess(() -> Component.literal("Camp at " + s.x() + " " + s.floor() + " " + s.z() + (s.hostile() ? " (a hostile band)" : "")), false);
+                    return 1;
+                }))
+                .then(Commands.literal("hut").executes(c -> { // to the nearest outcast's hut (by the game's own structure search)
+                    final net.minecraft.server.level.ServerPlayer player = c.getSource().getPlayerOrException();
+                    final net.minecraft.core.BlockPos found = player.serverLevel().findNearestMapStructure(net.minecraft.tags.TagKey.create(
+                            net.minecraft.core.registries.Registries.STRUCTURE, net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(AbyssalDepths.MODID, "outcast_huts")),
+                            player.blockPosition(), 64, false);
+                    if (found == null) {
+                        c.getSource().sendFailure(Component.literal("No hut near"));
+                        return 0;
+                    }
+                    player.serverLevel().getChunk(found);
+                    final var p = redero.abyssaldepths.worldgen.ShadebornStructure.at(player.serverLevel(), found, 24);
+                    if (p == null) {
+                        c.getSource().sendFailure(Component.literal("Hut structure at " + found.getX() + " " + found.getZ() + ", but no piece there"));
+                        return 0;
+                    }
+                    player.teleportTo(p.spot.x() + 0.5, p.spot.floor() + 3, p.spot.z() + 7.5);
+                    c.getSource().sendSuccess(() -> Component.literal("Hut at " + p.spot.x() + " " + p.spot.floor() + " " + p.spot.z() + " (locate said "
+                            + found.getX() + " " + found.getZ() + ")"), false);
+                    return 1;
+                }))
+                .then(Commands.literal("trade").executes(c -> trade(c, redero.abyssaldepths.shadeborn.Role.TRADER))
+                        .then(Commands.argument("role", com.mojang.brigadier.arguments.StringArgumentType.word()).suggests((c, b) ->
+                                net.minecraft.commands.SharedSuggestionProvider.suggest(java.util.Arrays.stream(redero.abyssaldepths.shadeborn.Role.values())
+                                        .filter(redero.abyssaldepths.shadeborn.Role::trades).map(r -> r.id), b))
+                                .executes(c -> {
+                                    final String id = com.mojang.brigadier.arguments.StringArgumentType.getString(c, "role");
+                                    for (redero.abyssaldepths.shadeborn.Role r : redero.abyssaldepths.shadeborn.Role.values()) {
+                                        if (r.id.equals(id) && r.trades()) {
+                                            return trade(c, r);
+                                        }
+                                    }
+                                    c.getSource().sendFailure(Component.literal("No trading role " + id));
+                                    return 0;
+                                })))
+                .then(Commands.literal("raiders").executes(c -> raiders(c, 3)) // a band of raiders before you
+                        .then(Commands.argument("count", IntegerArgumentType.integer(1, 8)).executes(c -> raiders(c, IntegerArgumentType.getInteger(c, "count")))))
+                .then(Commands.literal("whereis").then(Commands.literal("raiders").executes(c -> { // the nearest band of raiders (they move: no structure)
+                    final net.minecraft.server.level.ServerPlayer player = c.getSource().getPlayerOrException();
+                    final var raiders = player.serverLevel().getEntitiesOfClass(redero.abyssaldepths.shadeborn.Shadeborn.class, player.getBoundingBox().inflate(512),
+                            s -> s.role() == redero.abyssaldepths.shadeborn.Role.RAIDER);
+                    final var nearest = raiders.stream().min(java.util.Comparator.comparingDouble(player::distanceTo));
+                    if (nearest.isEmpty()) {
+                        c.getSource().sendFailure(Component.literal("No raiders in the loaded land"));
+                        return 0;
+                    }
+                    final var r = nearest.get();
+                    c.getSource().sendSuccess(() -> Component.literal(String.format(java.util.Locale.ROOT, "Raiders at %d %d %d, %d blocks away (%d in the band)",
+                            r.getBlockX(), r.getBlockY(), r.getBlockZ(), (int) player.distanceTo(r), raiders.stream().filter(o -> o.distanceTo(r) < 12).count())), false);
+                    return 1;
+                })).then(Commands.literal("worm").executes(c -> { // the nearest worm: where, how far, what it does
+                    final net.minecraft.server.level.ServerPlayer player = c.getSource().getPlayerOrException();
+                    c.getSource().sendSuccess(() -> Component.literal(redero.abyssaldepths.entity.WormManager.describe(player)), false);
+                    return 1;
+                })))
+                .then(Commands.literal("trust").then(Commands.argument("points", com.mojang.brigadier.arguments.IntegerArgumentType.integer(-100, 150))
+                        .executes(c -> { // your trust at the nearest camp
+                            final net.minecraft.server.level.ServerPlayer player = c.getSource().getPlayerOrException();
+                            final redero.abyssaldepths.worldgen.ShadebornCamps.Spot s = nearestCamp(player.serverLevel(), player.blockPosition());
+                            if (s == null) {
+                                return 0;
+                            }
+                            final redero.abyssaldepths.shadeborn.Camps camps = redero.abyssaldepths.shadeborn.Camps.of(player.serverLevel());
+                            camps.camp(s.id()).trust.put(player.getUUID(), com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "points"));
+                            camps.setDirty();
+                            final int stage = camps.camp(s.id()).stage(player.getUUID());
+                            c.getSource().sendSuccess(() -> Component.literal("Trust " + camps.camp(s.id()).trust(player.getUUID()) + ", stage " + stage), false);
+                            return 1;
+                        })))
+                .then(Commands.literal("tide").then(Commands.literal("low").executes(c -> tide(c.getSource(), true)))
+                        .then(Commands.literal("high").executes(c -> tide(c.getSource(), false))))
                 .then(Commands.literal("wormskill").then(Commands.argument("skill", com.mojang.brigadier.arguments.StringArgumentType.word())
                         .suggests((c, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(java.util.Arrays.stream(redero.abyssaldepths.entity.BigWorm.SKILLS).filter(n -> !n.isEmpty()), b))
                         .executes(c -> { // the nearest worm uses a skill at you now
@@ -172,8 +260,8 @@ public final class LayerCommands {
                 }))
                 .then(setPiece("lavafall", "Lava fall", redero.abyssaldepths.worldgen.TunnelFeature::nearestLavaFall, 16.5, 5, 16.5, 135.0F, -5.0F))
                 .then(setPiece("ventlung", "Vent lung", redero.abyssaldepths.worldgen.TunnelFeature::nearestVentLung, 16.5, 7, 16.5, 135.0F, 20.0F))
-                .then(setPiece("tidelake", "Tide lake", redero.abyssaldepths.worldgen.TunnelFeature::nearestTideLake, 20.5, 6, 20.5, 135.0F, 20.0F))
-                .then(setPiece("skeleton", "Buried skeleton", redero.abyssaldepths.worldgen.TunnelFeature::nearestSkeleton, 26.5, 10, 26.5, 135.0F, 15.0F))
+                .then(setPiece("tidelake", "Tidal lake", redero.abyssaldepths.worldgen.TunnelFeature::nearestTideLake, 20.5, 6, 20.5, 135.0F, 20.0F))
+                .then(setPiece("skeleton", "Dead worm", redero.abyssaldepths.worldgen.TunnelFeature::nearestSkeleton, 26.5, 10, 26.5, 135.0F, 15.0F))
                 .then(styles())
                 .then(Commands.literal("oblivion").executes(c -> {
                     final java.util.List<String> sent = redero.abyssaldepths.artifact.OblivionItem.cast(c.getSource().getPlayerOrException());
@@ -210,6 +298,29 @@ public final class LayerCommands {
                 .then(Commands.literal("charge")
                         .then(Commands.argument("charge", IntegerArgumentType.integer(0))
                                 .executes(c -> charge(c, IntegerArgumentType.getInteger(c, "charge"))))));
+    }
+
+    /** The nearest tidal lake's tide set to low or high water now (the cycle runs on from there). */
+    private static int tide(CommandSourceStack source, boolean low) throws CommandSyntaxException {
+        final net.minecraft.server.level.ServerPlayer player = source.getPlayerOrException();
+        if (!redero.abyssaldepths.worldgen.TunnelFeature.tide(player.serverLevel(), player.blockPosition(), low)) {
+            source.sendFailure(Component.literal("No tidal lake near"));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal(low ? "Low water" : "High water"), false);
+        return 1;
+    }
+
+    /** The nearest Shadeborn camp (by the game's own structure search), or null. */
+    private static redero.abyssaldepths.worldgen.ShadebornCamps.Spot nearestCamp(net.minecraft.server.level.ServerLevel level, net.minecraft.core.BlockPos from) {
+        final net.minecraft.core.BlockPos found = level.findNearestMapStructure(net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.STRUCTURE,
+                net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(AbyssalDepths.MODID, "shadeborn_camps")), from, 64, false);
+        if (found == null) {
+            return null;
+        }
+        level.getChunk(found); // (loads it, and its structure)
+        final redero.abyssaldepths.worldgen.ShadebornStructure.Piece p = redero.abyssaldepths.worldgen.ShadebornStructure.at(level, found, 64);
+        return p == null ? null : p.spot;
     }
 
     /** A thalan worm 24 blocks ahead, facing the player, as cunning as asked (0: drawn as for a new worm). */
@@ -410,6 +521,31 @@ public final class LayerCommands {
         DuneStorm.set(context.getSource().getServer(), seconds * 20);
         context.getSource().sendSuccess(() -> Component.literal(seconds > 0
                 ? "Dune storm for " + seconds + " s (visible in the silt dunes)" : "Dune storm stopped"), true);
+        return 1;
+    }
+
+    /** A Shadeborn of a trading role before the player, its trades open as for Kin (to try the trades and their screen). */
+    private static int trade(CommandContext<CommandSourceStack> c, redero.abyssaldepths.shadeborn.Role role) throws CommandSyntaxException {
+        final ServerPlayer player = c.getSource().getPlayerOrException();
+        final redero.abyssaldepths.shadeborn.Shadeborn s = AbyssalDepths.SHADEBORN.get().create(player.serverLevel());
+        if (s == null) {
+            return 0;
+        }
+        final net.minecraft.world.phys.Vec3 at = player.position().add(net.minecraft.world.phys.Vec3.directionFromRotation(0, player.getYRot()).scale(2));
+        s.moveTo(at.x, player.getY(), at.z, player.getYRot() + 180, 0);
+        s.setup(role, redero.abyssaldepths.shadeborn.Shadeborn.NEUTRAL, 0, null);
+        player.serverLevel().addFreshEntity(s);
+        s.showTrades(player, redero.abyssaldepths.shadeborn.Camps.KIN);
+        return 1;
+    }
+
+    private static int raiders(CommandContext<CommandSourceStack> c, int count) throws CommandSyntaxException {
+        final ServerPlayer player = c.getSource().getPlayerOrException();
+        if (!redero.abyssaldepths.shadeborn.ShadebornLife.raiders(player.serverLevel(), player, count, 12)) {
+            c.getSource().sendFailure(Component.literal("No floor for them there"));
+            return 0;
+        }
+        c.getSource().sendSuccess(() -> Component.literal(count + " raiders"), false);
         return 1;
     }
 }

@@ -53,7 +53,7 @@ public final class ThalanFog {
         final float distance = event.getRenderer().getRenderDistance();
         // narrow passages close in: the fog comes nearer than in the open halls; a dune storm closes it
         // in to a few blocks
-        final float close = (0.65F + 0.35F * LayerAmbience.openness()) * ClientConfig.fogDistance(), storm = DuneStormClient.strength();
+        final float close = (0.65F + 0.35F * LayerAmbience.openness()) * ClientConfig.fogDistance(), storm = DuneStormClient.sight();
         final float near = sky ? 0.0F : lerp(storm, NEAR * distance * close, 0.0F);
         final float far = sky ? 0.0F : lerp(storm, FAR * distance * close, STORM_FAR);
         // never thinner than vanilla (blindness, darkness)
@@ -74,7 +74,7 @@ public final class ThalanFog {
             event.setGreen(lerp(warm, lerp(t, event.getGreen(), LayerAmbience.tint(1) * dark), WARM_GREEN));
             event.setBlue(lerp(warm, lerp(t, event.getBlue(), LayerAmbience.tint(2) * dark), WARM_BLUE));
             // the dust of a storm in the dunes
-            final float storm = DuneStormClient.strength();
+            final float storm = DuneStormClient.sight();
             event.setRed(lerp(storm, event.getRed(), STORM_RED));
             event.setGreen(lerp(storm, event.getGreen(), STORM_GREEN));
             event.setBlue(lerp(storm, event.getBlue(), STORM_BLUE));
