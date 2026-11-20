@@ -120,6 +120,15 @@ final class Offers {
             }
             case PATHFINDER -> {
                 o.add(offer(food, 4, of(Items.COMPASS, 1), 4));
+                if (s.camp() != 0) { // the places its camp's scouts came to know
+                    final Camps.Camp c = Camps.of(level).camp(s.camp());
+                    for (String name : c.scouted.keySet()) {
+                        final ItemStack m = Expeditions.map(level, c, name);
+                        if (!m.isEmpty()) {
+                            o.add(offer(Items.BREAD, 6, Items.TORCH, 6, m, 1));
+                        }
+                    }
+                }
                 if (welcome) {
                     map(o, level, s, "grotto", TunnelFeature::nearestGrotto);
                     map(o, level, s, "frozenfall", TunnelFeature::nearestFrozenFall);

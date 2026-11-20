@@ -155,6 +155,8 @@ public final class ClientEffects {
             RepriseCover.start();
         } else if (effect.equals("reprise_done")) {
             RepriseCover.done();
+        } else if (effect.startsWith("sbrel/")) { // where this player stands with the Shadeborn near (for their markers)
+            ShadebornRenderer.relations(effect.substring("sbrel/".length()));
         } else if (effect.startsWith("wormcompass/")) { // where the worm is, for the compass held
             WormCompassView.told(effect.substring("wormcompass/".length()));
         } else if (effect.equals("crest_choose")) { // first time in this world: choose a crest

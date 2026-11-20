@@ -430,6 +430,44 @@ public final class CutscenePlayer {
         }
     }
 
+    /**
+     * The player in the scene: the game draws one's own player only when the camera is that player, and in a cutscene
+     * the camera is the eye, so it is drawn here (as others see it).
+     */
+    @SubscribeEvent
+    public static void onLevel(net.neoforged.neoforge.client.event.RenderLevelStageEvent event) {
+        final Minecraft mc = Minecraft.getInstance();
+        if (now == null || event.getStage() != net.neoforged.neoforge.client.event.RenderLevelStageEvent.Stage.AFTER_ENTITIES || mc.player == null
+                || mc.player.isSpectator() || mc.player.isInvisible() || mc.getCameraEntity() == mc.player) {
+            return;
+        }
+        final float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        final Vec3 cam = event.getCamera().getPosition();
+        final double x = Mth.lerp(partial, mc.player.xOld, mc.player.getX()), y = Mth.lerp(partial, mc.player.yOld, mc.player.getY()),
+                z = Mth.lerp(partial, mc.player.zOld, mc.player.getZ());
+        final var buffers = mc.renderBuffers().bufferSource();
+        mc.getEntityRenderDispatcher().render(mc.player, x - cam.x, y - cam.y, z - cam.z, Mth.lerp(partial, mc.player.yRotO, mc.player.getYRot()), partial,
+                event.getPoseStack(), buffers, mc.getEntityRenderDispatcher().getPackedLightCoords(mc.player, partial));
+        buffers.endBatch();
+    }
+
+    /** No attacking, using or picking in a cutscene (the camera is not the player: a blow would land on the camera itself). */
+    @SubscribeEvent
+    public static void onKey(net.neoforged.neoforge.client.event.InputEvent.InteractionKeyMappingTriggered event) {
+        if (now != null) {
+            event.setCanceled(true);
+            event.setSwingHand(false);
+        }
+    }
+
+    /** No name tag over one's own player in a cutscene (it is a scene, not a game view). */
+    @SubscribeEvent
+    public static void onNameTag(net.neoforged.neoforge.client.event.RenderNameTagEvent event) {
+        if (now != null && event.getEntity() == Minecraft.getInstance().player) {
+            event.setCanRender(net.neoforged.neoforge.common.util.TriState.FALSE);
+        }
+    }
+
     @SubscribeEvent
     public static void onHand(net.neoforged.neoforge.client.event.RenderHandEvent event) {
         if (now != null) {

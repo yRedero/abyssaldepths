@@ -147,6 +147,37 @@ public final class LayerCommands {
                                     c.getSource().sendFailure(Component.literal("No trading role " + id));
                                     return 0;
                                 })))
+                .then(Commands.literal("face").then(Commands.argument("expression", com.mojang.brigadier.arguments.StringArgumentType.word())
+                        .suggests((c, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(new String[] {"calm", "wary", "sad_fear", "angry", "surprised",
+                                "sceptical"}, b))
+                        .executes(c -> { // the nearest Shadeborn holds an expression for a moment (to look at it)
+                            final ServerPlayer player = c.getSource().getPlayerOrException();
+                            final var near = player.serverLevel().getEntitiesOfClass(redero.abyssaldepths.shadeborn.Shadeborn.class,
+                                    player.getBoundingBox().inflate(12));
+                            near.sort(java.util.Comparator.comparingDouble(player::distanceToSqr));
+                            if (near.isEmpty()) {
+                                c.getSource().sendFailure(Component.literal("No Shadeborn near"));
+                                return 0;
+                            }
+                            near.get(0).gesture("face_" + com.mojang.brigadier.arguments.StringArgumentType.getString(c, "expression"));
+                            return 1;
+                        })))
+                .then(Commands.literal("campinfo").executes(LayerCommands::campInfo))
+                .then(Commands.literal("expedition").executes(c -> expedition(c)))
+                .then(Commands.literal("progress").then(Commands.argument("value", IntegerArgumentType.integer(0, 100)).executes(c -> {
+                    final ServerPlayer player = c.getSource().getPlayerOrException();
+                    final var camp = redero.abyssaldepths.worldgen.ShadebornStructure.at(player.serverLevel(), player.blockPosition(), 64);
+                    if (camp == null) {
+                        c.getSource().sendFailure(Component.literal("No camp near"));
+                        return 0;
+                    }
+                    final var camps = redero.abyssaldepths.shadeborn.Camps.of(player.serverLevel());
+                    camps.progress(camp.spot.id(), IntegerArgumentType.getInteger(c, "value") - camps.camp(camp.spot.id()).progress);
+                    c.getSource().sendSuccess(() -> Component.literal("Progress " + IntegerArgumentType.getInteger(c, "value")), false);
+                    return 1;
+                })))
+                .then(Commands.literal("raid").executes(c -> raid(c, 3)) // a band setting out for the nearest camp
+                        .then(Commands.argument("count", IntegerArgumentType.integer(1, 8)).executes(c -> raid(c, IntegerArgumentType.getInteger(c, "count")))))
                 .then(Commands.literal("raiders").executes(c -> raiders(c, 3)) // a band of raiders before you
                         .then(Commands.argument("count", IntegerArgumentType.integer(1, 8)).executes(c -> raiders(c, IntegerArgumentType.getInteger(c, "count")))))
                 .then(Commands.literal("whereis").then(Commands.literal("raiders").executes(c -> { // the nearest band of raiders (they move: no structure)
@@ -546,6 +577,29 @@ public final class LayerCommands {
             return 0;
         }
         c.getSource().sendSuccess(() -> Component.literal(count + " raiders"), false);
+        return 1;
+    }
+
+    private static int raid(CommandContext<CommandSourceStack> c, int count) throws CommandSyntaxException {
+        final ServerPlayer player = c.getSource().getPlayerOrException();
+        final String said = redero.abyssaldepths.shadeborn.ShadebornLife.raid(player.serverLevel(), player, count);
+        c.getSource().sendSuccess(() -> Component.literal(said), false);
+        return 1;
+    }
+
+    /** The nearest camp: its progress, its store, and each of its people (role, what it is doing, how tired). */
+    private static int campInfo(CommandContext<CommandSourceStack> c) throws CommandSyntaxException {
+        final ServerPlayer player = c.getSource().getPlayerOrException();
+        final String said = redero.abyssaldepths.shadeborn.ShadebornLife.describe(player.serverLevel(), player.blockPosition());
+        c.getSource().sendSuccess(() -> Component.literal(said), false);
+        return 1;
+    }
+
+    /** The nearest camp sends an expedition now (whatever its progress). */
+    private static int expedition(CommandContext<CommandSourceStack> c) throws CommandSyntaxException {
+        final ServerPlayer player = c.getSource().getPlayerOrException();
+        final String said = redero.abyssaldepths.shadeborn.ShadebornLife.expedition(player.serverLevel(), player);
+        c.getSource().sendSuccess(() -> Component.literal(said), false);
         return 1;
     }
 }

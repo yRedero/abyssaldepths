@@ -41,7 +41,7 @@ import redero.abyssaldepths.worldgen.TunnelLayer;
  * <p>
  * It creates a world "abyss-autoshot" with a fixed seed, then for every biome finds the nearest place
  * with a tall open hall, flies there in spectator mode with night vision and the HUD hidden, waits for
- * the chunks, and saves a screenshot in four directions plus one looking down to run/screenshots.
+ * the chunks, and saves a screenshot in four directions plus one looking down to screenshots/ of its game folder (run-autoshot/).
  * At the end it closes the game.
  */
 @EventBusSubscriber(modid = AbyssalDepths.MODID, value = Dist.CLIENT)
@@ -53,7 +53,7 @@ public final class AutoShot {
     private static final String SPOT_COMMANDS = System.getProperty("abyssaldepths.autoshot.spotCommands", "");
     private static final int SETTLE_TICKS = 220, TURN_TICKS = 15;
 
-    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, VANISH, OBLIVION, NEWARTIFACTS, FIRMAMENT, SMALL, LOOKS, EMPYREAN, MARKS, WAKE, FRACTURE, THRESHOLD, STORMWAKE, WORM, WORMSKILLS, CAMP, FRACMARKS, FRACLEVELS, GLOW, GROTTO, VARIANTS, DONE }
+    private enum Step { TITLE, CREATING, LOADING, NEXT, FINDING, SETTLING, SHOOTING, PREVIEW, HAVEN, REPRISE, INTERLUDE, PARALLAX, VANISH, OBLIVION, NEWARTIFACTS, FIRMAMENT, SMALL, LOOKS, EMPYREAN, MARKS, WAKE, FRACTURE, THRESHOLD, STORMWAKE, WORM, WORMSKILLS, CAMP, FRACMARKS, FRACLEVELS, GLOW, GROTTO, VARIANTS, FACES, RAID, SHELTER, CYCLE, PLAYTEST, DONE }
 
     private static Step step = Step.TITLE;
     private static final Deque<String> BIOMES = new ArrayDeque<>();
@@ -109,11 +109,14 @@ public final class AutoShot {
         }
         switch (step) {
             case TITLE -> {
-                if (mc.screen instanceof redero.abyssaldepths.client.OpeningScreen opening) { // the opening: three moments of it, then on
+                if (mc.screen instanceof redero.abyssaldepths.client.OpeningScreen opening) { // the opening: moments of it, then on
+                    if (mc.getOverlay() != null) {
+                        return; // (it begins once the loading screen is gone)
+                    }
                     final int t = ++wait;
-                    if (t == 30 || t == 100 || t == 135) {
-                        shoot(mc, "opening_" + t);
-                    } else if (t > 175) {
+                    if (t == 12 || t == 28 || t == 42 || t == 56 || t == 66 || t == 73 || t == 78 || t == 84 || t == 96 || t == 112 || t == 124) {
+                        shoot(mc, "opening_" + t); // (client ticks: about the seconds times 20, after a moment's start)
+                    } else if (t > 150) {
                         opening.onClose();
                         wait = 0;
                     }
@@ -199,6 +202,46 @@ public final class AutoShot {
                     if (biome.endsWith("#0")) {
                         wait = 0;
                         step = Step.VARIANTS;
+                    }
+                    return;
+                }
+                if (biome != null && biome.startsWith("playtest#")) {
+                    // not a place: a camp left to live with a raider band near (markers, the band's life, a raid), in the log
+                    if (biome.endsWith("#0")) {
+                        wait = 0;
+                        step = Step.PLAYTEST;
+                    }
+                    return;
+                }
+                if (biome != null && biome.startsWith("cycle#")) {
+                    // not a place: a camp's rhythm: the markers, the watch, an expedition out and back (in the log: campinfo)
+                    if (biome.endsWith("#0")) {
+                        wait = 0;
+                        step = Step.CYCLE;
+                    }
+                    return;
+                }
+                if (biome != null && biome.startsWith("shelter#")) {
+                    // not a place: a stranger walks into a camp, then strikes one of them: they keep away, then take shelter
+                    if (biome.endsWith("#0")) {
+                        wait = 0;
+                        step = Step.SHELTER;
+                    }
+                    return;
+                }
+                if (biome != null && biome.startsWith("raid#")) {
+                    // not a place: a band of raiders falls on the nearest camp, seen from above
+                    if (biome.endsWith("#0")) {
+                        wait = 0;
+                        step = Step.RAID;
+                    }
+                    return;
+                }
+                if (biome != null && biome.startsWith("faces#")) {
+                    // not a place: a Shadeborn close up, each expression in turn, then one running at you
+                    if (biome.endsWith("#0")) {
+                        wait = 0;
+                        step = Step.FACES;
                     }
                     return;
                 }
@@ -526,6 +569,148 @@ public final class AutoShot {
                     step = Step.NEXT;
                 }
             }
+            case PLAYTEST -> {
+                final MinecraftServer server = mc.getSingleplayerServer();
+                final int t = ++wait;
+                if (t == 1) {
+                    command(server, "gamemode creative");
+                    command(server, "abyssaldepths camp");
+                    command(server, "effect give @s night_vision 99999 0 true");
+                    mc.options.hideGui = false;
+                } else if (t == 40) {
+                    command(server, "abyssaldepths trust 0");
+                    command(server, "abyssaldepths progress 40");
+                } else if (t == 60) {
+                    command(server, "gamemode survival");
+                    command(server, "effect give @s resistance 99999 4 true");
+                    command(server, "execute at @e[type=abyssaldepths:shadeborn,limit=1,sort=nearest] run tp @s ~ ~ ~4 180 15");
+                } else if (t == 110) {
+                    shoot(mc, "pt_markers"); // all they show, close up (as a stranger)
+                } else if (t == 120) {
+                    command(server, "gamemode spectator");
+                    command(server, "execute at @e[type=abyssaldepths:shadeborn,limit=1,sort=nearest] run tp @s ~40 ~2 ~ 90 10");
+                } else if (t == 130) {
+                    command(server, "abyssaldepths raiders 3"); // a band, some way off the camp: left to its own life
+                } else if (t == 150) {
+                    command(server, "abyssaldepths camp");
+                } else if (t == 200) {
+                    command(server, "tp @s ~ ~18 ~ 0 85");
+                } else if (t > 130 && t % 300 == 0 && t <= 4500) {
+                    command(server, "abyssaldepths campinfo");
+                    shoot(mc, "pt_" + (t - 130) / 20);
+                } else if (t > 4510) {
+                    command(server, "gamemode creative");
+                    step = Step.NEXT;
+                }
+            }
+            case CYCLE -> {
+                final MinecraftServer server = mc.getSingleplayerServer();
+                final int t = ++wait;
+                if (t == 1) {
+                    command(server, "gamemode creative");
+                    command(server, "abyssaldepths camp");
+                    command(server, "effect give @s night_vision 99999 0 true");
+                    mc.options.hideGui = false;
+                } else if (t == 40) {
+                    command(server, "abyssaldepths trust 70");
+                    command(server, "abyssaldepths progress 70");
+                    command(server, "abyssaldepths campinfo");
+                } else if (t == 60) {
+                    command(server, "execute at @e[type=abyssaldepths:shadeborn,limit=1,sort=nearest] run tp @s ~ ~1 ~5 180 15");
+                } else if (t == 100) {
+                    shoot(mc, "cycle_markers"); // their roles and what they do, over their heads
+                } else if (t == 110) {
+                    command(server, "abyssaldepths expedition");
+                } else if (t == 140) {
+                    shoot(mc, "cycle_setout");
+                } else if (t > 110 && t % 300 == 0 && t <= 2700) {
+                    command(server, "abyssaldepths campinfo");
+                } else if (t > 2710) {
+                    step = Step.NEXT;
+                }
+            }
+            case SHELTER -> {
+                final MinecraftServer server = mc.getSingleplayerServer();
+                final int t = ++wait;
+                if (t == 1) {
+                    command(server, "gamemode creative");
+                    command(server, "abyssaldepths camp");
+                    command(server, "effect give @s night_vision 99999 0 true");
+                    command(server, "effect give @s resistance 99999 4 true");
+                    mc.options.hideGui = true;
+                } else if (t == 60) {
+                    command(server, "gamemode survival");
+                    command(server, "execute at @e[type=abyssaldepths:shadeborn,limit=1,sort=nearest] run tp @s ~ ~ ~4 180 20"); // right among them
+                } else if (t == 100 || t == 140) {
+                    shoot(mc, "shelter_near" + t); // a stranger among them: they keep their distance, watching
+                } else if (t == 150) {
+                    command(server, "damage @e[type=abyssaldepths:shadeborn,limit=1,sort=nearest] 1 minecraft:player_attack by @s");
+                } else if (t == 155) {
+                    command(server, "tp @s ~ ~ ~ ~ 25"); // (staying among them, in survival: the one they now flee from)
+                } else if (t == 180 || t == 220 || t == 280 || t == 360 || t == 460) {
+                    shoot(mc, "shelter_after" + (t - 150)); // struck: off to the tents, away from you, and staying there
+                } else if (t > 470) {
+                    command(server, "gamemode creative");
+                    step = Step.NEXT;
+                }
+            }
+            case RAID -> {
+                final MinecraftServer server = mc.getSingleplayerServer();
+                final int t = ++wait;
+                if (t == 1) {
+                    command(server, "gamemode spectator");
+                    command(server, "abyssaldepths camp");
+                    command(server, "effect give @s night_vision 99999 0 true");
+                    mc.options.hideGui = true;
+                } else if (t == 60) {
+                    command(server, "execute at @e[type=abyssaldepths:shadeborn,limit=1,sort=nearest] run tp @s ~ ~18 ~ 0 89");
+                } else if (t == 100) {
+                    command(server, "abyssaldepths raid 3");
+                } else if (t > 100 && (t - 100) % 200 == 0 && t <= 3100) {
+                    shoot(mc, "raid_" + (t - 100) / 20); // seconds since they set out
+                } else if (t > 3110) {
+                    command(server, "gamemode creative");
+                    step = Step.NEXT;
+                }
+            }
+            case FACES -> {
+                final MinecraftServer server = mc.getSingleplayerServer();
+                final int t = ++wait;
+                final String[] faces = {"calm", "wary", "sad_fear", "angry", "surprised", "sceptical"};
+                if (t == 1) {
+                    command(server, "gamemode creative");
+                    command(server, "tp @s ~ 200 ~ 0 10");
+                    command(server, "effect give @s night_vision 99999 0 true");
+                    mc.options.hideGui = true;
+                } else if (t == 10) {
+                    command(server, "fill ~-12 ~-1 ~-6 ~12 ~-1 ~22 minecraft:smooth_stone");
+                    command(server, "abyssaldepths trade trader"); // a calm one (a fearful stranger would cower, its arms over its face)
+                } else if (t == 14) {
+                    if (mc.screen != null) {
+                        mc.screen.onClose();
+                    }
+                    command(server, "data merge entity @e[type=abyssaldepths:shadeborn,limit=1,sort=nearest] {NoAI:1b,Rotation:[180f,0f]}"); // still, facing you
+                } else if (t >= 40 && t < 40 + faces.length * 30) {
+                    final int i = (t - 40) / 30, in = (t - 40) % 30;
+                    if (in == 0) {
+                        command(server, "abyssaldepths face " + faces[i]);
+                    } else if (in == 20) {
+                        shoot(mc, "faces_" + faces[i]);
+                    }
+                } else if (t == 225) {
+                    command(server, "kill @e[type=abyssaldepths:shadeborn]");
+                } else if (t == 250) {
+                    command(server, "gamemode survival");
+                    command(server, "effect give @s resistance 99999 4 true");
+                    command(server, "abyssaldepths raiders 1");
+                } else if (t == 262 || t == 268 || t == 274) {
+                    shoot(mc, "faces_attack_run" + (t - 262)); // a raider running at you
+                } else if (t > 290) {
+                    command(server, "kill @e[type=abyssaldepths:shadeborn]");
+                    command(server, "gamemode creative");
+                    step = Step.NEXT;
+                }
+            }
             case CAMP -> {
                 final MinecraftServer server = mc.getSingleplayerServer();
                 final int t = ++wait;
@@ -566,12 +751,21 @@ public final class AutoShot {
                 } else if (t == 578) {
                     shoot(mc, "camp_0_holds_side"); // the same from the side: the arm out before it
                 } else if (t == 580) {
+                    command(server, "abyssaldepths trade stormwatcher"); // a stormwatcher: its goggles (an accessory)
+                } else if (t == 600) {
+                    if (mc.screen != null) {
+                        mc.screen.onClose();
+                    }
+                    mc.options.hideGui = true;
+                } else if (t == 615) {
+                    shoot(mc, "camp_0_goggles");
+                } else if (t == 620) {
                     command(server, "abyssaldepths hut");
-                } else if (t == 655) {
+                } else if (t == 695) {
                     command(server, "tp @s ~ ~ ~ 180 25");
-                } else if (t == 700) {
+                } else if (t == 740) {
                     shoot(mc, "camp_0_hut"); // an outcast's hut
-                } else if (t > 705) {
+                } else if (t > 745) {
                     command(server, "abyssaldepths trust 0");
                     command(server, "effect clear @s");
                     step = Step.NEXT;

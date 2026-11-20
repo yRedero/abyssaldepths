@@ -38,7 +38,23 @@ public final class BbModel {
     }
 
     /** An animation: length (seconds), how it ends, per bone per channel its keyframes (time, x, y, z). */
-    public record Animation(float length, String loop, Map<String, Map<String, float[][]>> bones) {
+    public record Animation(float length, String loop, Map<String, Map<String, float[][]>> bones, float speed) {
+    }
+
+    /**
+     * One animation played among others at once, at its own time, with a weight (0 to 1): the legs walking, the body
+     * running, the face's expression, each moving only its own bones. Where two move the same bone, the later takes it
+     * (a pose for holding something out over the cowering arms); a blending layer adds to it instead, and a weight below 1
+     * blends one in or out (one expression easing into the next).
+     */
+    public record Layer(String animation, float time, float weight, boolean blend) {
+        public Layer(String animation, float time, float weight) {
+            this(animation, time, weight, false);
+        }
+
+        public static List<Layer> of(String animation, float time) {
+            return animation == null ? List.of() : List.of(new Layer(animation, time, 1));
+        }
     }
 
     /** What an animation does to a bone at a moment: rotation (degrees), position (pixels), scale. */
@@ -58,6 +74,48 @@ public final class BbModel {
     }
 
     private static final Map<ResourceLocation, BbModel> CACHE = new HashMap<>();
+
+    /** The model at that place, or null if there is none (an accessory not made yet). */
+    public static BbModel find(ResourceLocation location) {
+        if (!CACHE.containsKey(location) && Minecraft.getInstance().getResourceManager().getResource(location).isEmpty()) {
+            return null;
+        }
+        return get(location);
+    }
+
+    /** Forgets the models read (the resources were reloaded: changed models show without a restart). */
+    public static void clear() {
+        CACHE.clear();
+    }
+
+    /**
+     * Draws another model's parts on this one, each part where the bone of the same name is in this one as posed now
+     * (an accessory: goggles on the head move with the head in every animation). Parts whose bone this model lacks are
+     * drawn as they are.
+     */
+    public void wear(BbModel accessory, PoseStack pose, VertexConsumer out, int light, int overlay, List<Layer> layers,
+                     Map<String, float[]> extra) {
+        for (Bone b : accessory.bones) {
+            wearBone(accessory, b, null, pose, out, light, overlay, layers, extra);
+        }
+    }
+
+    /** A part of an accessory: on the bone of its name, else on the one its parent was on (a group of its own inside "head"). */
+    private void wearBone(BbModel accessory, Bone b, String on, PoseStack pose, VertexConsumer out, int light, int overlay, List<Layer> layers,
+                          Map<String, float[]> extra) {
+        final String here = bone(b.name()) != null ? b.name() : on;
+        pose.pushPose();
+        if (here != null) {
+            into(here, pose, layers, extra);
+        }
+        for (Cube c : b.cubes()) {
+            accessory.cube(c, pose, out, light, overlay);
+        }
+        pose.popPose();
+        for (Bone child : b.bones()) {
+            wearBone(accessory, child, here, pose, out, light, overlay, layers, extra);
+        }
+    }
 
     /** The model at that place (read once, kept). */
     public static BbModel get(ResourceLocation location) {
@@ -89,7 +147,8 @@ public final class BbModel {
                     }
                     perBone.put(bone, channels);
                 }
-                animations.put(name, new Animation(a.get("length").getAsFloat(), a.get("loop").getAsString(), perBone));
+                animations.put(name, new Animation(a.get("length").getAsFloat(), a.get("loop").getAsString(), perBone,
+                        a.has("speed") ? a.get("speed").getAsFloat() : 1));
             }
             final JsonArray tex = root.getAsJsonArray("texture");
             return new BbModel(bones, animations, tex.get(0).getAsInt(), tex.get(1).getAsInt());
@@ -163,10 +222,12 @@ public final class BbModel {
         if (a == null || !a.bones().containsKey(bone)) {
             return null;
         }
-        float t = time;
-        if ("loop".equals(a.loop()) && a.length() > 0) {
-            t = time % a.length();
-        } else if (time > a.length()) {
+        float t = time * a.speed();
+        if (a.length() <= 0) {
+            t = 0; // a pose (no length): held as long as it is played
+        } else if ("loop".equals(a.loop())) {
+            t = t % a.length();
+        } else if (t > a.length()) {
             if ("once".equals(a.loop())) {
                 return null;
             }
@@ -202,28 +263,51 @@ public final class BbModel {
         System.arraycopy(keys[keys.length - 1], 1, out, 0, 3);
     }
 
-    // ---- drawing ------------------------------------------------------------------------------------------------
-
-    /** Draws a bone and all below it (pose in Blockbench pixels, y up), posed by an animation at a time (or none). */
-    public void draw(Bone bone, PoseStack pose, VertexConsumer out, int light, int overlay, String animation, float time) {
-        draw(bone, pose, out, light, overlay, animation, time, null);
+    /**
+     * What the layers together do to a bone, or null if none moves it: each layer that moves it blends from what the
+     * layers before made of it towards its own pose by its weight (weight 1 takes the bone; one easing in at 0.3 is a
+     * third of the way); a blending layer adds its moves instead.
+     */
+    private Pose layered(List<Layer> layers, String bone) {
+        Pose sum = null;
+        for (Layer l : layers) {
+            final Pose p = pose(l.animation(), bone, l.time());
+            if (p == null || l.weight() <= 0) {
+                continue;
+            }
+            if (sum == null) {
+                sum = new Pose(); // (the rest: no turn, no move, scale 1)
+            }
+            final float w = l.weight();
+            for (int c = 0; c < 3; c++) {
+                if (l.blend()) {
+                    sum.rotation[c] += p.rotation[c] * w;
+                    sum.position[c] += p.position[c] * w;
+                    sum.scale[c] *= 1 + (p.scale[c] - 1) * w;
+                } else {
+                    sum.rotation[c] += (p.rotation[c] - sum.rotation[c]) * w;
+                    sum.position[c] += (p.position[c] - sum.position[c]) * w;
+                    sum.scale[c] += (p.scale[c] - sum.scale[c]) * w;
+                }
+            }
+        }
+        return sum;
     }
 
-    /**
-     * Draws a bone and all below it, posed by an animation and, on top of it, extra turns of named bones (degrees x, y,
-     * z, added to the animation's: a creature's posture, where it looks).
-     */
-    public void draw(Bone bone, PoseStack pose, VertexConsumer out, int light, int overlay, String animation, float time, Map<String, float[]> extra) {
-        pose.pushPose();
+    /** A bone's own turn: its rest, the extra turn laid on it, the layers' moves; from its parent's space into its own. */
+    private void transform(Bone bone, PoseStack pose, List<Layer> layers, Map<String, float[]> extra) {
         final float[] o = bone.origin();
         pose.translate(o[0], o[1], o[2]);
-        final Pose anim = pose(animation, bone.name(), time);
+        final Pose anim = layered(layers, bone.name());
         float rx = bone.rotation()[0], ry = bone.rotation()[1], rz = bone.rotation()[2];
         final float[] more = extra == null ? null : extra.get(bone.name());
         if (more != null) {
             rx += more[0];
             ry += more[1];
             rz += more[2];
+            if (more.length >= 6) { // and a move (pixels)
+                pose.translate(more[3], more[4], more[5]);
+            }
         }
         if (anim != null) {
             pose.translate(anim.position[0], anim.position[1], anim.position[2]);
@@ -236,11 +320,32 @@ public final class BbModel {
             pose.scale(anim.scale[0], anim.scale[1], anim.scale[2]);
         }
         pose.translate(-o[0], -o[1], -o[2]);
+    }
+
+    // ---- drawing ------------------------------------------------------------------------------------------------
+
+    /** Draws a bone and all below it (pose in Blockbench pixels, y up), posed by an animation at a time (or none). */
+    public void draw(Bone bone, PoseStack pose, VertexConsumer out, int light, int overlay, String animation, float time) {
+        draw(bone, pose, out, light, overlay, Layer.of(animation, time), null);
+    }
+
+    /** Draws a bone and all below it, posed by an animation, with extra turns of named bones on top (see the other). */
+    public void draw(Bone bone, PoseStack pose, VertexConsumer out, int light, int overlay, String animation, float time, Map<String, float[]> extra) {
+        draw(bone, pose, out, light, overlay, Layer.of(animation, time), extra);
+    }
+
+    /**
+     * Draws a bone and all below it, posed by animations played together ({@link Layer}) and, on top of them, extra
+     * turns of named bones (degrees x, y, z, and optionally a move x, y, z in pixels: a creature's posture, where it looks).
+     */
+    public void draw(Bone bone, PoseStack pose, VertexConsumer out, int light, int overlay, List<Layer> layers, Map<String, float[]> extra) {
+        pose.pushPose();
+        transform(bone, pose, layers, extra);
         for (Cube c : bone.cubes()) {
             cube(c, pose, out, light, overlay);
         }
         for (Bone b : bone.bones()) {
-            draw(b, pose, out, light, overlay, animation, time, extra);
+            draw(b, pose, out, light, overlay, layers, extra);
         }
         pose.popPose();
     }
@@ -250,31 +355,15 @@ public final class BbModel {
      * hand). Whether the bone was found.
      */
     public boolean into(String name, PoseStack pose, String animation, float time, Map<String, float[]> extra) {
+        return into(name, pose, Layer.of(animation, time), extra);
+    }
+
+    public boolean into(String name, PoseStack pose, List<Layer> layers, Map<String, float[]> extra) {
         for (Bone b : bones) {
             final List<Bone> path = new java.util.ArrayList<>();
             if (path(b, name, path)) {
                 for (Bone step : path) {
-                    final float[] o = step.origin();
-                    pose.translate(o[0], o[1], o[2]);
-                    final Pose anim = pose(animation, step.name(), time);
-                    float rx = step.rotation()[0], ry = step.rotation()[1], rz = step.rotation()[2];
-                    final float[] more = extra == null ? null : extra.get(step.name());
-                    if (more != null) {
-                        rx += more[0];
-                        ry += more[1];
-                        rz += more[2];
-                    }
-                    if (anim != null) {
-                        pose.translate(anim.position[0], anim.position[1], anim.position[2]);
-                        rx += anim.rotation[0];
-                        ry += anim.rotation[1];
-                        rz += anim.rotation[2];
-                    }
-                    rotate(pose, rx, ry, rz);
-                    if (anim != null) {
-                        pose.scale(anim.scale[0], anim.scale[1], anim.scale[2]);
-                    }
-                    pose.translate(-o[0], -o[1], -o[2]);
+                    transform(step, pose, layers, extra);
                 }
                 return true;
             }

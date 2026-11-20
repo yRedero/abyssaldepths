@@ -46,11 +46,44 @@ public class QuicksiltBlock extends Block {
     protected void entityInside(BlockState state, Level level, BlockPos pos, Entity entity) {
         if (entity instanceof LivingEntity) {
             entity.makeStuckInBlock(state, STUCK);
+            if (entity instanceof Mob mob && !level.isClientSide) { // a creature struggles out (as a player would, holding jump), towards firm ground
+                mob.setJumping(true);
+                if (mob.tickCount % 10 == 0) {
+                    final BlockPos firm = firm(level, pos);
+                    if (firm != null) {
+                        mob.getMoveControl().setWantedPosition(firm.getX() + 0.5, firm.getY(), firm.getZ() + 0.5, 1.0);
+                    }
+                }
+            }
             if (level.isClientSide && level.random.nextInt(6) == 0 && entity.getDeltaMovement().horizontalDistanceSqr() > 1.0E-4) {
                 level.addParticle(new BlockParticleOption(ParticleTypes.BLOCK, state), entity.getX(), pos.getY() + 1.0, entity.getZ(),
                         0.0, 0.0, 0.0);
             }
         }
+    }
+
+    /** The nearest firm ground beside quicksilt (solid, not quicksilt, room above), or null. */
+    private static BlockPos firm(Level level, BlockPos from) {
+        BlockPos best = null;
+        double near = Double.MAX_VALUE;
+        for (BlockPos p : BlockPos.betweenClosed(from.offset(-4, -1, -4), from.offset(4, 2, 4))) {
+            final BlockState below = level.getBlockState(p.below());
+            if (below.is(state0()) || !below.isFaceSturdy(level, p.below(), net.minecraft.core.Direction.UP)
+                    || !level.getBlockState(p).getCollisionShape(level, p).isEmpty() || level.getBlockState(p).is(state0())
+                    || !level.getBlockState(p.above()).getCollisionShape(level, p.above()).isEmpty()) {
+                continue;
+            }
+            final double d = p.distSqr(from);
+            if (d < near) {
+                near = d;
+                best = p.immutable();
+            }
+        }
+        return best;
+    }
+
+    private static Block state0() {
+        return redero.abyssaldepths.AbyssalDepths.QUICKSILT.get();
     }
 
     /** Mobs never path into it, and keep away from its edge. */

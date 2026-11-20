@@ -25,6 +25,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import redero.abyssaldepths.AbyssalDepths;
 import redero.abyssaldepths.entity.BigWorm;
 import redero.abyssaldepths.worldgen.ShadebornCamps;
+import redero.abyssaldepths.worldgen.ShadebornStructure;
 import redero.abyssaldepths.worldgen.TunnelLayer;
 
 /**
@@ -60,6 +61,14 @@ public final class ShadebornLife {
         return true;
     }
 
+    /** One of a camp dying (whatever killed it): a loss the camp feels. */
+    @SubscribeEvent
+    public static void onMemberDeath(LivingDeathEvent event) {
+        if (event.getEntity() instanceof Shadeborn sb && sb.camp() != 0 && sb.level() instanceof ServerLevel level) {
+            Camps.of(level).progress(sb.camp(), -10);
+        }
+    }
+
     /** Defending the camp: a hostile creature killed by a player near it. */
     @SubscribeEvent
     public static void onDeath(LivingDeathEvent event) {
@@ -70,8 +79,10 @@ public final class ShadebornLife {
         if (event.getEntity() instanceof Monster || event.getEntity() instanceof Shadeborn sb && sb.role() == Role.RAIDER
                 || event.getEntity() instanceof BigWorm) {
             final ShadebornCamps.Spot s = campAt(level, event.getEntity().blockPosition(), 28);
-            if (s != null) {
-                Camps.of(level).change(s.id(), p.getUUID(), event.getEntity() instanceof BigWorm ? 60 : 3);
+            if (s != null) { // defending the camp: a worm the most; a raider during a raid more than a creature
+                final boolean raider = event.getEntity() instanceof Shadeborn sb2 && sb2.role() == Role.RAIDER;
+                Camps.of(level).change(s.id(), p.getUUID(), event.getEntity() instanceof BigWorm ? 60 : raider ? 10 : 3);
+                Camps.of(level).progress(s.id(), event.getEntity() instanceof BigWorm ? 15 : raider ? 3 : 0.5F); // defended: the camp breathes
             }
         }
     }
@@ -113,10 +124,15 @@ public final class ShadebornLife {
                 worm(level, s, p, now);
                 grow(level, s, c, now);
                 supplies(level, s, c, now);
+                if (c.lastOversee != now) { // (once a tick for a camp, however many players are near)
+                    c.lastOversee = now;
+                    Expeditions.oversee(level, s, c, now);
+                }
             }
             if (now % 600 == 0) {
                 wanderers(level, p);
             }
+            relations(level, p);
         }
     }
 
@@ -151,14 +167,26 @@ public final class ShadebornLife {
         }
         final List<Shadeborn> members = Shadeborn.of(level, s.id(), s.hearth(), 40);
         final Role[] roles = ShadebornCamps.members(s.biome());
-        if (members.size() >= ShadebornCamps.count(c.growth)) {
+        // more watchers as the camp comes on (a second at 50, a third at 80)
+        final long watchers = members.stream().filter(m -> m.role() == Role.WATCHER).count();
+        final int wantWatchers = 1 + (c.progress >= 50 ? 1 : 0) + (c.progress >= 80 ? 1 : 0);
+        final boolean watcherWanted = watchers < wantWatchers;
+        if (members.size() >= ShadebornCamps.count(c.growth) && !watcherWanted) {
             return;
         }
-        for (int i = 0; i < ShadebornCamps.count(c.growth); i++) {
-            final Role want = roles[i];
+        // a newcomer only now and then (every 7.5 minutes at no progress, 2.5 at full), and only with food to spare
+        final long wait = (long) (6000 * (1.5 - c.progress / 100.0));
+        if (now - c.lastNewcomer < wait || Expeditions.stock(level, s)[0] < 2) {
+            return;
+        }
+        for (int i = 0; i < ShadebornCamps.count(c.growth) + (watcherWanted ? 1 : 0); i++) {
+            final Role want = i < ShadebornCamps.count(c.growth) ? roles[i] : Role.WATCHER;
             final long have = members.stream().filter(m -> m.role() == want).count();
-            final long should = java.util.Arrays.stream(roles, 0, ShadebornCamps.count(c.growth)).filter(r -> r == want).count();
+            final long should = want == Role.WATCHER ? wantWatchers
+                    : java.util.Arrays.stream(roles, 0, ShadebornCamps.count(c.growth)).filter(r -> r == want).count();
             if (have < should) {
+                c.lastNewcomer = now;
+                Expeditions.takeFood(level, s); // (they share their food with the newcomer)
                 final Shadeborn sb = AbyssalDepths.SHADEBORN.get().create(level);
                 if (sb != null) {
                     sb.moveTo(s.x() + 0.5 + level.random.nextInt(5) - 2, s.floor(), s.z() + 0.5 + level.random.nextInt(5) - 2, 0, 0);
@@ -199,7 +227,7 @@ public final class ShadebornLife {
         if (level.getEntitiesOfClass(Shadeborn.class, p.getBoundingBox().inflate(80), s -> s.camp() == 0).size() >= 2) {
             return;
         }
-        final boolean raiders = level.random.nextFloat() < 0.06F;
+        final boolean raiders = level.random.nextFloat() < 0.06F; // (they know no night either)
         if (!raiders && level.random.nextFloat() > 0.25F) {
             return;
         }
@@ -208,21 +236,55 @@ public final class ShadebornLife {
         if (at == null || !level.isLoaded(at)) {
             return;
         }
-        spawn(level, at, raiders ? 3 : 1, raiders, (float) (a * 57.3));
+        spawn(level, at, raiders ? 3 : 1, raiders, (float) (a * 57.3)); // (a band lives its own life: roaming, resting, stalking a camp, lying in wait)
     }
 
     /** A band of raiders (or one wanderer) at a place on the floor, facing a way. */
-    private static void spawn(ServerLevel level, BlockPos at, int count, boolean raiders, float yaw) {
+    private static List<Shadeborn> spawn(ServerLevel level, BlockPos at, int count, boolean raiders, float yaw) {
+        final List<Shadeborn> out = new java.util.ArrayList<>();
         for (int i = 0; i < count; i++) {
             final Shadeborn sb = AbyssalDepths.SHADEBORN.get().create(level);
             if (sb == null) {
-                return;
+                return out;
             }
-            sb.moveTo(at.getX() + 0.5 + i, at.getY(), at.getZ() + 0.5, yaw, 0);
+            out.add(sb);
+            BlockPos spot = at;
+            if (i > 0) { // round the first, each on its own floor
+                final double a = i * 2.4;
+                final BlockPos f = floor(level, at.offset((int) Math.round(Math.cos(a) * (1 + i / 3)), 0, (int) Math.round(Math.sin(a) * (1 + i / 3))));
+                spot = f != null ? f : at;
+            }
+            sb.moveTo(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5, yaw, 0);
             sb.setup(raiders ? Role.RAIDER : Role.WANDERER, raiders ? Shadeborn.HOSTILE : Shadeborn.FEARFUL, 0, null);
             sb.finalizeSpawn(level, level.getCurrentDifficultyAt(at), MobSpawnType.EVENT, null);
             level.addFreshEntity(sb);
         }
+        return out;
+    }
+
+    /** A band of raiders sets out for the camp nearest a player (a test command): spawned some way off it, on the player's side. */
+    public static String raid(ServerLevel level, ServerPlayer p, int count) {
+        final BlockPos found = level.findNearestMapStructure(net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.STRUCTURE,
+                net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(AbyssalDepths.MODID, "shadeborn_camps")), p.blockPosition(), 32, false);
+        if (found == null) {
+            return "No camp near";
+        }
+        level.getChunk(found);
+        final ShadebornStructure.Piece camp = ShadebornStructure.at(level, found, 24);
+        if (camp == null) {
+            return "No camp near";
+        }
+        final net.minecraft.world.phys.Vec3 hearth = net.minecraft.world.phys.Vec3.atBottomCenterOf(camp.spot.hearth());
+        net.minecraft.world.phys.Vec3 dir = p.position().subtract(hearth).multiply(1, 0, 1);
+        dir = dir.lengthSqr() < 1 ? new net.minecraft.world.phys.Vec3(1, 0, 0) : dir.normalize();
+        for (int d = 34; d >= 18; d -= 4) {
+            final BlockPos at = floor(level, BlockPos.containing(hearth.add(dir.scale(d))));
+            if (at != null) {
+                Raids.setOut(spawn(level, at, count, true, 0), camp);
+                return count + " raiders set out for the camp at " + camp.spot.x() + " " + camp.spot.z();
+            }
+        }
+        return "No floor for them near the camp";
     }
 
     /** A band of raiders some blocks before a player (a test command); whether there was floor for them. */
@@ -246,5 +308,45 @@ public final class ShadebornLife {
             pos.move(0, -1, 0);
         }
         return null;
+    }
+
+    /** The camp near a place, in words (a test command): progress, store, people. */
+    public static String describe(ServerLevel level, BlockPos at) {
+        final ShadebornStructure.Piece p = ShadebornStructure.at(level, at, 64);
+        if (p == null || p.hut) {
+            return "No camp near";
+        }
+        final Camps.Camp c = Camps.of(level).camp(p.spot.id());
+        final int[] stock = Expeditions.stock(level, p.spot);
+        final StringBuilder b = new StringBuilder(String.format(java.util.Locale.ROOT, "Camp: progress %.1f, store %d food %d light, knows %s",
+                c.progress, stock[0], stock[1], c.scouted.keySet()));
+        for (Shadeborn s : Shadeborn.of(level, p.spot.id(), p.spot.hearth(), 64)) {
+            b.append(String.format(java.util.Locale.ROOT, "\n  %s: %s, tired %.2f%s", s.role().id, s.activity(), s.fatigue, s.onWatch ? " (watch)" : ""));
+        }
+        for (Shadeborn s : level.getEntitiesOfClass(Shadeborn.class, new net.minecraft.world.phys.AABB(p.spot.hearth()).inflate(100), o -> o.role() == Role.RAIDER)) {
+            b.append(String.format(java.util.Locale.ROOT, "\n  raider %d: %s, %d from the hearth, hp %d, loot %s", s.getId(), s.activity(),
+                    (int) Math.sqrt(s.distanceToSqr(net.minecraft.world.phys.Vec3.atCenterOf(p.spot.hearth()))), (int) s.getHealth(), s.loot));
+        }
+        return b.toString();
+    }
+
+    /** The camp near a player sends an expedition now (a test command). */
+    public static String expedition(ServerLevel level, ServerPlayer player) {
+        final ShadebornStructure.Piece p = ShadebornStructure.at(level, player.blockPosition(), 64);
+        if (p == null || p.hut) {
+            return "No camp near";
+        }
+        final Camps.Camp c = Camps.of(level).camp(p.spot.id());
+        return Expeditions.send(level, p.spot, c, Shadeborn.of(level, p.spot.id(), p.spot.hearth(), 48), level.getGameTime(), player, true);
+    }
+
+    /** Where a player stands with each Shadeborn near (for the markers): its id, the trust stage, minutes of grudge left. */
+    private static void relations(ServerLevel level, ServerPlayer p) {
+        final StringBuilder b = new StringBuilder("sbrel/");
+        for (Shadeborn s : level.getEntitiesOfClass(Shadeborn.class, p.getBoundingBox().inflate(20))) {
+            final long grudge = s.begrudges(p) ? Math.max(1, (s.camp() != 0 ? Camps.of(level).camp(s.camp()).grudge(p.getUUID(), level.getGameTime()) : 1200) / 1200) : 0;
+            b.append(s.getId()).append(':').append(s.stage(p)).append(':').append(grudge).append(',');
+        }
+        net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(p, new redero.abyssaldepths.network.EffectPayload(b.toString(), 0));
     }
 }

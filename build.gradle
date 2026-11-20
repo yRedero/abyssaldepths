@@ -84,6 +84,8 @@ neoForge {
         // then closes (see AutoShot). Biomes and seed via -Pautoshot=... and -PautoshotSeed=...
         autoshot {
             client()
+            // its own game folder, so it runs beside your own game (tools/autoshot.sh fills it from run/ each time)
+            gameDirectory = project.file('run-autoshot')
             sourceSet = sourceSets.dev
             systemProperty 'abyssaldepths.profile', project.findProperty('profile') ?: 'false'
             systemProperty 'abyssaldepths.autoshot', project.findProperty('autoshot') ?: 'thermal_reaches,shale_flats,silt_dunes,thalan_depths'

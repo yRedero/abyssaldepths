@@ -41,6 +41,7 @@
     "ShadeQuietParticlesMixin",
     "ShadeRenderMixin",
     "ShadeSkinMixin",
-    "WorldOpenFlowsMixin"
+    "WorldOpenFlowsMixin",
+    "AutoshotMouseMixin"
   ]
 }

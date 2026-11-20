@@ -91,7 +91,7 @@ public final class ShadebornStructure extends Structure {
         Piece(CompoundTag tag) {
             super(PIECE.get(), tag);
             this.spot = new ShadebornCamps.Spot(tag.getInt("x"), tag.getInt("z"), tag.getInt("floor"), tag.getInt("biome"), tag.getBoolean("hostile"),
-                    tag.getLong("id"));
+                    tag.getLong("camp"));
             this.hut = tag.getBoolean("hut");
         }
 
@@ -107,7 +107,7 @@ public final class ShadebornStructure extends Structure {
             tag.putInt("floor", spot.floor());
             tag.putInt("biome", spot.biome());
             tag.putBoolean("hostile", spot.hostile());
-            tag.putLong("id", spot.id());
+            tag.putLong("camp", spot.id()); // (not "id": that is the piece's own type, which the game reads it back by)
             tag.putBoolean("hut", hut);
         }
 

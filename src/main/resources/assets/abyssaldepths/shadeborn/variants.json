@@ -1,0 +1,31 @@
+{
+  "_comment": "Each Shadeborn's look by region (depths, flats, dunes, reaches) and role: skins are textures/entity/shadeborn/<name>.png, worn accessories are models/entity/shadeborn/<name>.json with textures/entity/shadeborn/<name>.png. A role's skins go before the region's; what is worn is both together. An entry may be {\"model\": name, \"chance\": 0.5}. See client/ShadebornVariants.",
+  "regions": {
+    "depths": {
+      "skins": [],
+      "wear": []
+    },
+    "flats": {
+      "skins": [],
+      "wear": []
+    },
+    "dunes": {
+      "skins": [
+        "dunes"
+      ],
+      "wear": []
+    },
+    "reaches": {
+      "skins": [],
+      "wear": []
+    }
+  },
+  "roles": {
+    "stormwatcher": {
+      "skins": [],
+      "wear": [
+        "goggles"
+      ]
+    }
+  }
+}

@@ -68,6 +68,8 @@ public class Shadeborn extends PathfinderMob implements Merchant, redero.abyssal
     public static final int FEARFUL = 0, WARY = 1, NEUTRAL = 2, HOSTILE = 3;
     /** How they hold themselves (what the client draws). */
     public static final int OPEN = 0, GUARDED = 1, COWER = 2, THREAT = 3;
+    /** After an alarm, still shaken: watchful, looking where it came from (a wary face), not yet back at work. */
+    public static final int ALERT = 4;
     private static final EntityDataAccessor<Integer> ROLE = SynchedEntityData.defineId(Shadeborn.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> TEMPER = SynchedEntityData.defineId(Shadeborn.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> POSTURE = SynchedEntityData.defineId(Shadeborn.class, EntityDataSerializers.INT);
@@ -75,9 +77,16 @@ public class Shadeborn extends PathfinderMob implements Merchant, redero.abyssal
     private static final EntityDataAccessor<Boolean> SHOWING = SynchedEntityData.defineId(Shadeborn.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Integer> VISION = SynchedEntityData.defineId(Shadeborn.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> VARIANT = SynchedEntityData.defineId(Shadeborn.class, EntityDataSerializers.INT);
+    /** Where they come from (depths, flats, dunes, reaches): their regional look; "" until known (taken from where they stand). */
+    private static final EntityDataAccessor<String> REGION = SynchedEntityData.defineId(Shadeborn.class, EntityDataSerializers.STRING);
     private static final EntityDataAccessor<String> GESTURE = SynchedEntityData.defineId(Shadeborn.class, EntityDataSerializers.STRING);
     private static final EntityDataAccessor<Integer> GESTURE_AT = SynchedEntityData.defineId(Shadeborn.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Boolean> SITTING = SynchedEntityData.defineId(Shadeborn.class, EntityDataSerializers.BOOLEAN);
+    /** What it is doing now (a key: on_watch, resting, expedition, ...), for the marker over its head. */
+    private static final EntityDataAccessor<String> ACTIVITY = SynchedEntityData.defineId(Shadeborn.class, EntityDataSerializers.STRING);
+    /** For the marker: how tired (0..1), and its camp's progress (0..100; -1 without a camp). */
+    private static final EntityDataAccessor<Float> TIRED = SynchedEntityData.defineId(Shadeborn.class, EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Integer> PROGRESS = SynchedEntityData.defineId(Shadeborn.class, EntityDataSerializers.INT);
     /** What they lack and hold up: food and light. */
     private static final ItemStack[] WANTS = {new ItemStack(Items.BREAD), new ItemStack(Items.COOKED_BEEF), new ItemStack(Items.COOKED_MUTTON),
             new ItemStack(Items.BAKED_POTATO), new ItemStack(Items.TORCH), new ItemStack(Items.LANTERN), new ItemStack(Items.SWEET_BERRIES),
@@ -91,6 +100,83 @@ public class Shadeborn extends PathfinderMob implements Merchant, redero.abyssal
     private UUID offersFor, follow;
     private int nextWant;
     private final Map<UUID, Long> served = new HashMap<>(), greeted = new HashMap<>(), gifted = new HashMap<>();
+    /** Who struck this one, till when it holds it against them (game time; its own memory, longer than the camp's). */
+    private final Map<UUID, Long> grudges = new HashMap<>();
+    /** A raider's raid, or null. */
+    Raid raid;
+    /** What a raider carries off (dropped where it falls). */
+    final List<ItemStack> loot = new java.util.ArrayList<>();
+    /** The last alarm heard: from what, when (game time). */
+    LivingEntity alarmedBy;
+    long alarmAt = -1000;
+    Vec3 alarmPos;
+    /** What it fears now (judged by {@link Shelter#danger}, every half second), and whether it is taking shelter. */
+    Shelter.Danger danger;
+    long dangerAt = -100;
+    boolean sheltering;
+
+    /** Whether a player is one this one is wary of: kept at a distance, not fled from (see {@link Shelter}). */
+    boolean wary(Player p) {
+        return afraidOf(p);
+    }
+
+    /**
+     * Whether this one is still shaken by the last alarm: the fearful longest, the hostile hardly; each a little
+     * differently, so they go back to their work one by one.
+     */
+    boolean shaken() {
+        final int calm = switch (temper()) {
+            case FEARFUL -> 900;
+            case WARY -> 600;
+            case NEUTRAL -> 400;
+            default -> 200;
+        } + Math.floorMod(getId(), 5) * 60;
+        return level().getGameTime() - alarmAt < calm;
+    }
+
+    /** A raid in hand: on which camp, its hearth and store, how many set out, when, and how far it has got. */
+    public static final class Raid {
+        static final int CREEP = 0, ATTACK = 1, FLEE = 2, STALK = 3;
+        final long camp;
+        final BlockPos hearth, store;
+        final int bandSize;
+        final long started;
+        int phase;
+        long chaseSince, nextPick, stalkUntil, attackSince;
+        /** Where the band watched the camp from (and makes for with its loot). */
+        BlockPos rally;
+
+        Raid(long camp, BlockPos hearth, BlockPos store, int bandSize, long started) {
+            this.camp = camp;
+            this.hearth = hearth;
+            this.store = store;
+            this.bandSize = bandSize;
+            this.started = started;
+        }
+    }
+
+    /** Whether this one (or its camp) still holds a blow against a player. */
+    public boolean begrudges(Player p) {
+        if (!(level() instanceof ServerLevel server)) {
+            return false;
+        }
+        final long now = server.getGameTime();
+        return grudges.getOrDefault(p.getUUID(), 0L) > now || camp != 0 && Camps.of(server).camp(camp).grudge(p.getUUID(), now) > 0;
+    }
+
+    /** What this one runs from: raiders, whatever it heard the alarm about, players it fears. (Fighters run from nothing.) */
+    private boolean fears(LivingEntity e) {
+        if (role().fights() || temper() == HOSTILE) {
+            return false;
+        }
+        if (e instanceof Shadeborn o) {
+            return o.role() == Role.RAIDER;
+        }
+        if (e == alarmedBy && level().getGameTime() - alarmAt < 400) {
+            return !(e instanceof Player p) || !p.isCreative() && !p.isSpectator();
+        }
+        return e instanceof Player p && afraidOf(p);
+    }
 
     public Shadeborn(EntityType<? extends Shadeborn> type, Level level) {
         super(type, level);
@@ -111,9 +197,13 @@ public class Shadeborn extends PathfinderMob implements Merchant, redero.abyssal
         builder.define(SHOWING, false);
         builder.define(VISION, -1);
         builder.define(VARIANT, 0);
+        builder.define(REGION, "");
         builder.define(GESTURE, "");
         builder.define(GESTURE_AT, 0);
         builder.define(SITTING, false);
+        builder.define(ACTIVITY, "idle");
+        builder.define(TIRED, 0.0F);
+        builder.define(PROGRESS, -1);
     }
 
     // ------------------------------------------------------------------ who they are
@@ -156,6 +246,46 @@ public class Shadeborn extends PathfinderMob implements Merchant, redero.abyssal
         entityData.set(GESTURE_AT, (int) level().getGameTime());
     }
 
+    /** What it is doing now (a key, see the lang file's shadeborn.abyssaldepths.activity.*). */
+    public String activity() {
+        return entityData.get(ACTIVITY);
+    }
+
+    /** How tired it is, as seen (0..1). */
+    public float tired() {
+        return entityData.get(TIRED);
+    }
+
+    /** Its camp's progress, as seen (0..100), or -1 without a camp. */
+    public int campProgress() {
+        return entityData.get(PROGRESS);
+    }
+
+    /** What it wants (shown held up or not). */
+    public ItemStack wants() {
+        return entityData.get(WANT);
+    }
+
+    /** How tired it is (0 rested .. 1 worn out): working tires, resting in the tent restores. */
+    float fatigue;
+    /** Whether it stands the camp's watch now (the Elder sees to who does). */
+    boolean onWatch;
+    /** Whether it is resting now (in its tent, till rested). */
+    boolean resting;
+    /** What its routine has it doing (an activity key). */
+    String task = "idle";
+    /** The expedition it is on, or null. */
+    Expeditions.Trip trip;
+    /** Where it was when it last seemed stuck, since when (raiders try elsewhere when they get nowhere). */
+    Vec3 stuckAt;
+    long stuckSince;
+    /** A raider band's life between raids (see Raids.wild): what it is doing, where it goes, since when; its next raid not before. */
+    String wild = "roaming";
+    BlockPos wildGoal;
+    /** The camp a band last raided: kept away from till it may raid again. */
+    BlockPos avoid;
+    long wildSince, raidAgain;
+
     /** Whether they sit (round the hearth, in their tent). */
     public boolean sitting() {
         return entityData.get(SITTING);
@@ -183,6 +313,18 @@ public class Shadeborn extends PathfinderMob implements Merchant, redero.abyssal
 
     public int variant() {
         return entityData.get(VARIANT);
+    }
+
+    /** Their region (depths, flats, dunes, reaches, or "other"); "" until known. */
+    public String region() {
+        return entityData.get(REGION);
+    }
+
+    /** The region of the land at a place. */
+    private static String regionAt(net.minecraft.world.level.Level level, BlockPos at) {
+        final var biome = level.getBiome(at);
+        return biome.is(AbyssalDepths.SILT_DUNES) ? "dunes" : biome.is(AbyssalDepths.THERMAL_REACHES) ? "reaches"
+                : biome.is(AbyssalDepths.SHALE_FLATS) ? "flats" : biome.is(AbyssalDepths.THALAN_DEPTHS) ? "depths" : "other";
     }
 
     public boolean young() {
@@ -227,14 +369,11 @@ public class Shadeborn extends PathfinderMob implements Merchant, redero.abyssal
     @Override
     protected void registerGoals() {
         goalSelector.addGoal(0, new FloatGoal(this));
-        goalSelector.addGoal(1, new PanicGoal(this, 1.35) {
-            @Override
-            public boolean canUse() {
-                return !role().fights() && temper() != HOSTILE && super.canUse();
-            }
-        });
-        goalSelector.addGoal(2, new AvoidEntityGoal<>(this, Player.class, 9.0F, 1.0, 1.35, p -> p instanceof Player pl && afraidOf(pl)));
+        goalSelector.addGoal(1, new Shelter(this)); // danger: keeping away, or fleeing to a shelter (those who do not fight)
         goalSelector.addGoal(3, new MeleeAttackGoal(this, 1.15, false));
+        goalSelector.addGoal(3, new Expeditions.Go(this)); // out on an expedition
+        goalSelector.addGoal(4, new Raids.Raid(this));
+        goalSelector.addGoal(4, new Raids.Band(this));
         goalSelector.addGoal(4, new CampLife.Formation(this));
         goalSelector.addGoal(4, new FollowTrusted());
         goalSelector.addGoal(5, new GoHome());
@@ -249,6 +388,8 @@ public class Shadeborn extends PathfinderMob implements Merchant, redero.abyssal
             }
         });
         targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, 10, true, false, p -> p instanceof Player pl && hostileTo(pl)));
+        targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, Shadeborn.class, 10, true, false, // watchers drive raiders off
+                o -> role() == Role.WATCHER && o instanceof Shadeborn r && r.role() == Role.RAIDER && (home == null || r.blockPosition().closerThan(home, 28))));
         targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, Monster.class, 10, true, false,
                 m -> role() == Role.WATCHER && home != null && m.blockPosition().closerThan(home, 24)));
         targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, redero.abyssaldepths.fracture.Remnant.class, 10, true, false,
@@ -275,7 +416,7 @@ public class Shadeborn extends PathfinderMob implements Merchant, redero.abyssal
             return false;
         }
         final int stage = stage(p);
-        return trust(p) < -20 || stage == Camps.STRANGER && (temper() == FEARFUL || young()) || stage == Camps.STRANGER && temper() == WARY
+        return begrudges(p) || trust(p) < -20 || stage == Camps.STRANGER && (temper() == FEARFUL || young()) || stage == Camps.STRANGER && temper() == WARY
                 && p.distanceTo(this) < 4;
     }
 
@@ -283,7 +424,10 @@ public class Shadeborn extends PathfinderMob implements Merchant, redero.abyssal
         if (p.isCreative() || p.isSpectator()) {
             return false;
         }
-        return role() == Role.RAIDER || temper() == HOSTILE && !young() || role() == Role.WATCHER && trust(p) < -20;
+        // raiders: in a raid, whoever is in the way; otherwise only those who side with the camps (Kin somewhere), when near
+        return role() == Role.RAIDER && !"lying_in_wait".equals(wild) && (raid != null
+                || p.distanceTo(this) < 12 && level() instanceof ServerLevel sl && Camps.of(sl).kinAnywhere(p.getUUID())) || temper() == HOSTILE && !young()
+                || role() == Role.WATCHER && (trust(p) < -20 || begrudges(p) && trust(p) < Camps.STAGE[Camps.WELCOME]);
     }
 
     @Override
@@ -292,7 +436,10 @@ public class Shadeborn extends PathfinderMob implements Merchant, redero.abyssal
         if (level().isClientSide || tickCount % 10 != 0) {
             return;
         }
-        if (isInWall()) { // caught in the rock (land laid round them, a cave-in): out, upwards, or home
+        if (region().isEmpty()) { // where they come from: the land they first stand on (the camp's own)
+            entityData.set(REGION, regionAt(level(), home != null ? home : blockPosition()));
+        }
+        if (isInWall() && !level().getBlockState(BlockPos.containing(getEyePosition())).is(AbyssalDepths.QUICKSILT.get())) { // caught in the rock (land laid round them, a cave-in): out, upwards, or home
             final BlockPos.MutableBlockPos at = blockPosition().mutable();
             for (int k = 0; k < 8; k++) {
                 at.move(0, 1, 0);
@@ -309,6 +456,8 @@ public class Shadeborn extends PathfinderMob implements Merchant, redero.abyssal
         int posture = OPEN;
         if (getTarget() != null || role() == Role.RAIDER || temper() == HOSTILE && !young()) {
             posture = THREAT;
+        } else if (near != null && !near.isSpectator() && begrudges(near)) { // the one who struck them: shrinking back, or squaring up
+            posture = role().fights() ? THREAT : COWER;
         } else if (near != null && !near.isSpectator()) {
             final int stage = stage(near);
             posture = trust(near) < -20 || stage == Camps.STRANGER && (temper() == FEARFUL || young()) ? COWER
@@ -316,9 +465,60 @@ public class Shadeborn extends PathfinderMob implements Merchant, redero.abyssal
         } else {
             posture = temper() == FEARFUL ? GUARDED : OPEN;
         }
+        final Shelter.Danger fear = Shelter.danger(this);
+        if (sheltering && (fear == null || fear.flee())) {
+            posture = COWER; // fled, or crouching in shelter
+        }
+        if (shaken() && (posture == OPEN || posture == GUARDED)) { // still shaken: watchful, eyes on where it came from
+            posture = ALERT;
+            if (alarmPos != null && getTarget() == null && random.nextInt(3) == 0) {
+                getLookControl().setLookAt(alarmPos.x, alarmPos.y + 1.2, alarmPos.z);
+            }
+        }
         entityData.set(POSTURE, posture);
         // what they lack, held up to one near enough to see it (not by the fearful to strangers, nor in a fight)
-        entityData.set(SHOWING, near != null && near.distanceTo(this) < 7 && posture != THREAT && !role().fights() && tickCount >= nextWant);
+        // what they want, held out only when calm: not afraid, not shaken, not in danger, nothing against the one near
+        // and only by camp folk with nothing to do, at home (not out on an expedition, not sitting: their hands are busy)
+        final String now0 = activity();
+        entityData.set(SHOWING, near != null && near.distanceTo(this) < 7 && (posture == OPEN || posture == GUARDED) && !role().fights()
+                && tickCount >= nextWant && !begrudges(near) && !afraidOf(near) && fear == null && !sheltering
+                && camp != 0 && trip == null && !sitting() && !onWatch && !resting
+                && ("at_hearth".equals(now0) || "standing_by".equals(now0) || "idle".equals(now0)));
+        if (role() == Role.WATCHER && home != null && getTarget() != null && getTarget().distanceToSqr(Vec3.atCenterOf(home)) > 28 * 28) {
+            setTarget(null); // a watcher guards its camp: it does not chase the enemy off across the layer
+        }
+        if (raid != null) {
+            Raids.think(this); // a raider at its raid
+        } else if (role() == Role.RAIDER && camp == 0) {
+            Raids.wild(this); // a raider band between raids
+        }
+        // what it is doing, and how that tires it (or rests it)
+        final String doing = trip != null ? (trip.phase == Expeditions.Trip.OUT ? "expedition_out" : trip.phase == Expeditions.Trip.SEARCH ? "searching" : "returning")
+                : getTarget() != null ? "fighting" : raid != null ? (raid.phase == Raid.STALK ? "stalking" : raid.phase == Raid.FLEE ? "making_off" : "raiding")
+                : role() == Role.RAIDER && camp == 0 ? (onWatch && "resting".equals(wild) ? "keeping_watch" : wild)
+                : sheltering ? (fear != null && !fear.flee() ? "keeping_away" : "taking_shelter")
+                : onWatch ? "on_watch" : resting ? "resting" : shaken() ? "alert" : task;
+        entityData.set(ACTIVITY, doing);
+        final float tire = switch (doing) {
+            case "resting" -> -0.006F;
+            case "on_watch", "expedition_out", "searching", "returning", "fighting", "raiding", "taking_shelter", "roaming", "making_off" -> 0.0018F;
+            case "keeping_watch", "stalking", "lying_in_wait" -> 0.0012F;
+            case "tending_fire", "at_store", "overseeing" -> 0.0012F;
+            case "at_hearth" -> -0.0015F; // (sitting by the fire rests them a little)
+            default -> 0.0003F;
+        };
+        fatigue = Mth.clamp(fatigue + tire, 0, 1);
+        entityData.set(TIRED, Math.round(fatigue * 20) / 20.0F);
+        if (tickCount % 40 == 0) {
+            entityData.set(PROGRESS, camp != 0 && level() instanceof ServerLevel sl ? Math.round(Camps.of(sl).camp(camp).progress) : -1);
+        }
+        // a raider coming into sight: the alarm
+        if (camp != 0 && role() != Role.RAIDER && tickCount % 20 == 0) {
+            final List<Shadeborn> raiders = level().getEntitiesOfClass(Shadeborn.class, getBoundingBox().inflate(20), o -> o.role() == Role.RAIDER && o.isAlive());
+            if (!raiders.isEmpty()) {
+                Raids.alarm(this, raiders.get(0));
+            }
+        }
         greet(near);
         if (vision() >= 0 && level().getGameTime() - vision() > 30) {
             entityData.set(VISION, -1);
@@ -333,14 +533,46 @@ public class Shadeborn extends PathfinderMob implements Merchant, redero.abyssal
         final ItemStack held = player.getItemInHand(hand);
         final ItemStack want = entityData.get(WANT);
         final int stage = stage(player);
+        // what raiders took from this camp, brought back: into the store, and a deep bow
+        if (camp != 0 && Raids.stolenFrom(held) == camp) {
+            final net.minecraft.world.level.block.entity.BarrelBlockEntity store = Raids.store(server, Camps.of(server).camp(camp).store.equals(BlockPos.ZERO)
+                    ? blockPosition() : Camps.of(server).camp(camp).store);
+            final ItemStack back = held.copy();
+            back.remove(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+            back.remove(net.minecraft.core.component.DataComponents.LORE);
+            if (store != null) {
+                for (int i = 0; i < store.getContainerSize() && !back.isEmpty(); i++) {
+                    if (store.getItem(i).isEmpty()) {
+                        store.setItem(i, back.copy());
+                        back.setCount(0);
+                    }
+                }
+            }
+            held.setCount(0);
+            gave(player, 12);
+            Camps.of(server).soften(camp, player.getUUID(), server.getGameTime());
+            gesture("bow");
+            server.sendParticles(ParticleTypes.HAPPY_VILLAGER, getX(), getEyeY() + 0.3, getZ(), 10, 0.4, 0.4, 0.4, 0);
+            playSound(SoundEvents.AMETHYST_BLOCK_CHIME, 1.0F, 0.8F);
+            return InteractionResult.SUCCESS;
+        }
         // a gift of what they hold up
         if (!want.isEmpty() && held.is(want.getItem()) && tickCount >= nextWant) {
             if (!player.getAbilities().instabuild) {
                 held.shrink(1);
             }
             nextWant = tickCount + 600; // satisfied for a while, then something else
+            entityData.set(SHOWING, false); // (the hand lowered at once: what it wants next is shown only later)
+            if (begrudges(player)) { // a gift of what they lack: they let go of half of what they hold against you
+                Camps.of(server).soften(camp, player.getUUID(), server.getGameTime());
+                final long left = grudges.getOrDefault(player.getUUID(), 0L) - server.getGameTime();
+                if (left > 0) {
+                    grudges.put(player.getUUID(), server.getGameTime() + left / 2);
+                }
+            }
             entityData.set(WANT, WANTS[random.nextInt(WANTS.length)].copy());
             gave(player, 6);
+            gesture("face_glad"); // (glad, once the model has the face)
             server.sendParticles(ParticleTypes.HAPPY_VILLAGER, getX(), getEyeY() + 0.3, getZ(), 8, 0.3, 0.3, 0.3, 0);
             playSound(SoundEvents.AMETHYST_BLOCK_CHIME, 1.0F, 0.6F);
             return InteractionResult.SUCCESS;
@@ -364,6 +596,14 @@ public class Shadeborn extends PathfinderMob implements Merchant, redero.abyssal
             }
             case KEEPER -> {
                 final Camps.Camp c = camp == 0 ? null : Camps.of(server).camp(camp);
+                if (c != null && player.isShiftKeyDown() && held.isEmpty() && stage >= Camps.KIN && player instanceof ServerPlayer sp) {
+                    final var piece = redero.abyssaldepths.worldgen.ShadebornStructure.at(server, home != null ? home : blockPosition(), 24);
+                    if (piece != null) {
+                        final String said = Expeditions.send(server, piece.spot, c, of(server, camp, piece.spot.hearth(), 48), server.getGameTime(), sp, false);
+                        sp.displayClientMessage(Component.translatable("shadeborn.abyssaldepths.expedition.asked", said), true);
+                        return InteractionResult.SUCCESS;
+                    }
+                }
                 if (c != null && player.getUUID().equals(c.keeper) && KeeperCamp.use(this, server, player, held)) {
                     return InteractionResult.SUCCESS;
                 }
@@ -398,6 +638,11 @@ public class Shadeborn extends PathfinderMob implements Merchant, redero.abyssal
             default -> {
             }
         }
+        if (begrudges(player)) { // they will not deal with the one who struck them
+            playSound(SoundEvents.FOX_SNIFF, 0.6F, 0.5F);
+            gesture("face_sceptical");
+            return InteractionResult.CONSUME;
+        }
         if (role().trades() && stage >= Camps.TOLERATED && !isTrading()) {
             if (offers == null || offersStage != stage || !player.getUUID().equals(offersFor)) {
                 offers = Offers.of(this, server, stage);
@@ -409,6 +654,7 @@ public class Shadeborn extends PathfinderMob implements Merchant, redero.abyssal
             return InteractionResult.SUCCESS;
         }
         playSound(SoundEvents.FOX_SNIFF, 0.5F, 0.6F); // nothing for you (yet)
+        gesture("face_sceptical"); // and the look that goes with it
         return InteractionResult.CONSUME;
     }
 
@@ -420,6 +666,13 @@ public class Shadeborn extends PathfinderMob implements Merchant, redero.abyssal
     private void greet(Player near) {
         if (near == null || near.isSpectator() || near.distanceTo(this) > 7 || !(level() instanceof ServerLevel server) || camp == 0
                 || temper() == HOSTILE || level().getGameTime() < greeted.getOrDefault(near.getUUID(), 0L)) {
+            return;
+        }
+        if (begrudges(near)) { // no greeting for the one who struck them: the watchers warn them off
+            if (role() == Role.WATCHER) {
+                gesture("warn");
+            }
+            greeted.put(near.getUUID(), level().getGameTime() + 200);
             return;
         }
         final int stage = stage(near);
@@ -485,6 +738,9 @@ public class Shadeborn extends PathfinderMob implements Merchant, redero.abyssal
 
     /** Trust from a player's kindness here (and a stage reached: shown). */
     private void gave(Player player, int by) {
+        if (camp != 0 && level() instanceof ServerLevel server0) {
+            Camps.of(server0).progress(camp, by / 4.0F); // help moves the camp on
+        }
         if (camp != 0 && level() instanceof ServerLevel server && Camps.of(server).change(camp, player.getUUID(), by)) {
             server.sendParticles(ParticleTypes.END_ROD, getX(), getEyeY() + 0.5, getZ(), 12, 0.3, 0.3, 0.3, 0.03);
             server.playSound(null, blockPosition(), SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.NEUTRAL, 1.0F, 0.8F);
@@ -493,9 +749,21 @@ public class Shadeborn extends PathfinderMob implements Merchant, redero.abyssal
 
     @Override
     public boolean hurt(DamageSource source, float amount) {
+        final int before = source.getEntity() instanceof Player p0 ? trust(p0) : 0;
         final boolean hurt = super.hurt(source, amount);
-        if (hurt && camp != 0 && source.getEntity() instanceof Player p && level() instanceof ServerLevel server) {
-            Camps.of(server).change(camp, p.getUUID(), isDeadOrDying() ? -50 : -20); // harming them
+        if (hurt && source.getEntity() instanceof LivingEntity attacker && attacker != this && level() instanceof ServerLevel server) {
+            if (attacker instanceof Player p && !p.isCreative()) {
+                final long now = server.getGameTime(), hold = Camps.grudgeFor(before, isDeadOrDying());
+                if (camp != 0) {
+                    Camps.of(server).change(camp, p.getUUID(), isDeadOrDying() ? -50 : -20); // harming them
+                    Camps.of(server).progress(camp, -3);
+                    Camps.of(server).hold(camp, p.getUUID(), now, hold); // and they remember it
+                }
+                grudges.put(p.getUUID(), Math.max(now, grudges.getOrDefault(p.getUUID(), 0L)) + hold * 3 / 2); // this one, longer still
+            }
+            if (!(attacker instanceof Shadeborn o && o.camp() == camp && camp != 0)) {
+                Raids.alarm(this, attacker);
+            }
         }
         return hurt;
     }
@@ -506,7 +774,7 @@ public class Shadeborn extends PathfinderMob implements Merchant, redero.abyssal
     private final class FollowTrusted extends Goal {
         @Override
         public boolean canUse() {
-            return follow != null && (young() || role() == Role.WATCHER);
+            return Shelter.danger(Shadeborn.this) == null && follow != null && (young() || role() == Role.WATCHER);
         }
 
         @Override
@@ -529,7 +797,7 @@ public class Shadeborn extends PathfinderMob implements Merchant, redero.abyssal
     private final class GoHome extends Goal {
         @Override
         public boolean canUse() {
-            return home != null && !blockPosition().closerThan(home, 22) && getTarget() == null;
+            return home != null && !blockPosition().closerThan(home, 22) && getTarget() == null && Shelter.danger(Shadeborn.this) == null && !shaken();
         }
 
         @Override
@@ -629,6 +897,9 @@ public class Shadeborn extends PathfinderMob implements Merchant, redero.abyssal
         if (data.has("variant")) {
             entityData.set(VARIANT, data.get("variant").getAsInt());
         }
+        if (data.has("region")) {
+            entityData.set(REGION, data.get("region").getAsString());
+        }
         refreshDimensions();
     }
 
@@ -655,6 +926,7 @@ public class Shadeborn extends PathfinderMob implements Merchant, redero.abyssal
         tag.putInt("role", entityData.get(ROLE));
         tag.putInt("temper", temper());
         tag.putInt("variant", variant());
+        tag.putString("region", region());
         tag.putLong("camp", camp);
         if (home != null) {
             tag.put("home", NbtUtils.writeBlockPos(home));
@@ -662,6 +934,37 @@ public class Shadeborn extends PathfinderMob implements Merchant, redero.abyssal
         if (!entityData.get(WANT).isEmpty()) {
             tag.put("want", entityData.get(WANT).save(registryAccess()));
         }
+        final net.minecraft.nbt.ListTag held = new net.minecraft.nbt.ListTag();
+        grudges.forEach((p, until) -> {
+            final CompoundTag e = new CompoundTag();
+            e.putUUID("p", p);
+            e.putLong("until", until);
+            held.add(e);
+        });
+        tag.put("grudges", held);
+        tag.putFloat("fatigue", fatigue);
+        tag.putBoolean("watch", onWatch);
+        tag.putBoolean("resting", resting);
+        if (trip != null) {
+            tag.put("trip", trip.save());
+        }
+        if (raid != null) {
+            final CompoundTag r = new CompoundTag();
+            r.putLong("camp", raid.camp);
+            r.put("hearth", NbtUtils.writeBlockPos(raid.hearth));
+            r.put("store", NbtUtils.writeBlockPos(raid.store));
+            r.putInt("band", raid.bandSize);
+            r.putLong("started", raid.started);
+            r.putInt("phase", raid.phase);
+            tag.put("raid", r);
+        }
+        final net.minecraft.nbt.ListTag carried = new net.minecraft.nbt.ListTag();
+        for (ItemStack st : loot) {
+            if (!st.isEmpty()) {
+                carried.add(st.save(registryAccess()));
+            }
+        }
+        tag.put("loot", carried);
     }
 
     @Override
@@ -670,6 +973,7 @@ public class Shadeborn extends PathfinderMob implements Merchant, redero.abyssal
         entityData.set(ROLE, tag.getInt("role"));
         entityData.set(TEMPER, tag.getInt("temper"));
         entityData.set(VARIANT, tag.getInt("variant"));
+        entityData.set(REGION, tag.getString("region"));
         camp = tag.getLong("camp");
         home = NbtUtils.readBlockPos(tag, "home").orElse(null);
         if (home != null) {
@@ -678,7 +982,35 @@ public class Shadeborn extends PathfinderMob implements Merchant, redero.abyssal
         if (tag.contains("want")) {
             entityData.set(WANT, ItemStack.parse(registryAccess(), tag.get("want")).orElse(ItemStack.EMPTY));
         }
+        fatigue = tag.getFloat("fatigue");
+        onWatch = tag.getBoolean("watch");
+        resting = tag.getBoolean("resting");
+        trip = tag.contains("trip") ? Expeditions.Trip.load(tag.getCompound("trip")) : null;
+        for (net.minecraft.nbt.Tag e : tag.getList("grudges", net.minecraft.nbt.Tag.TAG_COMPOUND)) {
+            grudges.put(((CompoundTag) e).getUUID("p"), ((CompoundTag) e).getLong("until"));
+        }
+        if (tag.contains("raid")) {
+            final CompoundTag r = tag.getCompound("raid");
+            raid = new Raid(r.getLong("camp"), NbtUtils.readBlockPos(r, "hearth").orElse(BlockPos.ZERO), NbtUtils.readBlockPos(r, "store").orElse(BlockPos.ZERO),
+                    r.getInt("band"), r.getLong("started"));
+            raid.phase = r.getInt("phase");
+        }
+        for (net.minecraft.nbt.Tag e : tag.getList("loot", net.minecraft.nbt.Tag.TAG_COMPOUND)) {
+            ItemStack.parse(registryAccess(), e).ifPresent(loot::add);
+        }
         refreshDimensions();
+    }
+
+    /** What a raider carried off falls where it falls. */
+    @Override
+    protected void dropCustomDeathLoot(ServerLevel level, DamageSource source, boolean recentlyHit) {
+        super.dropCustomDeathLoot(level, source, recentlyHit);
+        for (ItemStack st : loot) {
+            if (!st.isEmpty()) {
+                spawnAtLocation(st);
+            }
+        }
+        loot.clear();
     }
 
     /** All Shadeborn of a camp near a place. */

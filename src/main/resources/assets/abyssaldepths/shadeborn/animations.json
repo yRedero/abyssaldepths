@@ -1,0 +1,6 @@
+{
+  "_comment": "How fast each Shadeborn animation plays (1 = as made). A speed set in Blockbench (Animation > Properties > Anim Time Update, e.g. q.anim_time + q.delta_time * 0.5) is read too; this multiplies it. F3+T reloads.",
+  "speeds": {
+    "sneaking_body": 0.5
+  }
+}

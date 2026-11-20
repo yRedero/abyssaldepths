@@ -31,10 +31,11 @@ public final class ShadebornCamps {
     /** Who lives in a camp of each region, in the order they come as it grows (a huddle: 3, a camp: 6, a hold: 8). */
     public static Role[] members(int biome) {
         return switch (biome) {
-            case Biomes.DUNES -> new Role[] {Role.KEEPER, Role.STORMWATCHER, Role.TRADER, Role.WATCHER, Role.STORMWATCHER, Role.YOUNG, Role.PATHFINDER, Role.MENDER};
-            case Biomes.THERMAL -> new Role[] {Role.KEEPER, Role.SMITH, Role.LAMP_KEEPER, Role.WATCHER, Role.SMITH, Role.YOUNG, Role.TRADER, Role.WEAVER};
-            case Biomes.FLATS -> new Role[] {Role.KEEPER, Role.DELVER, Role.TRADER, Role.WATCHER, Role.DELVER, Role.YOUNG, Role.PATHFINDER, Role.FORAGER};
-            default -> new Role[] {Role.KEEPER, Role.SEER, Role.LAMP_KEEPER, Role.WATCHER, Role.MOURNER, Role.YOUNG, Role.MENDER, Role.WEAVER};
+            // (a watcher second: every camp, even a huddle of three, has one; more come with progress)
+            case Biomes.DUNES -> new Role[] {Role.KEEPER, Role.WATCHER, Role.STORMWATCHER, Role.TRADER, Role.STORMWATCHER, Role.YOUNG, Role.PATHFINDER, Role.MENDER};
+            case Biomes.THERMAL -> new Role[] {Role.KEEPER, Role.WATCHER, Role.SMITH, Role.LAMP_KEEPER, Role.SMITH, Role.YOUNG, Role.TRADER, Role.WEAVER};
+            case Biomes.FLATS -> new Role[] {Role.KEEPER, Role.WATCHER, Role.DELVER, Role.TRADER, Role.DELVER, Role.YOUNG, Role.PATHFINDER, Role.FORAGER};
+            default -> new Role[] {Role.KEEPER, Role.WATCHER, Role.SEER, Role.LAMP_KEEPER, Role.MOURNER, Role.YOUNG, Role.MENDER, Role.WEAVER};
         };
     }
 

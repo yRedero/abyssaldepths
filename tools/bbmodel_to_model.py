@@ -8,6 +8,7 @@ UVs and the texture are kept as made in Blockbench.
 import base64
 import io
 import json
+import re
 import sys
 
 from PIL import Image
@@ -49,6 +50,11 @@ if loose:
 animations = {}
 for a in d.get('animations', []):
     anim = {'length': a.get('length', 0), 'loop': a.get('loop', 'once'), 'bones': {}}
+    # its playback speed, if set in Blockbench (Animation > Properties > Anim Time Update: "q.anim_time + q.delta_time * 0.5");
+    # the speed of the timeline's player is not saved in the file
+    m = re.search(r'delta_time\s*\*\s*([0-9.]+)|([0-9.]+)\s*\*\s*q(?:uery)?\.delta_time', a.get('anim_time_update') or '')
+    if m:
+        anim['speed'] = float(m.group(1) or m.group(2))
     for an in a.get('animators', {}).values():
         chans = {}
         for kf in an.get('keyframes', []):

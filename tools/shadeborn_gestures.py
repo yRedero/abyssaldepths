@@ -6,8 +6,8 @@ Blockbench): into the .bbmodel (a copy, for the user) and into the game's model 
 
 Bones of the model: leg1, leg2, body (arm1, arm2, head under it). Rotations in degrees, as the model faces (front towards -z): x positive swings an arm or leg forward and up, leans the body
 and the head back (so a nod or bow is negative).
-Gestures: nod (Tolerated), wave (Welcome), bow (Kin, Keeper), beckon, point, warn (off with you), sit (at the hearth, in
-the tents at night).
+Gestures: nod (Tolerated), wave (Welcome), bow (Kin, Keeper), beckon, point, warn (off with you). (Sitting is the user's
+own sitting_relaxed.)
 """
 import json
 import sys
@@ -47,9 +47,6 @@ GESTURES = [
     anim('warn', 1.2, 'once', {'arm1': [kf(R, 0, 0), kf(R, 0.2, 85, 0, -35), kf(R, 0.9, 85, 0, -35), kf(R, 1.2, 0)],
                                'arm2': [kf(R, 0, 0), kf(R, 0.2, 85, 0, 35), kf(R, 0.9, 85, 0, 35), kf(R, 1.2, 0)],
                                'body': [kf(R, 0, 0), kf(R, 0.2, 6), kf(R, 0.9, 6), kf(R, 1.2, 0)]}),
-    anim('sit', 0.5, 'hold', {'leg1': [kf(R, 0, 0), kf(R, 0.5, 90, 8, 0)], 'leg2': [kf(R, 0, 0), kf(R, 0.5, 90, -8, 0)],
-                              'body': [kf('position', 0, 0, 0, 0), kf('position', 0.5, 0, -9, 0)],
-                              'head': [kf(R, 0, 0), kf(R, 0.5, -12)]}),
 ]
 names = {g['name'] for g in GESTURES}
 d['animations'] = [a for a in d.get('animations', []) if a['name'] not in names] + GESTURES

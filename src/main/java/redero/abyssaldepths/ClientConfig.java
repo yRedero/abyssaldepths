@@ -18,6 +18,10 @@ public final class ClientConfig {
                     "0 turns them off, 1 is the default, 2 doubles them.")
             .translation("abyssaldepths.config.particles")
             .defineInRange("particles", 1.0, 0.0, 2.0);
+    private static final ModConfigSpec.BooleanValue SHADEBORN_MARKERS = BUILDER
+            .comment("Markers over the Shadeborn: their role and what they are doing (until their models tell them apart).")
+            .translation("abyssaldepths.config.shadeborn_markers")
+            .define("shadebornMarkers", true);
     private static final ModConfigSpec.BooleanValue OPENING = BUILDER
             .comment("The opening when the game has finished loading: light and dark meeting in the black. Any key or click skips it.")
             .translation("abyssaldepths.config.opening")
@@ -452,5 +456,9 @@ public final class ClientConfig {
 
     public static int thermalScanChunks() {
         return SPEC.isLoaded() ? THERMAL_SCAN_CHUNKS.get() : 2;
+    }
+
+    public static boolean shadebornMarkers() {
+        return SPEC.isLoaded() ? SHADEBORN_MARKERS.get() : true;
     }
 }

@@ -43,7 +43,8 @@ public final class WormManager extends SavedData {
     private static final int KEEP_CHUNKS = 128, FAR = 112, FIRST_CHUNKS = 100;
     /** When the first worm comes (ticks into the world). */
     private static final long FIRST_AT = 5 * 60 * 20;
-    private static final double REAL = 120.0, HEAR = 400.0;
+    /** How near a player a kept worm becomes real (blocks); how far a real one stays real while its land is loaded; how far it is heard. */
+    private static final double REAL = 120.0, KEEP_REAL = 320.0, HEAR = 400.0;
     private static final int STEP = 5;
     private static final double SPEED = 0.22 * STEP;
     private static final float TURN = 2.5F * STEP;
@@ -182,9 +183,14 @@ public final class WormManager extends SavedData {
         }
         // real worms whose land runs no more: kept here instead
         for (BigWorm worm : level.getEntities(AbyssalDepths.BIG_WORM.get(), Entity::isAlive)) {
-            if (!level.isPositionEntityTicking(worm.blockPosition())) {
+            if (!level.isLoaded(worm.blockPosition()) || players.stream().noneMatch(p -> p.distanceTo(worm) < KEEP_REAL)) {
                 add(keep(worm));
                 worm.discard();
+            } else if (!level.isPositionEntityTicking(worm.blockPosition())) {
+                // beyond the simulation distance but still in sight: the world does not move it, so it is moved here
+                worm.setOldPosAndRot();
+                worm.tickCount++;
+                level.guardEntityTick(BigWorm::tick, worm);
             }
         }
         for (int i = kept.size() - 1; i >= 0; i--) {
@@ -209,7 +215,7 @@ public final class WormManager extends SavedData {
             }
             // near a player, in running land: real again
             final BlockPos at = BlockPos.containing(k.x, k.y, k.z);
-            if (near < REAL && level.isPositionEntityTicking(at)) {
+            if (near < REAL && level.isLoaded(at)) {
                 final BigWorm worm = AbyssalDepths.BIG_WORM.get().create(level);
                 if (worm != null) {
                     worm.setUUID(k.id);
